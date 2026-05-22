@@ -512,6 +512,15 @@
                 </button>
             </div>
 
+            <!-- Reset Groups -->
+            <div class="glass rounded-2xl p-6 border border-orange-500/25">
+                <h3 class="font-bold text-orange-400 mb-2">🔄 重置为官方分组</h3>
+                <p class="text-xs text-gray-400 mb-3">将分组数据覆盖为 2026 世界杯官方抽签结果（A–L 组，共 48 支球队）。已有的出线预测记录不受影响。</p>
+                <button onclick="resetGroups()" class="w-full bg-orange-950/60 border border-orange-500/40 text-orange-300 font-bold py-2.5 rounded-xl text-sm">
+                    重置分组数据
+                </button>
+            </div>
+
             <!-- Change Password -->
             <div class="glass rounded-2xl p-6">
                 <h3 class="font-bold text-yellow-400 mb-4">🔑 修改管理员密码</h3>
@@ -1478,6 +1487,21 @@ window.changePassword = async function() {
 
     document.getElementById('newPwd').value = '';
     toast('✅ 密码已修改');
+};
+
+window.resetGroups = async function() {
+    if (!confirm('将分组数据重置为 2026 世界杯官方分组？已有的预测记录不受影响。')) return;
+    const groups = defaultGroups();
+    if (demoMode) {
+        groupsData = groups;
+        renderGroups();
+        renderChampion();
+        refreshAdminGroupSelects();
+        refreshAdminChampSelect();
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/groups`), groups);
+    }
+    toast('✅ 分组已重置为官方数据！');
 };
 
 window.resetGame = async function() {
