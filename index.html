@@ -948,6 +948,7 @@ function renderMyPreds() {
 
 // ─── Champion Prediction ──────────────────────────────────
 let champPredsData = {};
+let champPendingPick = null;
 const CHAMP_PHASE1_END = new Date('2026-06-11T01:00:00Z'); // June 11 09:00 CST
 const CHAMP_PHASE2_END = new Date('2026-07-04T16:00:00Z'); // July 5 00:00 CST
 
@@ -980,6 +981,9 @@ function renderChampion() {
     if (!currentUser) return;
     const phase = getChampPhase();
     const myPred = champPredsData[currentUser.id];
+    // If Firebase already has a matching saved pick, discard any pending state
+    const savedPick = myPred?.phase2 || myPred?.phase1;
+    if (champPendingPick && savedPick === champPendingPick) champPendingPick = null;
 
     const phaseLabel = document.getElementById('champPickPhaseLabel');
     if (phaseLabel) {
@@ -1043,7 +1047,7 @@ function renderChampTeamGrid(phase, myPred) {
         return;
     }
 
-    const activePick = myPred?.phase2 || myPred?.phase1;
+    const savedPick = myPred?.phase2 || myPred?.phase1;
     const groups = Object.entries(groupsData).sort((a,b) => a[0].localeCompare(b[0]));
 
     if (!groups.length) {
@@ -1057,42 +1061,88 @@ function renderChampTeamGrid(phase, myPred) {
             <p class="text-xs text-gray-500 font-bold mb-1.5">${g.name||gid+'组'}</p>
             <div class="grid grid-cols-4 gap-1.5">
                 ${(g.teams||[]).map(t => {
-                    const sel = activePick === t.name;
+                    const isPending = champPendingPick === t.name;
+                    const isSaved = savedPick === t.name && !champPendingPick;
+                    let btnCls, indicator;
+                    if (isPending) {
+                        btnCls = 'border-blue-400 bg-blue-400/15';
+                        indicator = `<span class="text-blue-400 font-bold leading-none" style="font-size:8px">待确认</span>`;
+                    } else if (isSaved) {
+                        btnCls = 'border-yellow-400 bg-yellow-400/15';
+                        indicator = `<span class="text-yellow-400 font-bold leading-none" style="font-size:8px">✓ 已选</span>`;
+                    } else {
+                        btnCls = 'border-white/10 glass';
+                        indicator = `<span style="font-size:8px"> </span>`;
+                    }
                     return `<button onclick="selectChampTeam('${t.name}')"
-                        class="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl border-2 transition-all active:scale-95 ${sel ? 'border-yellow-400 bg-yellow-400/15' : 'border-white/10 glass'}">
+                        class="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-xl border-2 transition-all active:scale-95 ${btnCls}">
                         <span class="text-xl leading-none">${t.flag||'🏳️'}</span>
                         <span class="font-bold text-center leading-tight mt-0.5" style="font-size:9px;word-break:keep-all">${t.name}</span>
+                        ${indicator}
                     </button>`;
                 }).join('')}
             </div>
         </div>`;
     });
+
+    // Confirm button when pending
+    if (champPendingPick) {
+        const flag = getTeamFlag(champPendingPick);
+        html += `<div class="sticky bottom-20 mt-2">
+            <div class="glass-dark rounded-2xl p-3 flex items-center gap-3 border border-blue-400/40">
+                <span class="text-3xl">${flag}</span>
+                <div class="flex-1">
+                    <p class="font-black text-white">${champPendingPick}</p>
+                    <p class="text-xs text-gray-400">确认选择为冠军？</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="selectChampTeam('${champPendingPick}')"
+                        class="glass border border-white/20 text-gray-400 text-sm font-bold px-3 py-2 rounded-xl active:scale-95">取消</button>
+                    <button onclick="confirmChampPick()"
+                        class="gold text-black font-black px-4 py-2 rounded-xl active:scale-95 text-sm">确认 ✓</button>
+                </div>
+            </div>
+        </div>`;
+    }
+
     grid.innerHTML = html;
 }
 
-window.selectChampTeam = async function(teamName) {
+window.selectChampTeam = function(teamName) {
     const phase = getChampPhase();
     if (phase === 0) { toast('竞猜已截止', 'error'); return; }
+    // Toggle: tap again cancels pending
+    if (champPendingPick === teamName) {
+        champPendingPick = null;
+    } else {
+        champPendingPick = teamName;
+    }
+    renderChampTeamGrid(phase, champPredsData[currentUser.id]);
+};
+
+window.confirmChampPick = async function() {
+    const phase = getChampPhase();
+    if (phase === 0 || !champPendingPick) return;
+
+    const teamName = champPendingPick;
+    champPendingPick = null;
 
     const existing = champPredsData[currentUser.id];
     let pred;
 
     if (phase === 1) {
         pred = { userId: currentUser.id, phase1: teamName, phase1At: Date.now(), phase2: null, phase2At: null, points: null };
-        toast(`🏆 已选 ${teamName} 为冠军（阶段一）！`);
+        toast(`🏆 ${teamName} 已确认为你的冠军预测！`);
     } else {
         if (!existing?.phase1) {
             pred = { userId: currentUser.id, phase1: teamName, phase1At: Date.now(), phase2: null, phase2At: null, points: null };
-            toast(`✅ 冠军预测已提交（阶段二·猜中得5分）`);
-        } else if (existing.phase2 === teamName) {
-            pred = { ...existing, phase2: null, phase2At: null };
-            toast(`↩ 已恢复阶段一预测: ${existing.phase1}`);
+            toast(`✅ 冠军预测已提交（猜中得5分）`);
         } else if (existing.phase1 === teamName) {
             pred = { ...existing, phase2: null, phase2At: null };
             toast(`✅ 已保留阶段一预测: ${teamName}`);
         } else {
             pred = { ...existing, phase2: teamName, phase2At: Date.now() };
-            toast(`🔄 阶段二改选: ${teamName}（原:${existing.phase1}）`);
+            toast(`🔄 阶段二改选确认: ${teamName}`);
         }
     }
 
