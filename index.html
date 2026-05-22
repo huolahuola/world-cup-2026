@@ -204,17 +204,60 @@
 
     <!-- Tabs -->
     <div class="flex border-b border-white/8 bg-black/20 px-1 overflow-x-auto scrollbar-hide">
-        <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn active py-3.5 px-3 font-bold text-sm whitespace-nowrap">🏆 分组出线</button>
-        <button onclick="switchTab('matches')" id="tab-matches" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">⚽ 比赛</button>
-        <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">🏅 排行</button>
+        <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active py-3.5 px-3 font-bold text-sm whitespace-nowrap">🏆 冠军</button>
+        <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">🏅 出线</button>
+        <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">⚽ 淘汰赛</button>
+        <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📊 排行</button>
         <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📝 我的</button>
     </div>
 
     <!-- Content -->
     <div class="p-4 space-y-3">
 
+        <!-- Champion Prediction -->
+        <div id="content-champion">
+            <div class="glass rounded-2xl p-4 mb-3 text-center">
+                <p class="font-black text-xl gold-text">🏆 冠军竞猜</p>
+                <p class="text-xs text-gray-400 mt-0.5">预测 2026 世界杯最终冠军球队</p>
+            </div>
+
+            <div class="glass rounded-2xl mb-3 overflow-hidden">
+                <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.arrow').classList.toggle('rotate-180')"
+                    class="w-full flex items-center justify-between px-4 py-3 text-left">
+                    <span class="font-bold text-sm">📋 积分规则</span>
+                    <span class="arrow text-gray-400 text-xs transition-transform duration-200">▼</span>
+                </button>
+                <div class="hidden px-4 pb-4">
+                    <div class="glass-dark rounded-xl p-3 text-xs space-y-1.5 text-gray-300">
+                        <p class="font-bold text-yellow-400 mb-1">两阶段冠军竞猜</p>
+                        <p>📌 <b class="text-white">阶段一</b>：开幕前选定（截止 6月11日 开幕）</p>
+                        <p>📌 <b class="text-white">阶段二</b>：淘汰赛前可选择修改（截止 7月4日）</p>
+                        <div class="mt-2 pt-2 border-t border-white/10 space-y-1">
+                            <p>🥇 阶段一选定 <b class="text-white">未修改</b>，冠军猜中 → <span class="text-yellow-400 font-black">+10分</span></p>
+                            <p>🔄 阶段二<b class="text-white">改选</b>后猜中冠军 → <span class="text-green-400 font-black">+5分</span></p>
+                            <p>❌ 改选后未猜中 / 未选择 → <span class="text-gray-500">+0分</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="champMyPickCard" class="glass rounded-2xl p-4 mb-3">
+                <div class="text-center py-4 text-gray-500">加载中...</div>
+            </div>
+
+            <div class="glass rounded-2xl p-4 mb-3">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="font-bold text-sm">选择你的冠军球队</p>
+                    <span id="champPickPhaseLabel" class="text-xs text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full">阶段一</span>
+                </div>
+                <div id="champTeamGrid">
+                    <div class="shimmer rounded-xl h-20"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Groups -->
-        <div id="content-groups">
+        <div id="content-groups" class="hidden">
             <div class="glass rounded-2xl p-3 mb-3 text-center">
                 <p class="font-black gold-text">小组出线竞猜</p>
                 <p class="text-xs text-gray-400 mt-0.5">猜中出线 <span class="text-yellow-400 font-bold">+2分</span> · 猜中小组第一 <span class="text-green-400 font-bold">+1分</span></p>
@@ -270,8 +313,8 @@
             </div>
         </div>
 
-        <!-- Matches -->
-        <div id="content-matches" class="hidden">
+        <!-- Knockout Matches -->
+        <div id="content-knockout" class="hidden">
             <div id="matchesContainer">
                 <div class="shimmer rounded-2xl h-24 mb-3"></div>
                 <div class="shimmer rounded-2xl h-24 mb-3"></div>
@@ -366,9 +409,19 @@
                 </div>
             </div>
 
+            <!-- Champion Result -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-3">🏆 录入冠军结果</h3>
+                <p class="text-xs text-gray-400 mb-3">决赛结束后选择冠军，系统自动结算所有人的冠军竞猜积分。</p>
+                <select id="champResultSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <option value="">— 选择冠军球队 —</option>
+                </select>
+                <button onclick="submitChampResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认冠军并计算积分</button>
+            </div>
+
             <!-- Enter Results -->
             <div class="glass rounded-2xl p-6">
-                <h3 class="font-bold text-yellow-400 mb-4">📊 录入比赛结果</h3>
+                <h3 class="font-bold text-yellow-400 mb-4">📊 录入淘汰赛结果</h3>
                 <select id="resultMatchSel"
                     class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
                     <option value="">— 选择一场比赛 —</option>
@@ -633,6 +686,7 @@ function startApp() {
     document.getElementById('headerRoom').textContent = `房间: ${currentRoom}${demoMode ? ' (演示)' : ''}`;
 
     loadGroups();
+    loadChampPreds();
 
     if (demoMode) {
         matchesData = demo.matches;
@@ -659,13 +713,18 @@ function startApp() {
 }
 
 // ─── Render: Matches ─────────────────────────────────────
+const KNOCKOUT_STAGES = ['32强', '16强', '8强', '半决赛', '三四名', '决赛'];
+
 function renderMatches() {
     const container = document.getElementById('matchesContainer');
-    const entries = Object.entries(matchesData);
+    const entries = Object.entries(matchesData)
+        .filter(([, m]) => KNOCKOUT_STAGES.includes(m.stage));
     if (!entries.length) {
         container.innerHTML = `<div class="text-center py-16 text-gray-500">
-            <p class="text-5xl mb-4">⚽</p><p>暂无比赛数据</p>
-            <p class="text-sm mt-1">请管理员添加比赛</p></div>`;
+            <p class="text-5xl mb-4">🏆</p>
+            <p class="font-bold">淘汰赛对阵待定</p>
+            <p class="text-sm mt-2 text-gray-600">小组赛结束后公布（约7月4日起）</p>
+            <p class="text-xs mt-1 text-gray-700">现可在「出线」标签预测小组晋级球队</p></div>`;
         return;
     }
 
@@ -799,47 +858,296 @@ function updateHeaderPoints() {
 // ─── Render: My Predictions ───────────────────────────────
 function renderMyPreds() {
     const container = document.getElementById('myPredsContainer');
+    let html = '';
+
+    // Champion prediction
+    const myChamp = champPredsData[currentUser?.id];
+    if (myChamp?.phase1) {
+        const activePick = myChamp.phase2 || myChamp.phase1;
+        let ptsBadge = '';
+        if (myChamp.points !== null && myChamp.points !== undefined) {
+            const c = myChamp.points >= 10 ? 'bg-yellow-500 text-black' : myChamp.points >= 5 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+            ptsBadge = `<span class="${c} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.points}分</span>`;
+        } else {
+            ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
+        }
+        html += `<p class="text-xs text-gray-500 font-bold pb-1">冠军竞猜</p>
+        <div class="glass rounded-xl p-4 flex items-center gap-3 mb-1">
+            <span class="text-3xl">${getTeamFlag(activePick)}</span>
+            <div class="flex-1 min-w-0">
+                <p class="font-black text-white">${activePick}</p>
+                ${myChamp.phase2
+                    ? `<p class="text-xs text-orange-400">阶段一:${myChamp.phase1} → 阶段二改:${myChamp.phase2}</p>`
+                    : `<p class="text-xs text-gray-500">阶段一选定（未修改·猜中得10分）</p>`}
+            </div>
+            ${ptsBadge}
+        </div>`;
+    }
+
+    // Group predictions
+    const myGroupPreds = Object.entries(groupPredsData).filter(([k]) => k.startsWith(currentUser.id + '_'));
+    if (myGroupPreds.length) {
+        html += `<p class="text-xs text-gray-500 font-bold pt-2 pb-1">小组出线预测</p>`;
+        myGroupPreds.sort((a,b) => a[0].localeCompare(b[0])).forEach(([, p]) => {
+            const g = groupsData[p.groupId];
+            let ptsBadge = '';
+            if (p.points !== null && p.points !== undefined) {
+                const c = p.points >= 4 ? 'bg-yellow-500 text-black' : p.points >= 1 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+                ptsBadge = `<span class="${c} text-xs px-2 py-1 rounded-full font-bold">+${p.points}分</span>`;
+            } else {
+                ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
+            }
+            html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs text-gray-400">${g?.name || p.groupId+'组'}</p>
+                    <p class="text-sm font-bold leading-tight">${(p.qualified||[]).join(' · ')}</p>
+                    ${p.winner ? `<p class="text-xs text-yellow-400">👑 第一: ${p.winner}</p>` : ''}
+                    ${p.thirdBet ? `<p class="text-xs text-orange-400">🎲 押第三: ${p.thirdBet}</p>` : ''}
+                </div>
+                ${ptsBadge}
+            </div>`;
+        });
+    }
+
+    // Match (knockout) predictions
     const mine = Object.entries(predsData).filter(([k]) => k.startsWith(currentUser.id + '_'));
-    if (!mine.length) {
-        container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">📝</p><p>还没有预测记录</p><p class="text-sm mt-1">在「比赛」标签选择场次开始预测</p></div>`;
+    if (mine.length) {
+        html += `<p class="text-xs text-gray-500 font-bold pt-2 pb-1">淘汰赛比分预测</p>`;
+        mine.sort((a, b) => (b[1].submittedAt||0) - (a[1].submittedAt||0)).forEach(([, p]) => {
+            const m = matchesData[p.matchId];
+            if (!m) return;
+            let ptsBadge = '';
+            if (p.points !== null && p.points !== undefined) {
+                const cfg = { 3: ['bg-yellow-500 text-black', '✅ 精确 +3'], 1: ['bg-green-700', '✓ 正确 +1'], 0: ['bg-gray-700 text-gray-400', '✗ 未中 +0'] };
+                const [cls, lbl] = cfg[p.points] || ['bg-gray-700', `+${p.points}`];
+                ptsBadge = `<span class="${cls} text-xs px-2 py-1 rounded-full font-bold">${lbl}</span>`;
+            } else {
+                ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">等待结果</span>`;
+            }
+            const resultLine = m.status === 'finished' ? `<p class="text-xs text-gray-500 mt-0.5">实际: ${m.homeScore}:${m.awayScore}</p>` : '';
+            html += `<div class="glass rounded-xl p-4 flex items-center gap-3 mb-1">
+                <div class="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
+                    <span class="text-xl">${m.homeFlag||'🏳️'}</span>
+                    <span class="font-bold text-sm">${m.homeTeam}</span>
+                    <span class="font-black text-yellow-300 px-1">${p.homeScore}:${p.awayScore}</span>
+                    <span class="font-bold text-sm">${m.awayTeam}</span>
+                    <span class="text-xl">${m.awayFlag||'🏳️'}</span>
+                    ${resultLine}
+                </div>
+                ${ptsBadge}
+            </div>`;
+        });
+    }
+
+    if (!html) {
+        container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">📝</p><p>还没有预测记录</p><p class="text-sm mt-1">在各竞猜标签页开始预测吧</p></div>`;
+        return;
+    }
+    container.innerHTML = html;
+}
+
+// ─── Champion Prediction ──────────────────────────────────
+let champPredsData = {};
+const CHAMP_PHASE1_END = new Date('2026-06-11T01:00:00Z'); // June 11 09:00 CST
+const CHAMP_PHASE2_END = new Date('2026-07-04T16:00:00Z'); // July 5 00:00 CST
+
+function getChampPhase() {
+    const now = new Date();
+    if (now < CHAMP_PHASE1_END) return 1;
+    if (now < CHAMP_PHASE2_END) return 2;
+    return 0;
+}
+
+function loadChampPreds() {
+    if (demoMode) { renderChampion(); return; }
+    onValue(ref(db, `rooms/${currentRoom}/champPreds`), snap => {
+        champPredsData = snap.exists() ? snap.val() : {};
+        renderChampion();
+        renderMyPreds();
+    });
+}
+
+function getTeamFlag(name) {
+    if (!name) return '🏳️';
+    for (const g of Object.values(groupsData)) {
+        const t = (g.teams||[]).find(t => t.name === name);
+        if (t) return t.flag || '🏳️';
+    }
+    return '🏳️';
+}
+
+function renderChampion() {
+    if (!currentUser) return;
+    const phase = getChampPhase();
+    const myPred = champPredsData[currentUser.id];
+
+    const phaseLabel = document.getElementById('champPickPhaseLabel');
+    if (phaseLabel) {
+        if (phase === 1) {
+            phaseLabel.textContent = '阶段一';
+            phaseLabel.className = 'text-xs text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full';
+        } else if (phase === 2) {
+            phaseLabel.textContent = '阶段二·可修改';
+            phaseLabel.className = 'text-xs text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded-full';
+        } else {
+            phaseLabel.textContent = '已锁定';
+            phaseLabel.className = 'text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full';
+        }
+    }
+
+    const card = document.getElementById('champMyPickCard');
+    if (card) {
+        if (!myPred?.phase1) {
+            const msg = phase === 0 ? '竞猜已截止' : phase === 1 ? '截止 6月11日开幕前' : '截止 7月4日淘汰赛前';
+            card.innerHTML = `<p class="font-bold text-sm mb-3 text-gray-300">我的冠军预测</p>
+                <div class="glass-dark rounded-xl p-4 text-center">
+                    <p class="text-3xl mb-1">${phase === 0 ? '🔒' : '🤔'}</p>
+                    <p class="text-sm text-gray-400">${phase === 0 ? '未参与冠军竞猜' : '还没有选择冠军'}</p>
+                    ${phase !== 0 ? `<p class="text-xs text-gray-600 mt-1">${msg}</p>` : ''}
+                </div>`;
+        } else {
+            const activePick = myPred.phase2 || myPred.phase1;
+            let ptsBadge = '';
+            if (myPred.points !== null && myPred.points !== undefined) {
+                const c = myPred.points >= 10 ? 'bg-yellow-500 text-black' : myPred.points >= 5 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+                ptsBadge = `<span class="${c} text-xs px-2.5 py-1 rounded-full font-black ml-1">+${myPred.points}分</span>`;
+            } else {
+                ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full ml-1">待揭晓</span>`;
+            }
+            const p2Hint = myPred.phase2
+                ? `<p class="text-xs text-orange-400 mt-0.5">阶段一:${myPred.phase1} → 阶段二改:${myPred.phase2}</p>`
+                : (phase === 2 ? `<p class="text-xs text-orange-400 mt-0.5">💡 可修改至阶段二（截止7月4日）</p>` : `<p class="text-xs text-gray-500 mt-0.5">阶段一选定（未修改·猜中得10分）</p>`);
+            card.innerHTML = `<p class="font-bold text-sm mb-3 text-gray-300">我的冠军预测</p>
+                <div class="glass-dark rounded-xl p-3 flex items-center gap-3">
+                    <span class="text-4xl">${getTeamFlag(activePick)}</span>
+                    <div class="flex-1">
+                        <div class="flex items-center flex-wrap gap-1">
+                            <span class="font-black text-white text-lg">${activePick}</span>
+                            ${ptsBadge}
+                        </div>
+                        ${p2Hint}
+                    </div>
+                </div>`;
+        }
+    }
+
+    renderChampTeamGrid(phase, myPred);
+}
+
+function renderChampTeamGrid(phase, myPred) {
+    const grid = document.getElementById('champTeamGrid');
+    if (!grid) return;
+
+    if (phase === 0) {
+        grid.innerHTML = `<div class="text-center py-6 text-gray-500"><p class="text-2xl mb-2">🔒</p><p class="text-sm">竞猜已截止，无法修改预测</p></div>`;
+        return;
+    }
+
+    const activePick = myPred?.phase2 || myPred?.phase1;
+    const groups = Object.entries(groupsData).sort((a,b) => a[0].localeCompare(b[0]));
+
+    if (!groups.length) {
+        grid.innerHTML = `<div class="shimmer rounded-xl h-20"></div>`;
         return;
     }
 
     let html = '';
-    mine.sort((a, b) => (b[1].submittedAt||0) - (a[1].submittedAt||0)).forEach(([, p]) => {
-        const m = matchesData[p.matchId];
-        if (!m) return;
-
-        let ptsBadge = '';
-        if (p.points !== null && p.points !== undefined) {
-            const cfg = { 3: ['bg-yellow-500 text-black', '✅ 精确 +3'], 1: ['bg-green-700', '✓ 正确 +1'], 0: ['bg-gray-700 text-gray-400', '✗ 未中 +0'] };
-            const [cls, lbl] = cfg[p.points] || ['bg-gray-700', `+${p.points}`];
-            ptsBadge = `<span class="${cls} text-xs px-2 py-1 rounded-full font-bold">${lbl}</span>`;
-        } else {
-            ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">等待结果</span>`;
-        }
-
-        let resultLine = '';
-        if (m.status === 'finished') {
-            resultLine = `<p class="text-xs text-gray-500 mt-0.5">实际: ${m.homeScore}:${m.awayScore}</p>`;
-        }
-
-        html += `
-        <div class="glass rounded-xl p-4 flex items-center gap-3">
-            <div class="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
-                <span class="text-xl">${m.homeFlag||'🏳️'}</span>
-                <span class="font-bold text-sm">${m.homeTeam}</span>
-                <span class="font-black text-yellow-300 px-1">${p.homeScore}:${p.awayScore}</span>
-                <span class="font-bold text-sm">${m.awayTeam}</span>
-                <span class="text-xl">${m.awayFlag||'🏳️'}</span>
-                ${resultLine}
+    groups.forEach(([gid, g]) => {
+        html += `<div class="mb-3">
+            <p class="text-xs text-gray-500 font-bold mb-1.5">${g.name||gid+'组'}</p>
+            <div class="grid grid-cols-4 gap-1.5">
+                ${(g.teams||[]).map(t => {
+                    const sel = activePick === t.name;
+                    return `<button onclick="selectChampTeam('${t.name}')"
+                        class="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl border-2 transition-all active:scale-95 ${sel ? 'border-yellow-400 bg-yellow-400/15' : 'border-white/10 glass'}">
+                        <span class="text-xl leading-none">${t.flag||'🏳️'}</span>
+                        <span class="font-bold text-center leading-tight mt-0.5" style="font-size:9px;word-break:keep-all">${t.name}</span>
+                    </button>`;
+                }).join('')}
             </div>
-            ${ptsBadge}
         </div>`;
     });
-
-    document.getElementById('myPredsContainer').innerHTML = html;
+    grid.innerHTML = html;
 }
+
+window.selectChampTeam = async function(teamName) {
+    const phase = getChampPhase();
+    if (phase === 0) { toast('竞猜已截止', 'error'); return; }
+
+    const existing = champPredsData[currentUser.id];
+    let pred;
+
+    if (phase === 1) {
+        pred = { userId: currentUser.id, phase1: teamName, phase1At: Date.now(), phase2: null, phase2At: null, points: null };
+        toast(`🏆 已选 ${teamName} 为冠军（阶段一）！`);
+    } else {
+        if (!existing?.phase1) {
+            pred = { userId: currentUser.id, phase1: teamName, phase1At: Date.now(), phase2: null, phase2At: null, points: null };
+            toast(`✅ 冠军预测已提交（阶段二·猜中得5分）`);
+        } else if (existing.phase2 === teamName) {
+            pred = { ...existing, phase2: null, phase2At: null };
+            toast(`↩ 已恢复阶段一预测: ${existing.phase1}`);
+        } else if (existing.phase1 === teamName) {
+            pred = { ...existing, phase2: null, phase2At: null };
+            toast(`✅ 已保留阶段一预测: ${teamName}`);
+        } else {
+            pred = { ...existing, phase2: teamName, phase2At: Date.now() };
+            toast(`🔄 阶段二改选: ${teamName}（原:${existing.phase1}）`);
+        }
+    }
+
+    if (demoMode) {
+        champPredsData[currentUser.id] = pred;
+        renderChampion();
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred);
+    }
+};
+
+function refreshAdminChampSelect() {
+    const sel = document.getElementById('champResultSel');
+    if (!sel) return;
+    const teams = [];
+    Object.entries(groupsData).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([,g]) => {
+        (g.teams||[]).forEach(t => teams.push(t));
+    });
+    sel.innerHTML = '<option value="">— 选择冠军球队 —</option>' +
+        teams.map(t => `<option value="${t.name}">${t.flag||''} ${t.name}</option>`).join('');
+}
+
+window.submitChampResult = async function() {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    const champion = document.getElementById('champResultSel').value;
+    if (!champion) { toast('请选择冠军球队', 'error'); return; }
+    if (!confirm(`确认 ${champion} 为2026世界杯冠军？此操作将结算所有人的冠军积分。`)) return;
+
+    const [champSnap, scoresSnap] = await Promise.all([
+        get(ref(db, `rooms/${currentRoom}/champPreds`)),
+        get(ref(db, `rooms/${currentRoom}/scores`))
+    ]);
+    const allPreds = champSnap.exists() ? champSnap.val() : {};
+    const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+    const updates = {};
+
+    updates[`rooms/${currentRoom}/settings/champion`] = champion;
+
+    Object.entries(allPreds)
+        .filter(([,p]) => p.points === null)
+        .forEach(([uid, p]) => {
+            const finalPick = p.phase2 || p.phase1;
+            const pts = (finalPick === champion) ? (p.phase2 ? 5 : 10) : 0;
+            updates[`rooms/${currentRoom}/champPreds/${uid}/points`] = pts;
+            const s = allScores[uid] || { total:0, exact:0, correct:0, wrong:0 };
+            s.total = (s.total||0) + pts;
+            if (pts >= 10) s.exact = (s.exact||0) + 1;
+            else if (pts >= 1) s.correct = (s.correct||0) + 1;
+            else s.wrong = (s.wrong||0) + 1;
+            updates[`rooms/${currentRoom}/scores/${uid}`] = s;
+        });
+
+    await update(ref(db, '/'), updates);
+    toast(`✅ ${champion} 已设为冠军，积分结算完毕！`);
+};
 
 // ─── Prediction Modal ─────────────────────────────────────
 window.openPredictModal = function(matchId) {
@@ -892,7 +1200,7 @@ window.submitPrediction = async function() {
 
 // ─── Tab Switching ────────────────────────────────────────
 window.switchTab = function(tab) {
-    ['groups','matches','leaderboard','myPreds'].forEach(t => {
+    ['champion','groups','knockout','leaderboard','myPreds'].forEach(t => {
         const el = document.getElementById(`content-${t}`);
         if (el) el.classList.add('hidden');
         const btn = document.getElementById(`tab-${t}`);
@@ -904,6 +1212,7 @@ window.switchTab = function(tab) {
     activeBtn.classList.remove('text-gray-400');
 
     if (tab === 'myPreds') renderMyPreds();
+    if (tab === 'champion') renderChampion();
 };
 
 // ─── Admin ────────────────────────────────────────────────
@@ -936,6 +1245,7 @@ window.adminLogin = async function() {
         show('adminContent');
         refreshResultMatchSelect();
         refreshAdminGroupSelects();
+        refreshAdminChampSelect();
     } else {
         toast('密码错误', 'error');
     }
@@ -1211,6 +1521,7 @@ async function loadGroups() {
     if (demoMode) {
         groupsData = defaultGroups();
         renderGroups();
+        renderChampion();
         return;
     }
     onValue(ref(db, `rooms/${currentRoom}/groups`), async snap => {
@@ -1222,6 +1533,7 @@ async function loadGroups() {
         }
         renderGroups();
         refreshAdminGroupSelects();
+        renderChampion();
     });
     onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
         groupPredsData = snap.exists() ? snap.val() : {};
@@ -1330,8 +1642,8 @@ function renderGroupTeamButtons(teams) {
         if (isOut) {
             borderCls = 'border-yellow-400 bg-yellow-400/10';
             badge = `<button onclick="event.stopPropagation(); toggleGroupWinner('${t.name}')"
-                class="text-base px-1.5 py-0.5 rounded-lg ${isWinner ? 'gold text-black' : 'glass border border-white/20 text-gray-500'}"
-                title="设为小组第一">👑</button>`;
+                class="text-base px-1.5 py-0.5 rounded-lg transition-all ${isWinner ? 'gold text-black' : 'glass border border-white/20 text-gray-400'}"
+                title="设为小组第一">${isWinner ? '👑' : '<span class="text-xs">押第一？</span>'}</button>`;
             rightIcon = '<span class="text-yellow-400 font-black">出线✓</span>';
         } else if (isThird) {
             borderCls = 'border-orange-400 bg-orange-400/10';
@@ -1550,21 +1862,21 @@ function calcGroupPts(predQ, realQ, predW, realW, predThird, realThird) {
     return pts;
 }
 
-// ─── Default Groups Data ──────────────────────────────────
+// ─── Default Groups Data (Real 2026 WC Draw) ─────────────
 function defaultGroups() {
     return {
-        A: { name:'A组', teams:[{name:'美国',flag:'🇺🇸'},{name:'摩洛哥',flag:'🇲🇦'},{name:'葡萄牙',flag:'🇵🇹'},{name:'巴拿马',flag:'🇵🇦'}], qualified:null, winner:null },
-        B: { name:'B组', teams:[{name:'墨西哥',flag:'🇲🇽'},{name:'厄瓜多尔',flag:'🇪🇨'},{name:'波兰',flag:'🇵🇱'},{name:'科特迪瓦',flag:'🇨🇮'}], qualified:null, winner:null },
-        C: { name:'C组', teams:[{name:'加拿大',flag:'🇨🇦'},{name:'荷兰',flag:'🇳🇱'},{name:'喀麦隆',flag:'🇨🇲'},{name:'沙特',flag:'🇸🇦'}], qualified:null, winner:null },
-        D: { name:'D组', teams:[{name:'阿根廷',flag:'🇦🇷'},{name:'英格兰',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},{name:'塞内加尔',flag:'🇸🇳'},{name:'玻利维亚',flag:'🇧🇴'}], qualified:null, winner:null },
-        E: { name:'E组', teams:[{name:'巴西',flag:'🇧🇷'},{name:'日本',flag:'🇯🇵'},{name:'澳大利亚',flag:'🇦🇺'},{name:'尼日利亚',flag:'🇳🇬'}], qualified:null, winner:null },
-        F: { name:'F组', teams:[{name:'法国',flag:'🇫🇷'},{name:'比利时',flag:'🇧🇪'},{name:'哥伦比亚',flag:'🇨🇴'},{name:'突尼斯',flag:'🇹🇳'}], qualified:null, winner:null },
-        G: { name:'G组', teams:[{name:'西班牙',flag:'🇪🇸'},{name:'乌拉圭',flag:'🇺🇾'},{name:'喀麦隆',flag:'🇨🇲'},{name:'伊拉克',flag:'🇮🇶'}], qualified:null, winner:null },
-        H: { name:'H组', teams:[{name:'德国',flag:'🇩🇪'},{name:'克罗地亚',flag:'🇭🇷'},{name:'伊朗',flag:'🇮🇷'},{name:'朝鲜',flag:'🇰🇵'}], qualified:null, winner:null },
-        I: { name:'I组', teams:[{name:'葡萄牙',flag:'🇵🇹'},{name:'韩国',flag:'🇰🇷'},{name:'委内瑞拉',flag:'🇻🇪'},{name:'马里',flag:'🇲🇱'}], qualified:null, winner:null },
-        J: { name:'J组', teams:[{name:'荷兰',flag:'🇳🇱'},{name:'土耳其',flag:'🇹🇷'},{name:'智利',flag:'🇨🇱'},{name:'南非',flag:'🇿🇦'}], qualified:null, winner:null },
-        K: { name:'K组', teams:[{name:'意大利',flag:'🇮🇹'},{name:'瑞士',flag:'🇨🇭'},{name:'埃及',flag:'🇪🇬'},{name:'新西兰',flag:'🇳🇿'}], qualified:null, winner:null },
-        L: { name:'L组', teams:[{name:'丹麦',flag:'🇩🇰'},{name:'奥地利',flag:'🇦🇹'},{name:'秘鲁',flag:'🇵🇪'},{name:'阿尔及利亚',flag:'🇩🇿'}], qualified:null, winner:null },
+        A: { name:'A组', teams:[{name:'墨西哥',flag:'🇲🇽'},{name:'南非',flag:'🇿🇦'},{name:'韩国',flag:'🇰🇷'},{name:'捷克',flag:'🇨🇿'}], qualified:null, winner:null },
+        B: { name:'B组', teams:[{name:'加拿大',flag:'🇨🇦'},{name:'瑞士',flag:'🇨🇭'},{name:'卡塔尔',flag:'🇶🇦'},{name:'波黑',flag:'🇧🇦'}], qualified:null, winner:null },
+        C: { name:'C组', teams:[{name:'巴西',flag:'🇧🇷'},{name:'摩洛哥',flag:'🇲🇦'},{name:'海地',flag:'🇭🇹'},{name:'苏格兰',flag:'🏴󠁧󠁢󠁳󠁣󠁴󠁿'}], qualified:null, winner:null },
+        D: { name:'D组', teams:[{name:'美国',flag:'🇺🇸'},{name:'巴拉圭',flag:'🇵🇾'},{name:'澳大利亚',flag:'🇦🇺'},{name:'土耳其',flag:'🇹🇷'}], qualified:null, winner:null },
+        E: { name:'E组', teams:[{name:'德国',flag:'🇩🇪'},{name:'库拉索',flag:'🇨🇼'},{name:'科特迪瓦',flag:'🇨🇮'},{name:'厄瓜多尔',flag:'🇪🇨'}], qualified:null, winner:null },
+        F: { name:'F组', teams:[{name:'荷兰',flag:'🇳🇱'},{name:'日本',flag:'🇯🇵'},{name:'突尼斯',flag:'🇹🇳'},{name:'瑞典',flag:'🇸🇪'}], qualified:null, winner:null },
+        G: { name:'G组', teams:[{name:'比利时',flag:'🇧🇪'},{name:'埃及',flag:'🇪🇬'},{name:'伊朗',flag:'🇮🇷'},{name:'新西兰',flag:'🇳🇿'}], qualified:null, winner:null },
+        H: { name:'H组', teams:[{name:'西班牙',flag:'🇪🇸'},{name:'佛得角',flag:'🇨🇻'},{name:'沙特',flag:'🇸🇦'},{name:'乌拉圭',flag:'🇺🇾'}], qualified:null, winner:null },
+        I: { name:'I组', teams:[{name:'法国',flag:'🇫🇷'},{name:'塞内加尔',flag:'🇸🇳'},{name:'挪威',flag:'🇳🇴'},{name:'伊拉克',flag:'🇮🇶'}], qualified:null, winner:null },
+        J: { name:'J组', teams:[{name:'阿根廷',flag:'🇦🇷'},{name:'阿尔及利亚',flag:'🇩🇿'},{name:'奥地利',flag:'🇦🇹'},{name:'约旦',flag:'🇯🇴'}], qualified:null, winner:null },
+        K: { name:'K组', teams:[{name:'葡萄牙',flag:'🇵🇹'},{name:'乌兹别克斯坦',flag:'🇺🇿'},{name:'哥伦比亚',flag:'🇨🇴'},{name:'刚果',flag:'🇨🇩'}], qualified:null, winner:null },
+        L: { name:'L组', teams:[{name:'英格兰',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},{name:'克罗地亚',flag:'🇭🇷'},{name:'加纳',flag:'🇬🇭'},{name:'巴拿马',flag:'🇵🇦'}], qualified:null, winner:null },
     };
 }
 
