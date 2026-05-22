@@ -449,40 +449,60 @@ window.login = async function() {
     const room = document.getElementById('loginRoom').value.trim() || 'public';
     if (!name) { toast('请输入昵称', 'error'); return; }
 
+    const btn = document.querySelector('#loginModal button');
+    btn.textContent = '加入中...';
+    btn.disabled = true;
+
     currentRoom = room;
 
-    if (demoMode) {
-        currentUser = { id: 'demo_' + name, name };
-        if (!demo.scores[currentUser.id]) {
-            demo.scores[currentUser.id] = { name, total: 0, exact: 0, correct: 0, wrong: 0 };
-        }
-    } else {
-        // Check if name already used in this room
-        const usersSnap = await get(ref(db, `rooms/${room}/users`));
-        let uid = null;
-        if (usersSnap.exists()) {
-            const users = usersSnap.val();
-            const match = Object.entries(users).find(([, u]) => u.name === name);
-            uid = match ? match[0] : null;
-        }
-        if (!uid) {
-            uid = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-            await set(ref(db, `rooms/${room}/users/${uid}`), { name, joinedAt: Date.now() });
-            await set(ref(db, `rooms/${room}/scores/${uid}`), { name, total: 0, exact: 0, correct: 0, wrong: 0 });
-            // Seed matches & settings if room is new
-            const mSnap = await get(ref(db, `rooms/${room}/matches`));
-            if (!mSnap.exists()) {
-                await set(ref(db, `rooms/${room}/matches`), defaultMatches());
-                await set(ref(db, `rooms/${room}/settings`), { adminPassword: ADMIN_DEFAULT_PWD });
+    try {
+        if (demoMode || !db) {
+            demoMode = true;
+            currentUser = { id: 'demo_' + name, name };
+            if (!demo.scores[currentUser.id]) {
+                demo.scores[currentUser.id] = { name, total: 0, exact: 0, correct: 0, wrong: 0 };
             }
+        } else {
+            const usersSnap = await get(ref(db, `rooms/${room}/users`));
+            let uid = null;
+            if (usersSnap.exists()) {
+                const users = usersSnap.val();
+                const match = Object.entries(users).find(([, u]) => u.name === name);
+                uid = match ? match[0] : null;
+            }
+            if (!uid) {
+                uid = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+                await set(ref(db, `rooms/${room}/users/${uid}`), { name, joinedAt: Date.now() });
+                await set(ref(db, `rooms/${room}/scores/${uid}`), { name, total: 0, exact: 0, correct: 0, wrong: 0 });
+                const mSnap = await get(ref(db, `rooms/${room}/matches`));
+                if (!mSnap.exists()) {
+                    await set(ref(db, `rooms/${room}/matches`), defaultMatches());
+                    await set(ref(db, `rooms/${room}/settings`), { adminPassword: ADMIN_DEFAULT_PWD });
+                }
+            }
+            currentUser = { id: uid, name };
         }
-        currentUser = { id: uid, name };
-    }
 
-    localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
-    localStorage.setItem('wc2026_room', currentRoom);
-    hide('loginModal');
-    startApp();
+        localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
+        localStorage.setItem('wc2026_room', currentRoom);
+        hide('loginModal');
+        startApp();
+    } catch(e) {
+        console.error('登录错误:', e);
+        toast('连接失败，以单机模式加入：' + (e.message||e), 'error');
+        // Fall back to demo mode
+        demoMode = true;
+        demo.matches = defaultMatches();
+        currentUser = { id: 'demo_' + name, name };
+        demo.scores[currentUser.id] = { name, total: 0, exact: 0, correct: 0, wrong: 0 };
+        localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
+        localStorage.setItem('wc2026_room', currentRoom);
+        hide('loginModal');
+        startApp();
+    } finally {
+        btn.textContent = '加入游戏 →';
+        btn.disabled = false;
+    }
 };
 
 // ─── App Start ────────────────────────────────────────────
