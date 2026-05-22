@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 2026 世界杯竞猜</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #050d1a 0%, #0a1628 50%, #0d0a1e 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .glass {
+            background: rgba(255,255,255,0.06);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .glass-dark {
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .gold { background: linear-gradient(135deg, #f7c948, #e89c00); }
+        .gold-text { background: linear-gradient(135deg, #f7c948, #e89c00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .score-input {
+            width: 56px; height: 56px;
+            text-align: center; font-size: 1.5rem; font-weight: 800;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 12px; color: white;
+            -moz-appearance: textfield;
+        }
+        .score-input::-webkit-outer-spin-button,
+        .score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .score-input:focus { outline: none; border-color: #f7c948; background: rgba(247,201,72,0.1); }
+        .tab-btn { transition: all 0.2s; border-bottom: 3px solid transparent; }
+        .tab-btn.active { border-bottom-color: #f7c948; color: #f7c948; }
+        .match-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .match-card:hover { transform: translateY(-2px); }
+        .rank-gold { background: linear-gradient(135deg, #f7c948, #e89c00); color: #000; }
+        .rank-silver { background: linear-gradient(135deg, #d4d4d4, #a0a0a0); color: #000; }
+        .rank-bronze { background: linear-gradient(135deg, #d4855a, #b05a30); color: #fff; }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        .slide-up { animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+        .shimmer { background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        select option { background: #1a2035; color: white; }
+    </style>
+</head>
+<body class="text-white">
+
+<!-- ══════════ FIREBASE SETUP MODAL ══════════ -->
+<div id="firebaseModal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden p-4">
+    <div class="glass rounded-3xl p-8 max-w-lg w-full slide-up">
+        <div class="text-center mb-6">
+            <div class="text-5xl mb-3">⚙️</div>
+            <h2 class="text-2xl font-black gold-text">首次配置 Firebase</h2>
+            <p class="text-gray-400 text-sm mt-1">配置后多人实时同步，也可先用演示模式体验</p>
+        </div>
+
+        <div class="glass-dark rounded-2xl p-4 mb-4 text-sm space-y-2 text-gray-300">
+            <p class="font-bold text-yellow-400">📋 三步获取 Firebase 配置：</p>
+            <p>1. 访问 <span class="text-blue-400 font-mono">console.firebase.google.com</span> 创建项目</p>
+            <p>2. 点击「构建」→「Realtime Database」→ 创建数据库（选<b>测试模式</b>）</p>
+            <p>3. 点击「项目设置」→「您的应用」→ 复制 SDK 配置 JSON 粘贴到下方</p>
+        </div>
+
+        <textarea id="firebaseConfigInput" rows="8"
+            class="w-full bg-black/40 text-green-400 text-xs p-3 rounded-xl border border-white/10 font-mono mb-4 resize-none focus:outline-none focus:border-yellow-400"
+            placeholder='{
+  "apiKey": "AIza...",
+  "authDomain": "your-app.firebaseapp.com",
+  "databaseURL": "https://your-app-default-rtdb.firebaseio.com",
+  "projectId": "your-app",
+  "storageBucket": "your-app.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abcdef123456"
+}'></textarea>
+
+        <div class="flex gap-3">
+            <button onclick="saveFirebaseConfig()" class="flex-1 gold text-black font-black py-3 rounded-2xl text-sm">
+                保存配置并开始
+            </button>
+            <button onclick="enterDemoMode()" class="flex-1 glass text-white font-bold py-3 rounded-2xl text-sm">
+                演示模式（单机）
+            </button>
+        </div>
+        <p class="text-center text-xs text-gray-500 mt-3">演示模式数据仅保存在本浏览器，无法多人同步</p>
+    </div>
+</div>
+
+<!-- ══════════ LOGIN MODAL ══════════ -->
+<div id="loginModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-40 hidden p-4">
+    <div class="glass rounded-3xl p-8 max-w-sm w-full text-center slide-up">
+        <div class="text-6xl mb-3">🏆</div>
+        <h1 class="text-3xl font-black mb-1">2026 世界杯</h1>
+        <p class="font-bold text-lg gold-text mb-6">竞猜挑战赛</p>
+
+        <div class="space-y-3 mb-6">
+            <input id="loginName" type="text" placeholder="输入你的昵称" maxlength="16"
+                class="w-full glass border-0 rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                onkeypress="if(event.key==='Enter') login()">
+            <div class="flex items-center gap-2">
+                <input id="loginRoom" type="text" placeholder="房间号（可选，默认公共房间）" maxlength="16"
+                    class="flex-1 glass border-0 rounded-2xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    onkeypress="if(event.key==='Enter') login()">
+            </div>
+        </div>
+
+        <button onclick="login()" class="w-full gold text-black font-black py-4 rounded-2xl text-lg active:scale-95 transition-transform">
+            加入游戏 →
+        </button>
+        <p class="text-xs text-gray-500 mt-4">同一房间号的朋友共享排行榜和比赛数据</p>
+    </div>
+</div>
+
+<!-- ══════════ PREDICTION MODAL ══════════ -->
+<div id="predictModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-40 hidden p-4">
+    <div class="glass rounded-3xl p-6 max-w-sm w-full slide-up">
+        <div class="flex items-center justify-between mb-5">
+            <div>
+                <p id="predictStage" class="text-xs text-gray-400"></p>
+                <h3 class="font-black text-lg" id="predictTitle">预测比分</h3>
+            </div>
+            <button onclick="closePredictModal()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+        </div>
+
+        <div class="flex items-center justify-center gap-4 mb-5">
+            <div class="text-center flex-1">
+                <div class="text-5xl mb-2" id="predictHomeFlag"></div>
+                <div class="font-bold text-sm" id="predictHomeTeam"></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="number" id="predictHomeScore" min="0" max="99" class="score-input" placeholder="0">
+                <span class="text-2xl font-black text-gray-500">:</span>
+                <input type="number" id="predictAwayScore" min="0" max="99" class="score-input" placeholder="0">
+            </div>
+            <div class="text-center flex-1">
+                <div class="text-5xl mb-2" id="predictAwayFlag"></div>
+                <div class="font-bold text-sm" id="predictAwayTeam"></div>
+            </div>
+        </div>
+
+        <div class="glass-dark rounded-xl p-3 mb-4 flex justify-center gap-6 text-sm">
+            <span><span class="text-yellow-400 font-black">+3分</span> 精确比分</span>
+            <span><span class="text-green-400 font-black">+1分</span> 猜中胜负</span>
+        </div>
+
+        <button id="predictSubmitBtn" onclick="submitPrediction()"
+            class="w-full gold text-black font-black py-4 rounded-2xl text-base active:scale-95 transition-transform">
+            确认预测
+        </button>
+        <input type="hidden" id="currentMatchId">
+    </div>
+</div>
+
+<!-- ══════════ MAIN APP ══════════ -->
+<div id="app" class="hidden max-w-xl mx-auto pb-24">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-30 glass-dark border-b border-white/8 px-4 py-3">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="font-black text-lg leading-tight">🏆 2026 世界杯竞猜</h1>
+                <p class="text-xs text-gray-400" id="headerRoom"></p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <p class="text-sm font-bold" id="headerName"></p>
+                    <p class="font-black text-yellow-400" id="headerPoints">0 <span class="text-xs font-normal text-gray-400">分</span></p>
+                </div>
+                <div id="headerAvatar" class="w-10 h-10 rounded-full gold flex items-center justify-center text-black font-black text-lg flex-shrink-0"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-white/8 bg-black/20 px-2">
+        <button onclick="switchTab('matches')" id="tab-matches" class="tab-btn active py-3.5 px-4 font-bold text-sm">⚽ 比赛</button>
+        <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn py-3.5 px-4 font-bold text-sm text-gray-400">🏅 排行榜</button>
+        <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn py-3.5 px-4 font-bold text-sm text-gray-400">📝 我的</button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-4 space-y-3">
+
+        <!-- Matches -->
+        <div id="content-matches">
+            <div id="matchesContainer">
+                <div class="shimmer rounded-2xl h-24 mb-3"></div>
+                <div class="shimmer rounded-2xl h-24 mb-3"></div>
+                <div class="shimmer rounded-2xl h-24"></div>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div id="content-leaderboard" class="hidden">
+            <div class="glass rounded-2xl p-4 mb-4 text-center">
+                <p class="text-xs text-gray-400 mb-1">实时更新 · 结果公布后自动计算</p>
+                <p class="font-black text-xl gold-text">积分排行榜</p>
+            </div>
+            <div id="leaderboardContainer" class="space-y-2">
+                <div class="text-center py-8 text-gray-400">加载中...</div>
+            </div>
+        </div>
+
+        <!-- My Predictions -->
+        <div id="content-myPreds" class="hidden">
+            <div class="glass rounded-2xl p-4 mb-4 text-center">
+                <p class="font-black text-xl gold-text">我的预测记录</p>
+            </div>
+            <div id="myPredsContainer" class="space-y-2">
+                <div class="text-center py-8 text-gray-400">暂无预测</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Admin FAB -->
+<button onclick="openAdmin()" title="管理员"
+    class="fixed bottom-6 right-5 w-13 h-13 glass rounded-full flex items-center justify-center text-xl z-20 border border-white/20 hover:border-yellow-400/50 transition-colors"
+    style="width:52px;height:52px">⚙️</button>
+
+<!-- ══════════ ADMIN PANEL ══════════ -->
+<div id="adminPanel" class="fixed inset-0 bg-black/95 z-50 hidden overflow-y-auto">
+    <div class="max-w-xl mx-auto p-4">
+        <div class="flex items-center justify-between pt-4 pb-6">
+            <h2 class="text-xl font-black gold-text">⚙️ 管理员面板</h2>
+            <button onclick="closeAdmin()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+        </div>
+
+        <!-- Admin Login -->
+        <div id="adminLoginSection" class="glass rounded-2xl p-6 mb-4">
+            <h3 class="font-bold mb-4 text-yellow-400">🔑 管理员登录</h3>
+            <input id="adminPwd" type="password" placeholder="管理员密码"
+                class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                onkeypress="if(event.key==='Enter') adminLogin()">
+            <button onclick="adminLogin()" class="w-full gold text-black font-bold py-3 rounded-xl">登录</button>
+            <p class="text-center text-xs text-gray-500 mt-2">默认密码: <code>admin2026</code></p>
+        </div>
+
+        <div id="adminContent" class="hidden space-y-4">
+
+            <!-- Enter Results -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-4">📊 录入比赛结果</h3>
+                <select id="resultMatchSel"
+                    class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <option value="">— 选择一场比赛 —</option>
+                </select>
+                <div class="flex gap-3 mb-3">
+                    <div class="flex-1 text-center">
+                        <p class="text-xs text-gray-400 mb-1.5" id="resHomeLabel">主队</p>
+                        <input type="number" id="resHomeScore" min="0" max="99" placeholder="0"
+                            class="score-input w-full rounded-xl text-center">
+                    </div>
+                    <div class="flex items-end pb-3 text-2xl font-black text-gray-500">:</div>
+                    <div class="flex-1 text-center">
+                        <p class="text-xs text-gray-400 mb-1.5" id="resAwayLabel">客队</p>
+                        <input type="number" id="resAwayScore" min="0" max="99" placeholder="0"
+                            class="score-input w-full rounded-xl text-center">
+                    </div>
+                </div>
+                <button onclick="submitResult()" class="w-full gold text-black font-bold py-3 rounded-xl">
+                    确认结果并计算积分
+                </button>
+            </div>
+
+            <!-- Add Match -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-4">➕ 添加比赛</h3>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">主队名称 *</p>
+                        <input type="text" id="aHomeTeam" placeholder="例: 巴西"
+                            class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">主队旗帜 (emoji)</p>
+                        <input type="text" id="aHomeFlag" placeholder="🇧🇷"
+                            class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">客队名称 *</p>
+                        <input type="text" id="aAwayTeam" placeholder="例: 阿根廷"
+                            class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">客队旗帜 (emoji)</p>
+                        <input type="text" id="aAwayFlag" placeholder="🇦🇷"
+                            class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">比赛日期 *</p>
+                        <input type="date" id="aDate"
+                            class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">开球时间（北京）</p>
+                        <input type="time" id="aTime"
+                            class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">赛制</p>
+                        <select id="aStage" class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                            <option>小组赛</option>
+                            <option>32强</option>
+                            <option>16强</option>
+                            <option>8强</option>
+                            <option>半决赛</option>
+                            <option>三四名</option>
+                            <option>决赛</option>
+                        </select>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">分组/备注</p>
+                        <input type="text" id="aGroup" placeholder="例: A组"
+                            class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                </div>
+                <button onclick="addMatch()" class="w-full gold text-black font-bold py-3 rounded-xl">
+                    添加这场比赛
+                </button>
+            </div>
+
+            <!-- Bulk Import -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-2">📥 批量导入比赛</h3>
+                <p class="text-xs text-gray-400 mb-3">每行一场，格式：<code class="text-green-400">主队,客队,日期,时间,赛制,分组</code><br>例: <code class="text-green-400">巴西,阿根廷,2026-06-15,22:00,小组赛,C组</code></p>
+                <textarea id="bulkImportText" rows="5" placeholder="巴西🇧🇷,阿根廷🇦🇷,2026-06-15,22:00,小组赛,C组&#10;法国🇫🇷,西班牙🇪🇸,2026-06-16,04:00,小组赛,D组"
+                    class="w-full glass-dark rounded-xl px-3 py-2.5 text-xs text-green-400 font-mono mb-3 resize-none focus:outline-none focus:ring-1 focus:ring-yellow-400"></textarea>
+                <button onclick="bulkImport()" class="w-full glass border border-white/20 text-white font-bold py-2.5 rounded-xl text-sm">
+                    批量导入
+                </button>
+            </div>
+
+            <!-- Change Password -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-4">🔑 修改管理员密码</h3>
+                <input type="password" id="newPwd" placeholder="新密码（4位以上）"
+                    class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                <button onclick="changePassword()" class="w-full glass border border-white/20 text-white font-bold py-2.5 rounded-xl text-sm">
+                    修改密码
+                </button>
+            </div>
+
+            <!-- Reset -->
+            <div class="glass rounded-2xl p-6 border border-red-500/25">
+                <h3 class="font-bold text-red-400 mb-3">⚠️ 危险操作</h3>
+                <button onclick="resetGame()"
+                    class="w-full bg-red-950/60 border border-red-500/40 text-red-300 font-bold py-2.5 rounded-xl text-sm">
+                    清空所有数据（重置游戏）
+                </button>
+                <p class="text-center text-xs text-gray-600 mt-2">此操作不可撤销</p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ APP LOGIC ══════════ -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, get, onValue, update, remove, push } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ─── State ───────────────────────────────────────────────
+let db = null;
+let demoMode = false;
+let currentUser = null;
+let currentRoom = 'public';
+let matchesData = {};
+let predsData = {};
+let scoresData = {};
+const ADMIN_DEFAULT_PWD = 'admin2026';
+
+// Demo-mode local store
+let demo = {
+    matches: {},
+    predictions: {},
+    scores: {},
+    settings: { adminPassword: ADMIN_DEFAULT_PWD }
+};
+
+// ─── Firebase Init ────────────────────────────────────────
+async function initFirebase(config) {
+    const fbApp = initializeApp(config);
+    db = getDatabase(fbApp);
+}
+
+// ─── Bootstrap ───────────────────────────────────────────
+window.saveFirebaseConfig = async function() {
+    const raw = document.getElementById('firebaseConfigInput').value.trim();
+    try {
+        const cfg = JSON.parse(raw);
+        if (!cfg.databaseURL) throw new Error('缺少 databaseURL');
+        await initFirebase(cfg);
+        localStorage.setItem('wc2026_fb', raw);
+        hide('firebaseModal');
+        show('loginModal');
+    } catch(e) {
+        toast('❌ 配置有误：' + e.message, 'error');
+    }
+};
+
+window.enterDemoMode = function() {
+    demoMode = true;
+    demo.matches = defaultMatches();
+    hide('firebaseModal');
+    show('loginModal');
+};
+
+async function bootstrap() {
+    const saved = localStorage.getItem('wc2026_fb');
+    if (saved) {
+        try {
+            await initFirebase(JSON.parse(saved));
+        } catch(e) {
+            localStorage.removeItem('wc2026_fb');
+            show('firebaseModal');
+            return;
+        }
+    } else {
+        show('firebaseModal');
+        return;
+    }
+    const savedUser = localStorage.getItem('wc2026_user');
+    const savedRoom = localStorage.getItem('wc2026_room');
+    if (savedUser && savedRoom) {
+        currentUser = JSON.parse(savedUser);
+        currentRoom = savedRoom;
+        startApp();
+    } else {
+        show('loginModal');
+    }
+}
+
+// ─── Login ────────────────────────────────────────────────
+window.login = async function() {
+    const name = document.getElementById('loginName').value.trim();
+    const room = document.getElementById('loginRoom').value.trim() || 'public';
+    if (!name) { toast('请输入昵称', 'error'); return; }
+
+    currentRoom = room;
+
+    if (demoMode) {
+        currentUser = { id: 'demo_' + name, name };
+        if (!demo.scores[currentUser.id]) {
+            demo.scores[currentUser.id] = { name, total: 0, exact: 0, correct: 0, wrong: 0 };
+        }
+    } else {
+        // Check if name already used in this room
+        const usersSnap = await get(ref(db, `rooms/${room}/users`));
+        let uid = null;
+        if (usersSnap.exists()) {
+            const users = usersSnap.val();
+            const match = Object.entries(users).find(([, u]) => u.name === name);
+            uid = match ? match[0] : null;
+        }
+        if (!uid) {
+            uid = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+            await set(ref(db, `rooms/${room}/users/${uid}`), { name, joinedAt: Date.now() });
+            await set(ref(db, `rooms/${room}/scores/${uid}`), { name, total: 0, exact: 0, correct: 0, wrong: 0 });
+            // Seed matches & settings if room is new
+            const mSnap = await get(ref(db, `rooms/${room}/matches`));
+            if (!mSnap.exists()) {
+                await set(ref(db, `rooms/${room}/matches`), defaultMatches());
+                await set(ref(db, `rooms/${room}/settings`), { adminPassword: ADMIN_DEFAULT_PWD });
+            }
+        }
+        currentUser = { id: uid, name };
+    }
+
+    localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
+    localStorage.setItem('wc2026_room', currentRoom);
+    hide('loginModal');
+    startApp();
+};
+
+// ─── App Start ────────────────────────────────────────────
+function startApp() {
+    show('app');
+    document.getElementById('headerName').textContent = currentUser.name;
+    document.getElementById('headerAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+    document.getElementById('headerRoom').textContent = `房间: ${currentRoom}${demoMode ? ' (演示)' : ''}`;
+
+    if (demoMode) {
+        matchesData = demo.matches;
+        predsData = demo.predictions;
+        scoresData = demo.scores;
+        renderMatches();
+        renderLeaderboard();
+    } else {
+        onValue(ref(db, `rooms/${currentRoom}/matches`), snap => {
+            matchesData = snap.exists() ? snap.val() : {};
+            renderMatches();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/predictions`), snap => {
+            predsData = snap.exists() ? snap.val() : {};
+            renderMatches();
+            renderMyPreds();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/scores`), snap => {
+            scoresData = snap.exists() ? snap.val() : {};
+            renderLeaderboard();
+            updateHeaderPoints();
+        });
+    }
+}
+
+// ─── Render: Matches ─────────────────────────────────────
+function renderMatches() {
+    const container = document.getElementById('matchesContainer');
+    const entries = Object.entries(matchesData);
+    if (!entries.length) {
+        container.innerHTML = `<div class="text-center py-16 text-gray-500">
+            <p class="text-5xl mb-4">⚽</p><p>暂无比赛数据</p>
+            <p class="text-sm mt-1">请管理员添加比赛</p></div>`;
+        return;
+    }
+
+    // Group by date
+    const byDate = {};
+    entries.forEach(([id, m]) => {
+        const k = m.date || '待定';
+        if (!byDate[k]) byDate[k] = [];
+        byDate[k].push({ id, ...m });
+    });
+
+    let html = '';
+    Object.keys(byDate).sort().forEach(date => {
+        html += `<p class="text-xs text-gray-500 font-bold uppercase tracking-wider pt-1 pb-1">${fmtDate(date)}</p>`;
+        byDate[date].sort((a, b) => (a.time||'').localeCompare(b.time||'')).forEach(m => {
+            html += renderMatchCard(m);
+        });
+    });
+    container.innerHTML = html;
+}
+
+function renderMatchCard(m) {
+    const predKey = `${currentUser.id}_${m.id}`;
+    const myPred = predsData[predKey];
+    const past = isMatchPast(m);
+    const finished = m.status === 'finished';
+    const canPredict = !past && !finished;
+
+    const stageBadge = `<span class="text-xs px-2 py-0.5 rounded-full bg-white/10">${m.stage||'小组赛'}${m.group ? ' · '+m.group : ''}</span>`;
+
+    let statusBadge = '';
+    if (finished) statusBadge = `<span class="text-xs bg-green-900/60 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full">已结束</span>`;
+    else if (past) statusBadge = `<span class="text-xs bg-red-900/60 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full pulse">🔴 进行中</span>`;
+    else statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${m.time||'时间待定'}</span>`;
+
+    const vsBlock = finished
+        ? `<div class="text-2xl font-black text-yellow-400">${m.homeScore} : ${m.awayScore}</div>`
+        : `<div class="text-gray-600 font-black text-xl">VS</div>`;
+
+    let predBadge = '';
+    if (myPred) {
+        let pts = '';
+        if (myPred.points !== null && myPred.points !== undefined) {
+            const cls = myPred.points===3 ? 'bg-yellow-500 text-black' : myPred.points===1 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+            const lbl = myPred.points===3 ? '✅ +3' : myPred.points===1 ? '✓ +1' : '✗ +0';
+            pts = `<span class="${cls} text-xs px-2 py-0.5 rounded-full font-bold ml-1">${lbl}</span>`;
+        } else {
+            pts = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full ml-1">待揭晓</span>`;
+        }
+        predBadge = `<div class="text-center text-xs text-gray-400 mt-1.5">我预测: <span class="font-bold text-white">${myPred.homeScore}:${myPred.awayScore}</span>${pts}</div>`;
+    }
+
+    const btn = canPredict
+        ? `<button onclick="openPredictModal('${m.id}')"
+            class="w-full mt-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform ${myPred ? 'glass border border-blue-500/40 text-blue-300' : 'gold text-black'}">
+            ${myPred ? '✏️ 修改预测' : '🎯 预测比分'}
+           </button>`
+        : '';
+
+    return `
+    <div class="match-card glass rounded-2xl p-4 mb-3">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-1.5 flex-wrap">${stageBadge}</div>
+            ${statusBadge}
+        </div>
+        <div class="flex items-center">
+            <div class="text-center flex-1">
+                <div class="text-4xl mb-1.5">${m.homeFlag||'🏳️'}</div>
+                <div class="font-bold text-sm leading-tight">${m.homeTeam}</div>
+            </div>
+            <div class="flex-1 text-center px-2">
+                ${vsBlock}
+                ${predBadge}
+            </div>
+            <div class="text-center flex-1">
+                <div class="text-4xl mb-1.5">${m.awayFlag||'🏳️'}</div>
+                <div class="font-bold text-sm leading-tight">${m.awayTeam}</div>
+            </div>
+        </div>
+        ${btn}
+    </div>`;
+}
+
+// ─── Render: Leaderboard ─────────────────────────────────
+function renderLeaderboard() {
+    const container = document.getElementById('leaderboardContainer');
+    const entries = Object.entries(scoresData);
+    if (!entries.length) {
+        container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">🏅</p><p>暂无参与者</p></div>`;
+        return;
+    }
+
+    const sorted = entries.sort((a, b) => (b[1].total||0) - (a[1].total||0));
+    let html = '';
+    sorted.forEach(([uid, s], i) => {
+        const rank = i + 1;
+        const isMe = uid === currentUser.id || s.name === currentUser.name;
+        let rankCls = 'glass';
+        let rankIcon = `<span class="font-black text-xl w-8 text-center">${rank}</span>`;
+        if (rank === 1) { rankCls = 'rank-gold'; rankIcon = '<span class="text-2xl w-8 text-center">🥇</span>'; }
+        else if (rank === 2) { rankCls = 'rank-silver'; rankIcon = '<span class="text-2xl w-8 text-center">🥈</span>'; }
+        else if (rank === 3) { rankCls = 'rank-bronze'; rankIcon = '<span class="text-2xl w-8 text-center">🥉</span>'; }
+
+        const textCls = (rank <= 3) ? 'text-current' : 'text-white';
+
+        html += `
+        <div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 ${isMe ? 'ring-2 ring-yellow-400' : ''}">
+            ${rankIcon}
+            <div class="w-9 h-9 rounded-full bg-gray-700/80 flex items-center justify-center font-black text-lg flex-shrink-0">
+                ${(s.name||'?').charAt(0).toUpperCase()}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm flex items-center gap-1.5">
+                    <span class="truncate ${textCls}">${s.name||'未知'}</span>
+                    ${isMe ? '<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>' : ''}
+                </div>
+                <div class="text-xs opacity-60">精确 ${s.exact||0} · 正确 ${s.correct||0} · 错误 ${s.wrong||0}</div>
+            </div>
+            <div class="text-2xl font-black ${textCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
+        </div>`;
+    });
+
+    document.getElementById('leaderboardContainer').innerHTML = html;
+}
+
+function updateHeaderPoints() {
+    const my = Object.values(scoresData).find(s => s.name === currentUser.name);
+    if (my) document.getElementById('headerPoints').innerHTML = `${my.total||0} <span class="text-xs font-normal text-gray-400">分</span>`;
+}
+
+// ─── Render: My Predictions ───────────────────────────────
+function renderMyPreds() {
+    const container = document.getElementById('myPredsContainer');
+    const mine = Object.entries(predsData).filter(([k]) => k.startsWith(currentUser.id + '_'));
+    if (!mine.length) {
+        container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">📝</p><p>还没有预测记录</p><p class="text-sm mt-1">在「比赛」标签选择场次开始预测</p></div>`;
+        return;
+    }
+
+    let html = '';
+    mine.sort((a, b) => (b[1].submittedAt||0) - (a[1].submittedAt||0)).forEach(([, p]) => {
+        const m = matchesData[p.matchId];
+        if (!m) return;
+
+        let ptsBadge = '';
+        if (p.points !== null && p.points !== undefined) {
+            const cfg = { 3: ['bg-yellow-500 text-black', '✅ 精确 +3'], 1: ['bg-green-700', '✓ 正确 +1'], 0: ['bg-gray-700 text-gray-400', '✗ 未中 +0'] };
+            const [cls, lbl] = cfg[p.points] || ['bg-gray-700', `+${p.points}`];
+            ptsBadge = `<span class="${cls} text-xs px-2 py-1 rounded-full font-bold">${lbl}</span>`;
+        } else {
+            ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">等待结果</span>`;
+        }
+
+        let resultLine = '';
+        if (m.status === 'finished') {
+            resultLine = `<p class="text-xs text-gray-500 mt-0.5">实际: ${m.homeScore}:${m.awayScore}</p>`;
+        }
+
+        html += `
+        <div class="glass rounded-xl p-4 flex items-center gap-3">
+            <div class="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
+                <span class="text-xl">${m.homeFlag||'🏳️'}</span>
+                <span class="font-bold text-sm">${m.homeTeam}</span>
+                <span class="font-black text-yellow-300 px-1">${p.homeScore}:${p.awayScore}</span>
+                <span class="font-bold text-sm">${m.awayTeam}</span>
+                <span class="text-xl">${m.awayFlag||'🏳️'}</span>
+                ${resultLine}
+            </div>
+            ${ptsBadge}
+        </div>`;
+    });
+
+    document.getElementById('myPredsContainer').innerHTML = html;
+}
+
+// ─── Prediction Modal ─────────────────────────────────────
+window.openPredictModal = function(matchId) {
+    const m = matchesData[matchId];
+    if (!m) return;
+
+    document.getElementById('currentMatchId').value = matchId;
+    document.getElementById('predictStage').textContent = (m.stage||'小组赛') + (m.group ? ' · ' + m.group : '') + (m.date ? '  ' + fmtDate(m.date) : '');
+    document.getElementById('predictTitle').textContent = `${m.homeTeam} vs ${m.awayTeam}`;
+    document.getElementById('predictHomeFlag').textContent = m.homeFlag || '🏳️';
+    document.getElementById('predictAwayFlag').textContent = m.awayFlag || '🏳️';
+    document.getElementById('predictHomeTeam').textContent = m.homeTeam;
+    document.getElementById('predictAwayTeam').textContent = m.awayTeam;
+
+    const predKey = `${currentUser.id}_${matchId}`;
+    const existing = predsData[predKey];
+    document.getElementById('predictHomeScore').value = existing?.homeScore ?? '';
+    document.getElementById('predictAwayScore').value = existing?.awayScore ?? '';
+
+    show('predictModal');
+    setTimeout(() => document.getElementById('predictHomeScore').focus(), 100);
+};
+
+window.closePredictModal = function() { hide('predictModal'); };
+
+window.submitPrediction = async function() {
+    const matchId = document.getElementById('currentMatchId').value;
+    const hs = parseInt(document.getElementById('predictHomeScore').value);
+    const as = parseInt(document.getElementById('predictAwayScore').value);
+
+    if (isNaN(hs) || isNaN(as) || hs < 0 || as < 0) {
+        toast('请输入有效比分（0或正整数）', 'error'); return;
+    }
+
+    const pred = { matchId, userId: currentUser.id, homeScore: hs, awayScore: as, submittedAt: Date.now(), points: null };
+    const key = `${currentUser.id}_${matchId}`;
+
+    if (demoMode) {
+        demo.predictions[key] = pred;
+        predsData = demo.predictions;
+        renderMatches();
+        renderMyPreds();
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/predictions/${key}`), pred);
+    }
+
+    hide('predictModal');
+    toast('🎯 预测已提交！');
+};
+
+// ─── Tab Switching ────────────────────────────────────────
+window.switchTab = function(tab) {
+    ['matches','leaderboard','myPreds'].forEach(t => {
+        document.getElementById(`content-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-${t}`);
+        btn.classList.remove('active');
+        btn.classList.add('text-gray-400');
+    });
+    document.getElementById(`content-${tab}`).classList.remove('hidden');
+    const activeBtn = document.getElementById(`tab-${tab}`);
+    activeBtn.classList.add('active');
+    activeBtn.classList.remove('text-gray-400');
+
+    if (tab === 'myPreds') renderMyPreds();
+};
+
+// ─── Admin ────────────────────────────────────────────────
+let adminAuthed = false;
+
+window.openAdmin = function() {
+    show('adminPanel');
+    adminAuthed = false;
+    show('adminLoginSection');
+    hide('adminContent');
+};
+
+window.closeAdmin = function() { hide('adminPanel'); };
+
+window.adminLogin = async function() {
+    const pwd = document.getElementById('adminPwd').value;
+    let correct = ADMIN_DEFAULT_PWD;
+
+    if (!demoMode) {
+        const snap = await get(ref(db, `rooms/${currentRoom}/settings/adminPassword`));
+        if (snap.exists()) correct = snap.val();
+    } else {
+        correct = demo.settings.adminPassword;
+    }
+
+    if (pwd === correct) {
+        adminAuthed = true;
+        hide('adminLoginSection');
+        show('adminContent');
+        refreshResultMatchSelect();
+    } else {
+        toast('密码错误', 'error');
+    }
+};
+
+function refreshResultMatchSelect() {
+    const sel = document.getElementById('resultMatchSel');
+    const data = demoMode ? demo.matches : matchesData;
+    const opts = Object.entries(data)
+        .filter(([,m]) => m.status !== 'finished')
+        .sort((a,b) => (a[1].date||'').localeCompare(b[1].date||''))
+        .map(([id,m]) => `<option value="${id}">${m.homeFlag||''}${m.homeTeam} vs ${m.awayFlag||''}${m.awayTeam}  ${m.date||''}</option>`)
+        .join('');
+    sel.innerHTML = '<option value="">— 选择比赛 —</option>' + opts;
+
+    sel.onchange = function() {
+        const m = data[this.value];
+        if (!m) return;
+        document.getElementById('resHomeLabel').textContent = m.homeTeam;
+        document.getElementById('resAwayLabel').textContent = m.awayTeam;
+    };
+}
+
+window.submitResult = async function() {
+    const matchId = document.getElementById('resultMatchSel').value;
+    const hs = parseInt(document.getElementById('resHomeScore').value);
+    const as = parseInt(document.getElementById('resAwayScore').value);
+
+    if (!matchId) { toast('请选择比赛', 'error'); return; }
+    if (isNaN(hs) || isNaN(as)) { toast('请输入有效比分', 'error'); return; }
+
+    if (demoMode) {
+        demo.matches[matchId] = { ...demo.matches[matchId], homeScore: hs, awayScore: as, status: 'finished' };
+        matchesData = demo.matches;
+        // Calculate points
+        Object.entries(demo.predictions)
+            .filter(([,p]) => p.matchId === matchId && p.points === null)
+            .forEach(([key, p]) => {
+                const pts = calcPts(p.homeScore, p.awayScore, hs, as);
+                demo.predictions[key].points = pts;
+                const uid = p.userId;
+                if (!demo.scores[uid]) demo.scores[uid] = { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
+                demo.scores[uid].total = (demo.scores[uid].total||0) + pts;
+                if (pts===3) demo.scores[uid].exact = (demo.scores[uid].exact||0)+1;
+                else if (pts===1) demo.scores[uid].correct = (demo.scores[uid].correct||0)+1;
+                else demo.scores[uid].wrong = (demo.scores[uid].wrong||0)+1;
+            });
+        predsData = demo.predictions;
+        scoresData = demo.scores;
+        renderMatches();
+        renderLeaderboard();
+        updateHeaderPoints();
+    } else {
+        const updates = {};
+        updates[`rooms/${currentRoom}/matches/${matchId}/homeScore`] = hs;
+        updates[`rooms/${currentRoom}/matches/${matchId}/awayScore`] = as;
+        updates[`rooms/${currentRoom}/matches/${matchId}/status`] = 'finished';
+
+        const [predsSnap, scoresSnap] = await Promise.all([
+            get(ref(db, `rooms/${currentRoom}/predictions`)),
+            get(ref(db, `rooms/${currentRoom}/scores`))
+        ]);
+
+        const allPreds = predsSnap.exists() ? predsSnap.val() : {};
+        const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+
+        Object.entries(allPreds)
+            .filter(([,p]) => p.matchId === matchId && p.points === null)
+            .forEach(([key, p]) => {
+                const pts = calcPts(p.homeScore, p.awayScore, hs, as);
+                updates[`rooms/${currentRoom}/predictions/${key}/points`] = pts;
+
+                const uid = p.userId;
+                const s = allScores[uid] || { total:0, exact:0, correct:0, wrong:0 };
+                s.total = (s.total||0) + pts;
+                if (pts===3) s.exact = (s.exact||0)+1;
+                else if (pts===1) s.correct = (s.correct||0)+1;
+                else s.wrong = (s.wrong||0)+1;
+                // Preserve name
+                if (!s.name) {
+                    const u = Object.values(allScores).find(x => x.name);
+                    if (u) s.name = u.name;
+                }
+                updates[`rooms/${currentRoom}/scores/${uid}`] = s;
+            });
+
+        await update(ref(db, '/'), updates);
+    }
+
+    toast('✅ 结果录入，积分已更新！');
+    document.getElementById('resHomeScore').value = '';
+    document.getElementById('resAwayScore').value = '';
+    refreshResultMatchSelect();
+};
+
+window.addMatch = async function() {
+    const homeTeam = document.getElementById('aHomeTeam').value.trim();
+    const awayTeam = document.getElementById('aAwayTeam').value.trim();
+    const date = document.getElementById('aDate').value;
+
+    if (!homeTeam || !awayTeam || !date) {
+        toast('请填写主队、客队和日期', 'error'); return;
+    }
+
+    const m = {
+        homeTeam, homeFlag: document.getElementById('aHomeFlag').value.trim() || '🏳️',
+        awayTeam, awayFlag: document.getElementById('aAwayFlag').value.trim() || '🏳️',
+        date, time: document.getElementById('aTime').value,
+        stage: document.getElementById('aStage').value,
+        group: document.getElementById('aGroup').value.trim(),
+        status: 'upcoming', homeScore: null, awayScore: null
+    };
+
+    const matchId = 'match_' + Date.now();
+
+    if (demoMode) {
+        demo.matches[matchId] = m;
+        matchesData = demo.matches;
+        renderMatches();
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/matches/${matchId}`), m);
+    }
+
+    ['aHomeTeam','aHomeFlag','aAwayTeam','aAwayFlag','aDate','aTime','aGroup'].forEach(id => { document.getElementById(id).value = ''; });
+    toast('✅ 比赛已添加！');
+    refreshResultMatchSelect();
+};
+
+window.bulkImport = async function() {
+    const lines = document.getElementById('bulkImportText').value.trim().split('\n').filter(l => l.trim());
+    if (!lines.length) { toast('请输入比赛数据', 'error'); return; }
+
+    let count = 0;
+    const updates = {};
+
+    lines.forEach(line => {
+        const parts = line.split(',').map(s => s.trim());
+        if (parts.length < 3) return;
+        const [home, away, date, time='', stage='小组赛', group=''] = parts;
+        if (!home || !away) return;
+
+        // Extract flag emoji if present at end of team name
+        const homeFlag = extractFlag(home);
+        const awayFlag = extractFlag(away);
+
+        const matchId = 'match_' + Date.now() + '_' + count;
+        const m = {
+            homeTeam: stripFlag(home), homeFlag,
+            awayTeam: stripFlag(away), awayFlag,
+            date, time, stage, group,
+            status: 'upcoming', homeScore: null, awayScore: null
+        };
+
+        if (demoMode) {
+            demo.matches[matchId] = m;
+        } else {
+            updates[`rooms/${currentRoom}/matches/${matchId}`] = m;
+        }
+        count++;
+    });
+
+    if (demoMode) {
+        matchesData = demo.matches;
+        renderMatches();
+    } else if (count > 0) {
+        await update(ref(db, '/'), updates);
+    }
+
+    document.getElementById('bulkImportText').value = '';
+    toast(`✅ 已导入 ${count} 场比赛`);
+    refreshResultMatchSelect();
+};
+
+window.changePassword = async function() {
+    const pwd = document.getElementById('newPwd').value.trim();
+    if (!pwd || pwd.length < 4) { toast('密码不能少于4位', 'error'); return; }
+
+    if (demoMode) { demo.settings.adminPassword = pwd; }
+    else { await set(ref(db, `rooms/${currentRoom}/settings/adminPassword`), pwd); }
+
+    document.getElementById('newPwd').value = '';
+    toast('✅ 密码已修改');
+};
+
+window.resetGame = async function() {
+    if (!confirm('⚠️ 确定要清空所有数据吗？此操作无法撤销！')) return;
+
+    if (demoMode) {
+        demo = { matches: defaultMatches(), predictions: {}, scores: {}, settings: { adminPassword: ADMIN_DEFAULT_PWD } };
+        matchesData = demo.matches; predsData = {}; scoresData = {};
+        renderMatches(); renderLeaderboard(); renderMyPreds();
+    } else {
+        await remove(ref(db, `rooms/${currentRoom}`));
+        await set(ref(db, `rooms/${currentRoom}/matches`), defaultMatches());
+        await set(ref(db, `rooms/${currentRoom}/settings`), { adminPassword: ADMIN_DEFAULT_PWD });
+    }
+
+    toast('🔄 数据已重置');
+};
+
+// ─── Utils ────────────────────────────────────────────────
+function calcPts(ph, pa, rh, ra) {
+    if (ph === rh && pa === ra) return 3;
+    if (Math.sign(ph - pa) === Math.sign(rh - ra)) return 1;
+    return 0;
+}
+
+function isMatchPast(m) {
+    if (!m.date || !m.time) return false;
+    try {
+        return new Date() > new Date(`${m.date}T${m.time}:00+08:00`);
+    } catch { return false; }
+}
+
+function fmtDate(d) {
+    if (!d || d === '待定') return d;
+    try {
+        const dt = new Date(d + 'T12:00:00');
+        const days = ['周日','周一','周二','周三','周四','周五','周六'];
+        return `${dt.getMonth()+1}月${dt.getDate()}日 ${days[dt.getDay()]}`;
+    } catch { return d; }
+}
+
+function extractFlag(s) {
+    const m = s.match(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu);
+    return m ? m[0] : '🏳️';
+}
+
+function stripFlag(s) {
+    return s.replace(/(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu, '').trim();
+}
+
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+window.toast = function(msg, type = 'success') {
+    const el = document.createElement('div');
+    const cls = type === 'error'
+        ? 'bg-red-900/90 border border-red-500/50 text-red-100'
+        : 'gold text-black';
+    el.className = `fixed bottom-24 left-1/2 -translate-x-1/2 ${cls} font-bold px-5 py-3 rounded-2xl z-[100] text-sm shadow-2xl slide-up`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2800);
+};
+
+// ─── Default Match Data ───────────────────────────────────
+function defaultMatches() {
+    // Sample 2026 World Cup matches - admin can edit/replace
+    return {
+        'm001': { homeTeam:'美国', homeFlag:'🇺🇸', awayTeam:'摩洛哥', awayFlag:'🇲🇦', date:'2026-06-11', time:'09:00', stage:'小组赛', group:'A组', status:'upcoming', homeScore:null, awayScore:null },
+        'm002': { homeTeam:'加拿大', homeFlag:'🇨🇦', awayTeam:'荷兰', awayFlag:'🇳🇱', date:'2026-06-12', time:'06:00', stage:'小组赛', group:'B组', status:'upcoming', homeScore:null, awayScore:null },
+        'm003': { homeTeam:'墨西哥', homeFlag:'🇲🇽', awayTeam:'厄瓜多尔', awayFlag:'🇪🇨', date:'2026-06-12', time:'09:00', stage:'小组赛', group:'C组', status:'upcoming', homeScore:null, awayScore:null },
+        'm004': { homeTeam:'阿根廷', homeFlag:'🇦🇷', awayTeam:'沙特阿拉伯', awayFlag:'🇸🇦', date:'2026-06-13', time:'03:00', stage:'小组赛', group:'D组', status:'upcoming', homeScore:null, awayScore:null },
+        'm005': { homeTeam:'巴西', homeFlag:'🇧🇷', awayTeam:'智利', awayFlag:'🇨🇱', date:'2026-06-13', time:'06:00', stage:'小组赛', group:'E组', status:'upcoming', homeScore:null, awayScore:null },
+        'm006': { homeTeam:'法国', homeFlag:'🇫🇷', awayTeam:'比利时', awayFlag:'🇧🇪', date:'2026-06-13', time:'09:00', stage:'小组赛', group:'F组', status:'upcoming', homeScore:null, awayScore:null },
+        'm007': { homeTeam:'英格兰', homeFlag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', awayTeam:'土耳其', awayFlag:'🇹🇷', date:'2026-06-14', time:'03:00', stage:'小组赛', group:'G组', status:'upcoming', homeScore:null, awayScore:null },
+        'm008': { homeTeam:'西班牙', homeFlag:'🇪🇸', awayTeam:'克罗地亚', awayFlag:'🇭🇷', date:'2026-06-14', time:'06:00', stage:'小组赛', group:'H组', status:'upcoming', homeScore:null, awayScore:null },
+        'm009': { homeTeam:'德国', homeFlag:'🇩🇪', awayTeam:'墨西哥', awayFlag:'🇲🇽', date:'2026-06-14', time:'09:00', stage:'小组赛', group:'I组', status:'upcoming', homeScore:null, awayScore:null },
+        'm010': { homeTeam:'葡萄牙', homeFlag:'🇵🇹', awayTeam:'科特迪瓦', awayFlag:'🇨🇮', date:'2026-06-15', time:'03:00', stage:'小组赛', group:'J组', status:'upcoming', homeScore:null, awayScore:null },
+        'm011': { homeTeam:'日本', homeFlag:'🇯🇵', awayTeam:'韩国', awayFlag:'🇰🇷', date:'2026-06-15', time:'06:00', stage:'小组赛', group:'K组', status:'upcoming', homeScore:null, awayScore:null },
+        'm012': { homeTeam:'澳大利亚', homeFlag:'🇦🇺', awayTeam:'伊朗', awayFlag:'🇮🇷', date:'2026-06-15', time:'09:00', stage:'小组赛', group:'L组', status:'upcoming', homeScore:null, awayScore:null },
+    };
+}
+
+// ─── Start ────────────────────────────────────────────────
+bootstrap();
+</script>
+</body>
+</html>
