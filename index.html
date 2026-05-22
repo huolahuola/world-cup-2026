@@ -93,6 +93,30 @@
     </div>
 </div>
 
+<!-- ══════════ GROUP PREDICTION MODAL ══════════ -->
+<div id="groupPredModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-40 hidden p-4">
+    <div class="glass rounded-3xl p-6 max-w-sm w-full slide-up">
+        <div class="flex items-center justify-between mb-1">
+            <div>
+                <p id="groupPredSubtitle" class="text-xs text-gray-400"></p>
+                <h3 class="font-black text-lg" id="groupPredTitle">预测出线球队</h3>
+            </div>
+            <button onclick="closeGroupPredModal()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">选 <b class="text-white">2 支</b>出线球队，可再选 1 支标记为<b class="text-yellow-400">小组第一</b></p>
+        <div id="groupTeamsList" class="space-y-2 mb-4"></div>
+        <div class="glass-dark rounded-xl p-2.5 mb-4 flex justify-center gap-5 text-xs">
+            <span><span class="text-yellow-400 font-bold">+2分</span> 猜中出线</span>
+            <span><span class="text-green-400 font-bold">+1分</span> 猜中小组第一</span>
+            <span class="text-gray-500">每组最多 5分</span>
+        </div>
+        <button onclick="submitGroupPrediction()" class="w-full gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform">
+            确认预测
+        </button>
+        <input type="hidden" id="currentGroupId">
+    </div>
+</div>
+
 <!-- ══════════ LOGIN MODAL ══════════ -->
 <div id="loginModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-40 hidden p-4">
     <div class="glass rounded-3xl p-8 max-w-sm w-full text-center slide-up">
@@ -179,17 +203,75 @@
     </header>
 
     <!-- Tabs -->
-    <div class="flex border-b border-white/8 bg-black/20 px-2">
-        <button onclick="switchTab('matches')" id="tab-matches" class="tab-btn active py-3.5 px-4 font-bold text-sm">⚽ 比赛</button>
-        <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn py-3.5 px-4 font-bold text-sm text-gray-400">🏅 排行榜</button>
-        <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn py-3.5 px-4 font-bold text-sm text-gray-400">📝 我的</button>
+    <div class="flex border-b border-white/8 bg-black/20 px-1 overflow-x-auto scrollbar-hide">
+        <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn active py-3.5 px-3 font-bold text-sm whitespace-nowrap">🏆 分组出线</button>
+        <button onclick="switchTab('matches')" id="tab-matches" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">⚽ 比赛</button>
+        <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">🏅 排行</button>
+        <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📝 我的</button>
     </div>
 
     <!-- Content -->
     <div class="p-4 space-y-3">
 
+        <!-- Groups -->
+        <div id="content-groups">
+            <div class="glass rounded-2xl p-3 mb-3 text-center">
+                <p class="font-black gold-text">小组出线竞猜</p>
+                <p class="text-xs text-gray-400 mt-0.5">猜中出线 <span class="text-yellow-400 font-bold">+2分</span> · 猜中小组第一 <span class="text-green-400 font-bold">+1分</span></p>
+            </div>
+
+            <!-- Qualification Rules Card -->
+            <div class="glass rounded-2xl mb-3 overflow-hidden">
+                <button onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('.arrow').classList.toggle('rotate-180')"
+                    class="w-full flex items-center justify-between px-4 py-3 text-left">
+                    <span class="font-bold text-sm">📋 晋级规则</span>
+                    <span class="arrow text-gray-400 text-xs transition-transform duration-200">▼</span>
+                </button>
+                <div class="hidden px-4 pb-4 space-y-3 text-sm">
+                    <div class="glass-dark rounded-xl p-3">
+                        <p class="font-bold text-yellow-400 mb-2">🏆 小组赛制</p>
+                        <p class="text-gray-300 text-xs leading-relaxed">12 个小组（A–L），每组 4 队，单循环赛制。<br>
+                        <span class="text-white">胜 = 3分，平 = 1分，负 = 0分</span></p>
+                    </div>
+                    <div class="glass-dark rounded-xl p-3">
+                        <p class="font-bold text-yellow-400 mb-2">✅ 出线名额（共 32 队晋级）</p>
+                        <ul class="text-xs text-gray-300 space-y-1">
+                            <li>• 每组前两名直接晋级（12×2 = <span class="text-white font-bold">24 队</span>）</li>
+                            <li>• 12 个小组的第三名中，积分最高的 <span class="text-white font-bold">8 队</span>附加晋级</li>
+                        </ul>
+                    </div>
+                    <div class="glass-dark rounded-xl p-3">
+                        <p class="font-bold text-yellow-400 mb-2">⚖️ 同积分排名规则（依次比较）</p>
+                        <ol class="text-xs text-gray-300 space-y-1 list-none">
+                            <li><span class="text-white font-mono mr-1">①</span> 积分更高</li>
+                            <li><span class="text-white font-mono mr-1">②</span> 净胜球更多</li>
+                            <li><span class="text-white font-mono mr-1">③</span> 进球数更多</li>
+                            <li><span class="text-white font-mono mr-1">④</span> 纪律分更高（黄红牌少）</li>
+                            <li><span class="text-white font-mono mr-1">⑤</span> FIFA 排名更高</li>
+                        </ol>
+                    </div>
+                    <div class="glass-dark rounded-xl p-3">
+                        <p class="font-bold text-yellow-400 mb-2">🌟 最佳第三名评定（8 席）</p>
+                        <p class="text-xs text-gray-300 leading-relaxed">从所有 12 个小组的第三名中，按以下顺序评定最佳 8 队：</p>
+                        <ol class="text-xs text-gray-300 space-y-1 mt-1 list-none">
+                            <li><span class="text-white font-mono mr-1">①</span> 小组赛总积分</li>
+                            <li><span class="text-white font-mono mr-1">②</span> 小组赛总净胜球</li>
+                            <li><span class="text-white font-mono mr-1">③</span> 小组赛总进球数</li>
+                            <li><span class="text-white font-mono mr-1">④</span> 纪律分（黄红牌少）</li>
+                            <li><span class="text-white font-mono mr-1">⑤</span> FIFA 最新排名</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <div id="groupsContainer">
+                <div class="shimmer rounded-2xl h-40 mb-3"></div>
+                <div class="shimmer rounded-2xl h-40 mb-3"></div>
+            </div>
+        </div>
+
         <!-- Matches -->
-        <div id="content-matches">
+        <div id="content-matches" class="hidden">
             <div id="matchesContainer">
                 <div class="shimmer rounded-2xl h-24 mb-3"></div>
                 <div class="shimmer rounded-2xl h-24 mb-3"></div>
@@ -245,6 +327,35 @@
         </div>
 
         <div id="adminContent" class="hidden space-y-4">
+
+            <!-- Group Results -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-4">🏆 录入小组出线结果</h3>
+                <select id="resGroupSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <option value="">— 选择小组 —</option>
+                </select>
+                <p class="text-xs text-gray-400 mb-2" id="resGroupTeamHint">选择小组后，勾选出线的 2 支球队</p>
+                <div id="resGroupTeamList" class="space-y-2 mb-3"></div>
+                <div id="resGroupWinnerWrap" class="hidden mb-3">
+                    <p class="text-xs text-gray-400 mb-2">小组第一：</p>
+                    <div id="resGroupWinnerList" class="flex gap-2 flex-wrap"></div>
+                </div>
+                <button onclick="submitGroupResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认出线并计算积分</button>
+            </div>
+
+            <!-- Edit Groups -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-4">✏️ 编辑小组球队</h3>
+                <select id="editGroupSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400" onchange="loadGroupForEdit()">
+                    <option value="">— 选择要编辑的小组 —</option>
+                </select>
+                <div id="editGroupTeams" class="space-y-2 mb-3 hidden">
+                    <p class="text-xs text-gray-400 mb-1">每行一支球队：名称,旗帜emoji（如 <code class="text-green-400">巴西,🇧🇷</code>）</p>
+                    <textarea id="editGroupTeamsText" rows="4"
+                        class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-green-400 font-mono focus:outline-none focus:ring-1 focus:ring-yellow-400 resize-none"></textarea>
+                    <button onclick="saveGroupTeams()" class="w-full gold text-black font-bold py-2.5 rounded-xl text-sm">保存球队</button>
+                </div>
+            </div>
 
             <!-- Enter Results -->
             <div class="glass rounded-2xl p-6">
@@ -512,6 +623,8 @@ function startApp() {
     document.getElementById('headerAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
     document.getElementById('headerRoom').textContent = `房间: ${currentRoom}${demoMode ? ' (演示)' : ''}`;
 
+    loadGroups();
+
     if (demoMode) {
         matchesData = demo.matches;
         predsData = demo.predictions;
@@ -770,11 +883,11 @@ window.submitPrediction = async function() {
 
 // ─── Tab Switching ────────────────────────────────────────
 window.switchTab = function(tab) {
-    ['matches','leaderboard','myPreds'].forEach(t => {
-        document.getElementById(`content-${t}`).classList.add('hidden');
+    ['groups','matches','leaderboard','myPreds'].forEach(t => {
+        const el = document.getElementById(`content-${t}`);
+        if (el) el.classList.add('hidden');
         const btn = document.getElementById(`tab-${t}`);
-        btn.classList.remove('active');
-        btn.classList.add('text-gray-400');
+        if (btn) { btn.classList.remove('active'); btn.classList.add('text-gray-400'); }
     });
     document.getElementById(`content-${tab}`).classList.remove('hidden');
     const activeBtn = document.getElementById(`tab-${tab}`);
@@ -792,6 +905,7 @@ window.openAdmin = function() {
     adminAuthed = false;
     show('adminLoginSection');
     hide('adminContent');
+    document.getElementById('adminPwd').value = '';
 };
 
 window.closeAdmin = function() { hide('adminPanel'); };
@@ -812,6 +926,7 @@ window.adminLogin = async function() {
         hide('adminLoginSection');
         show('adminContent');
         refreshResultMatchSelect();
+        refreshAdminGroupSelects();
     } else {
         toast('密码错误', 'error');
     }
@@ -1074,6 +1189,320 @@ function defaultMatches() {
         'm010': { homeTeam:'葡萄牙', homeFlag:'🇵🇹', awayTeam:'科特迪瓦', awayFlag:'🇨🇮', date:'2026-06-15', time:'03:00', stage:'小组赛', group:'J组', status:'upcoming', homeScore:null, awayScore:null },
         'm011': { homeTeam:'日本', homeFlag:'🇯🇵', awayTeam:'韩国', awayFlag:'🇰🇷', date:'2026-06-15', time:'06:00', stage:'小组赛', group:'K组', status:'upcoming', homeScore:null, awayScore:null },
         'm012': { homeTeam:'澳大利亚', homeFlag:'🇦🇺', awayTeam:'伊朗', awayFlag:'🇮🇷', date:'2026-06-15', time:'09:00', stage:'小组赛', group:'L组', status:'upcoming', homeScore:null, awayScore:null },
+    };
+}
+
+// ─── Groups State ────────────────────────────────────────
+let groupsData = {};
+let groupPredsData = {};
+let gpState = { groupId: null, selected: [], winner: null };
+
+// ─── Load Groups ─────────────────────────────────────────
+async function loadGroups() {
+    if (demoMode) {
+        groupsData = defaultGroups();
+        renderGroups();
+        return;
+    }
+    onValue(ref(db, `rooms/${currentRoom}/groups`), async snap => {
+        if (!snap.exists()) {
+            await set(ref(db, `rooms/${currentRoom}/groups`), defaultGroups());
+            groupsData = defaultGroups();
+        } else {
+            groupsData = snap.val();
+        }
+        renderGroups();
+        refreshAdminGroupSelects();
+    });
+    onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
+        groupPredsData = snap.exists() ? snap.val() : {};
+        renderGroups();
+        if (document.getElementById('content-myPreds').classList.contains('hidden') === false) renderMyPreds();
+    });
+}
+
+// ─── Render Groups ────────────────────────────────────────
+function renderGroups() {
+    const container = document.getElementById('groupsContainer');
+    if (!groupsData || !Object.keys(groupsData).length) {
+        container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">⚽</p><p>暂无分组数据</p></div>`;
+        return;
+    }
+    let html = '';
+    Object.entries(groupsData).sort((a,b) => a[0].localeCompare(b[0])).forEach(([gid, g]) => {
+        const predKey = `${currentUser.id}_${gid}`;
+        const myPred = groupPredsData[predKey];
+        const isFinished = Array.isArray(g.qualified) && g.qualified.length >= 2;
+        const teams = g.teams || [];
+
+        let teamsHtml = teams.map(t => {
+            let cls = 'glass', badge = '';
+            if (isFinished) {
+                if (g.qualified.includes(t.name)) {
+                    cls = 'bg-green-900/40 border border-green-500/40';
+                    badge = g.winner === t.name ? '<span class="text-sm">🥇</span>' : '<span class="text-green-400 text-xs font-bold">出线</span>';
+                }
+            } else if (myPred?.qualified?.includes(t.name)) {
+                cls = 'bg-blue-900/40 border border-blue-500/40';
+                badge = myPred.winner === t.name ? '<span class="text-sm">👑</span>' : '<span class="text-blue-300 text-xs">✓</span>';
+            }
+            return `<div class="flex items-center gap-2 px-3 py-2 rounded-xl ${cls}">
+                <span class="text-2xl">${t.flag||'🏳️'}</span>
+                <span class="font-bold text-sm flex-1">${t.name}</span>
+                ${badge}
+            </div>`;
+        }).join('');
+
+        let statusBadge = isFinished
+            ? `<span class="text-xs bg-green-900/60 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full">已揭晓</span>`
+            : `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">竞猜中</span>`;
+
+        let myPredLine = '';
+        if (myPred?.qualified) {
+            let ptsBadge = '';
+            if (myPred.points !== null && myPred.points !== undefined) {
+                const cls2 = myPred.points >= 4 ? 'bg-yellow-500 text-black' : myPred.points >= 2 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+                ptsBadge = `<span class="${cls2} text-xs px-2 py-0.5 rounded-full font-bold ml-1">+${myPred.points}</span>`;
+            } else {
+                ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full ml-1">待揭晓</span>`;
+            }
+            const winnerTxt = myPred.winner ? ` · 第一: ${myPred.winner}` : '';
+            myPredLine = `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-white/8">我预测出线: <span class="text-white font-bold">${myPred.qualified.join('、')}</span>${winnerTxt}${ptsBadge}</p>`;
+        }
+
+        const btn = isFinished ? '' : `<button onclick="openGroupPredModal('${gid}')"
+            class="w-full mt-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform ${myPred ? 'glass border border-blue-500/40 text-blue-300' : 'gold text-black'}">
+            ${myPred ? '✏️ 修改预测' : '🎯 预测出线球队'}</button>`;
+
+        html += `<div class="glass rounded-2xl p-4 mb-3">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-black text-lg">${g.name||gid+'组'}</h3>
+                ${statusBadge}
+            </div>
+            <div class="grid grid-cols-2 gap-2">${teamsHtml}</div>
+            ${myPredLine}${btn}
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ─── Group Prediction Modal ───────────────────────────────
+window.openGroupPredModal = function(gid) {
+    const g = groupsData[gid];
+    if (!g) return;
+    gpState = { groupId: gid, selected: [], winner: null };
+
+    const predKey = `${currentUser.id}_${gid}`;
+    const existing = groupPredsData[predKey];
+    if (existing?.qualified) {
+        gpState.selected = [...existing.qualified];
+        gpState.winner = existing.winner || null;
+    }
+
+    document.getElementById('currentGroupId').value = gid;
+    document.getElementById('groupPredSubtitle').textContent = '小组出线竞猜';
+    document.getElementById('groupPredTitle').textContent = g.name || gid + '组';
+    renderGroupTeamButtons(g.teams || []);
+    show('groupPredModal');
+};
+
+window.closeGroupPredModal = function() { hide('groupPredModal'); };
+
+function renderGroupTeamButtons(teams) {
+    const container = document.getElementById('groupTeamsList');
+    container.innerHTML = teams.map(t => {
+        const isSelected = gpState.selected.includes(t.name);
+        const isWinner = gpState.winner === t.name;
+        const borderCls = isSelected ? 'border-yellow-400 bg-yellow-400/10' : 'border-white/10 glass';
+        return `<div class="flex items-center gap-3 rounded-2xl border-2 ${borderCls} px-3 py-2.5 cursor-pointer select-none" onclick="toggleGroupTeam('${t.name}')">
+            <span class="text-3xl">${t.flag||'🏳️'}</span>
+            <span class="font-bold flex-1">${t.name}</span>
+            ${isSelected ? `<button onclick="event.stopPropagation(); toggleGroupWinner('${t.name}')"
+                class="text-lg px-2 py-0.5 rounded-xl ${isWinner ? 'gold text-black' : 'glass border border-white/20 text-gray-400'}"
+                title="设为小组第一">👑</button>` : '<span class="w-10"></span>'}
+            ${isSelected ? '<span class="text-yellow-400 text-xl font-black">✓</span>' : '<span class="text-gray-600 text-xl">○</span>'}
+        </div>`;
+    }).join('');
+}
+
+window.toggleGroupTeam = function(name) {
+    if (gpState.selected.includes(name)) {
+        gpState.selected = gpState.selected.filter(n => n !== name);
+        if (gpState.winner === name) gpState.winner = null;
+    } else {
+        if (gpState.selected.length >= 2) { toast('只能选 2 支球队', 'error'); return; }
+        gpState.selected.push(name);
+    }
+    const g = groupsData[gpState.groupId];
+    renderGroupTeamButtons(g?.teams || []);
+};
+
+window.toggleGroupWinner = function(name) {
+    gpState.winner = gpState.winner === name ? null : name;
+    const g = groupsData[gpState.groupId];
+    renderGroupTeamButtons(g?.teams || []);
+};
+
+window.submitGroupPrediction = async function() {
+    if (gpState.selected.length < 2) { toast('请选择 2 支出线球队', 'error'); return; }
+    const pred = {
+        userId: currentUser.id,
+        groupId: gpState.groupId,
+        qualified: gpState.selected,
+        winner: gpState.winner || null,
+        submittedAt: Date.now(),
+        points: null
+    };
+    const key = `${currentUser.id}_${gpState.groupId}`;
+    if (demoMode) {
+        groupPredsData[key] = pred;
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/groupPreds/${key}`), pred);
+    }
+    hide('groupPredModal');
+    toast('🎯 出线预测已提交！');
+    renderGroups();
+};
+
+// ─── Admin Group Functions ────────────────────────────────
+function refreshAdminGroupSelects() {
+    const gids = Object.keys(groupsData).sort();
+    const opts = gids.map(gid => `<option value="${gid}">${groupsData[gid]?.name||gid+'组'}</option>`).join('');
+    const base = '<option value="">— 选择小组 —</option>';
+    const resEl = document.getElementById('resGroupSel');
+    const editEl = document.getElementById('editGroupSel');
+    if (resEl) resEl.innerHTML = base + opts;
+    if (editEl) editEl.innerHTML = base + opts;
+
+    if (resEl) resEl.onchange = function() {
+        const gid = this.value;
+        const container = document.getElementById('resGroupTeamList');
+        const winnerWrap = document.getElementById('resGroupWinnerWrap');
+        if (!gid) { container.innerHTML = ''; winnerWrap.classList.add('hidden'); return; }
+        const g = groupsData[gid] || {};
+        const teams = g.teams || [];
+        container.innerHTML = teams.map(t => `
+            <label class="flex items-center gap-3 glass rounded-xl px-3 py-2 cursor-pointer">
+                <input type="checkbox" class="res-group-team w-4 h-4 accent-yellow-400" value="${t.name}">
+                <span class="text-xl">${t.flag||'🏳️'}</span>
+                <span class="font-bold">${t.name}</span>
+            </label>`).join('');
+        winnerWrap.classList.add('hidden');
+        container.querySelectorAll('.res-group-team').forEach(cb => {
+            cb.addEventListener('change', updateResGroupWinner);
+        });
+    };
+}
+
+function updateResGroupWinner() {
+    const checked = [...document.querySelectorAll('.res-group-team:checked')].map(cb => cb.value);
+    const wrap = document.getElementById('resGroupWinnerWrap');
+    const winnerList = document.getElementById('resGroupWinnerList');
+    if (checked.length >= 2) {
+        wrap.classList.remove('hidden');
+        const gid = document.getElementById('resGroupSel').value;
+        const g = groupsData[gid] || {};
+        winnerList.innerHTML = checked.map(name => {
+            const t = (g.teams||[]).find(x => x.name === name) || {};
+            return `<label class="flex items-center gap-2 glass rounded-xl px-3 py-1.5 cursor-pointer">
+                <input type="radio" name="resGroupWinner" class="accent-yellow-400" value="${name}">
+                <span>${t.flag||'🏳️'}</span>
+                <span class="font-bold text-sm">${name}</span>
+            </label>`;
+        }).join('');
+    } else {
+        wrap.classList.add('hidden');
+    }
+}
+
+window.submitGroupResult = async function() {
+    const gid = document.getElementById('resGroupSel').value;
+    if (!gid) { toast('请选择小组', 'error'); return; }
+    const checked = [...document.querySelectorAll('.res-group-team:checked')].map(cb => cb.value);
+    if (checked.length < 2) { toast('请勾选 2 支出线球队', 'error'); return; }
+    const winner = document.querySelector('input[name="resGroupWinner"]:checked')?.value || null;
+
+    const updates = {};
+    updates[`rooms/${currentRoom}/groups/${gid}/qualified`] = checked;
+    updates[`rooms/${currentRoom}/groups/${gid}/winner`] = winner;
+
+    const [gPredsSnap, scoresSnap] = await Promise.all([
+        get(ref(db, `rooms/${currentRoom}/groupPreds`)),
+        get(ref(db, `rooms/${currentRoom}/scores`))
+    ]);
+    const allGPreds = gPredsSnap.exists() ? gPredsSnap.val() : {};
+    const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+
+    Object.entries(allGPreds)
+        .filter(([,p]) => p.groupId === gid && p.points === null)
+        .forEach(([key, p]) => {
+            const pts = calcGroupPts(p.qualified, checked, p.winner, winner);
+            updates[`rooms/${currentRoom}/groupPreds/${key}/points`] = pts;
+            const uid = p.userId;
+            const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
+            s.total = (s.total||0) + pts;
+            if (pts >= 4) s.exact = (s.exact||0) + 1;
+            else if (pts >= 1) s.correct = (s.correct||0) + 1;
+            else s.wrong = (s.wrong||0) + 1;
+            updates[`rooms/${currentRoom}/scores/${uid}`] = s;
+        });
+
+    await update(ref(db, '/'), updates);
+    toast('✅ 出线结果已录入，积分已更新！');
+    refreshAdminGroupSelects();
+};
+
+window.loadGroupForEdit = function() {
+    const gid = document.getElementById('editGroupSel').value;
+    const wrap = document.getElementById('editGroupTeams');
+    const textarea = document.getElementById('editGroupTeamsText');
+    if (!gid) { wrap.classList.add('hidden'); return; }
+    const g = groupsData[gid] || {};
+    textarea.value = (g.teams||[]).map(t => `${t.name},${t.flag||'🏳️'}`).join('\n');
+    wrap.classList.remove('hidden');
+};
+
+window.saveGroupTeams = async function() {
+    const gid = document.getElementById('editGroupSel').value;
+    if (!gid) return;
+    const lines = document.getElementById('editGroupTeamsText').value.trim().split('\n').filter(l => l.trim());
+    const teams = lines.map(line => {
+        const parts = line.split(',').map(s => s.trim());
+        return { name: parts[0] || '未知', flag: parts[1] || '🏳️' };
+    }).filter(t => t.name);
+    if (teams.length < 2) { toast('至少输入 2 支球队', 'error'); return; }
+
+    if (demoMode) {
+        groupsData[gid].teams = teams;
+        renderGroups();
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/groups/${gid}/teams`), teams);
+    }
+    toast(`✅ ${groupsData[gid]?.name||gid+'组'} 球队已保存`);
+};
+
+function calcGroupPts(predQ, realQ, predW, realW) {
+    let pts = 0;
+    (predQ||[]).forEach(t => { if ((realQ||[]).includes(t)) pts += 2; });
+    if (predW && predW === realW) pts += 1;
+    return pts;
+}
+
+// ─── Default Groups Data ──────────────────────────────────
+function defaultGroups() {
+    return {
+        A: { name:'A组', teams:[{name:'美国',flag:'🇺🇸'},{name:'摩洛哥',flag:'🇲🇦'},{name:'葡萄牙',flag:'🇵🇹'},{name:'巴拿马',flag:'🇵🇦'}], qualified:null, winner:null },
+        B: { name:'B组', teams:[{name:'墨西哥',flag:'🇲🇽'},{name:'厄瓜多尔',flag:'🇪🇨'},{name:'波兰',flag:'🇵🇱'},{name:'科特迪瓦',flag:'🇨🇮'}], qualified:null, winner:null },
+        C: { name:'C组', teams:[{name:'加拿大',flag:'🇨🇦'},{name:'荷兰',flag:'🇳🇱'},{name:'喀麦隆',flag:'🇨🇲'},{name:'沙特',flag:'🇸🇦'}], qualified:null, winner:null },
+        D: { name:'D组', teams:[{name:'阿根廷',flag:'🇦🇷'},{name:'英格兰',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},{name:'塞内加尔',flag:'🇸🇳'},{name:'玻利维亚',flag:'🇧🇴'}], qualified:null, winner:null },
+        E: { name:'E组', teams:[{name:'巴西',flag:'🇧🇷'},{name:'日本',flag:'🇯🇵'},{name:'澳大利亚',flag:'🇦🇺'},{name:'尼日利亚',flag:'🇳🇬'}], qualified:null, winner:null },
+        F: { name:'F组', teams:[{name:'法国',flag:'🇫🇷'},{name:'比利时',flag:'🇧🇪'},{name:'哥伦比亚',flag:'🇨🇴'},{name:'突尼斯',flag:'🇹🇳'}], qualified:null, winner:null },
+        G: { name:'G组', teams:[{name:'西班牙',flag:'🇪🇸'},{name:'乌拉圭',flag:'🇺🇾'},{name:'喀麦隆',flag:'🇨🇲'},{name:'伊拉克',flag:'🇮🇶'}], qualified:null, winner:null },
+        H: { name:'H组', teams:[{name:'德国',flag:'🇩🇪'},{name:'克罗地亚',flag:'🇭🇷'},{name:'伊朗',flag:'🇮🇷'},{name:'朝鲜',flag:'🇰🇵'}], qualified:null, winner:null },
+        I: { name:'I组', teams:[{name:'葡萄牙',flag:'🇵🇹'},{name:'韩国',flag:'🇰🇷'},{name:'委内瑞拉',flag:'🇻🇪'},{name:'马里',flag:'🇲🇱'}], qualified:null, winner:null },
+        J: { name:'J组', teams:[{name:'荷兰',flag:'🇳🇱'},{name:'土耳其',flag:'🇹🇷'},{name:'智利',flag:'🇨🇱'},{name:'南非',flag:'🇿🇦'}], qualified:null, winner:null },
+        K: { name:'K组', teams:[{name:'意大利',flag:'🇮🇹'},{name:'瑞士',flag:'🇨🇭'},{name:'埃及',flag:'🇪🇬'},{name:'新西兰',flag:'🇳🇿'}], qualified:null, winner:null },
+        L: { name:'L组', teams:[{name:'丹麦',flag:'🇩🇰'},{name:'奥地利',flag:'🇦🇹'},{name:'秘鲁',flag:'🇵🇪'},{name:'阿尔及利亚',flag:'🇩🇿'}], qualified:null, winner:null },
     };
 }
 
