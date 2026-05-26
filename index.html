@@ -1264,18 +1264,28 @@ function getTopScorerPts(name) {
   return key ? DEFAULT_SCORER_ODDS[key] : 150;
 }
 
-// Top 10 players shown in scorer dropdown (by odds tier)
+// Top 20 players shown in scorer dropdown (by odds tier)
 const SCORER_LIST = [
-  { name:'姆巴佩',  flag:'🇫🇷', pts:10  },
-  { name:'凯恩',    flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', pts:10  },
-  { name:'梅西',    flag:'🇦🇷', pts:20  },
-  { name:'哈兰德',  flag:'🇳🇴', pts:20  },
-  { name:'亚马尔',  flag:'🇪🇸', pts:25  },
-  { name:'C罗',     flag:'🇵🇹', pts:30  },
-  { name:'维尼修斯',flag:'🇧🇷', pts:30  },
-  { name:'劳塔罗',  flag:'🇦🇷', pts:35  },
-  { name:'登贝莱',  flag:'🇫🇷', pts:35  },
-  { name:'贝林厄姆',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', pts:60  },
+  { name:'姆巴佩',   flag:'🇫🇷', pts:10 },
+  { name:'凯恩',     flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', pts:10 },
+  { name:'梅西',     flag:'🇦🇷', pts:20 },
+  { name:'哈兰德',   flag:'🇳🇴', pts:20 },
+  { name:'亚马尔',   flag:'🇪🇸', pts:25 },
+  { name:'奥亚萨瓦尔',flag:'🇪🇸', pts:25 },
+  { name:'C罗',      flag:'🇵🇹', pts:30 },
+  { name:'维尼修斯', flag:'🇧🇷', pts:30 },
+  { name:'劳塔罗',   flag:'🇦🇷', pts:35 },
+  { name:'登贝莱',   flag:'🇫🇷', pts:35 },
+  { name:'卢卡库',   flag:'🇧🇪', pts:40 },
+  { name:'拉菲尼亚', flag:'🇧🇷', pts:40 },
+  { name:'沃尔特马德',flag:'🇩🇪', pts:45 },
+  { name:'阿尔瓦雷斯',flag:'🇦🇷', pts:45 },
+  { name:'莫拉塔',   flag:'🇪🇸', pts:45 },
+  { name:'贝林厄姆', flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', pts:60 },
+  { name:'萨卡',     flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', pts:60 },
+  { name:'维尔茨',   flag:'🇩🇪', pts:60 },
+  { name:'哈弗茨',   flag:'🇩🇪', pts:60 },
+  { name:'穆西亚拉', flag:'🇩🇪', pts:60 },
 ];
 
 function _scorerSelectOpts(selectedName) {
