@@ -49,6 +49,13 @@
         .shimmer { background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         select option { background: #1a2035; color: white; }
+        .tab-dot { position:absolute; top:6px; right:2px; width:7px; height:7px; background:#ef4444; border-radius:50%; animation: tabPulse 1.5s ease-in-out infinite; }
+        @keyframes tabPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.7} }
+        .deadline-chip { display:inline-flex; align-items:center; gap:4px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+        .deadline-chip.soon { background:rgba(249,115,22,0.15); border-color:rgba(249,115,22,0.4); color:#fdba74; }
+        .deadline-chip.ok { background:rgba(34,197,94,0.1); border-color:rgba(34,197,94,0.3); color:#86efac; }
+        .outstanding-glow { box-shadow: 0 0 0 2px rgba(247,201,72,0.5), 0 0 20px rgba(247,201,72,0.12); animation: outlineGlow 2s ease-in-out infinite; }
+        @keyframes outlineGlow { 0%,100%{box-shadow:0 0 0 2px rgba(247,201,72,0.5),0 0 20px rgba(247,201,72,0.12)} 50%{box-shadow:0 0 0 2px rgba(247,201,72,0.9),0 0 28px rgba(247,201,72,0.25)} }
     </style>
 </head>
 <body class="text-white">
@@ -225,9 +232,9 @@
 
     <!-- Tabs -->
     <div class="flex border-b border-white/8 bg-black/20 px-1 overflow-x-auto scrollbar-hide">
-        <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active py-3.5 px-3 font-bold text-sm whitespace-nowrap">🏆 冠军</button>
-        <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">⚽ 射手</button>
-        <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">🏅 出线</button>
+        <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active py-3.5 px-3 font-bold text-sm whitespace-nowrap relative">🏆 冠军</button>
+        <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap relative">⚽ 射手</button>
+        <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap relative">🏅 出线</button>
         <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">🥊 淘汰赛</button>
         <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📊 排行</button>
         <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📝 我的</button>
@@ -247,8 +254,8 @@
                 </button>
                 <div class="hidden px-4 pb-4">
                     <div class="glass-dark rounded-xl p-3 text-xs space-y-1.5 text-gray-300">
-                        <p>🏆 <b class="text-yellow-400">冠军预测</b> 截止6月24日，可随时修改，猜中 <b class="text-white">+20分</b></p>
-                        <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月5日，锁定后不可改，猜中 <b class="text-white">+10分</b></p>
+                        <p>🏆 <b class="text-yellow-400">冠军预测</b> 截止6月10日 CET 23:59，可随时修改，猜中 <b class="text-white">+20分</b></p>
+                        <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月10日 CET 23:59，锁定后不可改，猜中 <b class="text-white">+10分</b></p>
                         <p>🎯 <b class="text-blue-300">半程冠军</b> 7月4日淘汰赛起开放，7月9日截止，猜中 <b class="text-white">+10分</b></p>
                         <div class="mt-2 pt-2 border-t border-white/10">
                             <p class="font-bold text-green-400 mb-1">半程冠军系数（影响冠军积分）：</p>
@@ -261,12 +268,15 @@
             </div>
 
             <!-- Section 1: Champion -->
-            <div class="glass rounded-2xl p-4 mb-3">
+            <div id="champCard1" class="glass rounded-2xl p-4 mb-3">
                 <div class="flex items-center justify-between mb-1">
                     <p class="font-black text-base gold-text">🏆 冠军预测</p>
                     <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">20分</span>
                 </div>
-                <p class="text-xs text-gray-400 mb-3">截止 6月24日 · 截止前可随时修改</p>
+                <div class="flex items-center gap-2 mb-3">
+                    <span id="champDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
+                    <span class="text-xs text-gray-500">截止前可随时修改</span>
+                </div>
                 <div id="champSection1"><div class="shimmer rounded-xl h-16"></div></div>
             </div>
 
@@ -276,7 +286,7 @@
                     <p class="font-black text-base" style="color:#60a5fa">🎯 半程冠军</p>
                     <span class="text-xs bg-blue-400/10 text-blue-300 px-2 py-0.5 rounded-full font-bold">10分+系数</span>
                 </div>
-                <p class="text-xs text-gray-400 mb-1">7月4日淘汰赛开始后开放 · 截止7月9日 · 确认后永久锁定</p>
+                <p class="text-xs text-gray-400 mb-1">🔓 7月4日淘汰赛开始后开放 · 截止7月9日 · 确认后永久锁定</p>
                 <p class="text-xs text-orange-400 mb-3">与冠军选相同 → 冠军×1.5 · 不同 → 冠军×0.5</p>
                 <div id="champSection3"><div class="shimmer rounded-xl h-16"></div></div>
             </div>
@@ -288,27 +298,33 @@
                 <p class="font-black text-xl gold-text">⚽ 最佳射手竞猜</p>
                 <p class="text-xs text-gray-400 mt-0.5">预测 2026 世界杯最终最佳射手</p>
             </div>
-            <div class="glass rounded-2xl p-4 mb-3">
+            <div id="scorerCard" class="glass rounded-2xl p-4 mb-3">
                 <div class="flex items-center justify-between mb-1">
                     <p class="font-black text-base gold-text">⚽ 最佳射手</p>
                     <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">10分</span>
                 </div>
-                <p class="text-xs text-gray-400 mb-3">截止 6月5日 · 确认后永久锁定，无法更改</p>
+                <div class="flex items-center gap-2 mb-3">
+                    <span id="scorerDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
+                    <span class="text-xs text-red-400 font-bold">确认后永久锁定</span>
+                </div>
                 <div id="champSection2"><div class="shimmer rounded-xl h-12"></div></div>
             </div>
             <div class="glass-dark rounded-2xl p-4 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
                 <p>· 填写你认为会拿最佳射手奖的球员姓名</p>
-                <p>· 截止 <b class="text-white">6月5日</b>，一旦确认永久锁定</p>
+                <p>· 截止 <b class="text-white">6月10日 23:59 CET</b>，一旦确认永久锁定</p>
                 <p>· 与实际最佳射手姓名完全匹配得 <b class="text-white">+10分</b></p>
             </div>
         </div>
 
         <!-- Groups -->
         <div id="content-groups" class="hidden">
-            <div class="glass rounded-2xl p-3 mb-3 text-center">
-                <p class="font-black gold-text">小组出线竞猜</p>
+            <div id="groupsCard" class="glass rounded-2xl p-3 mb-3 text-center">
+                <p class="font-black gold-text">🏅 小组出线竞猜</p>
                 <p class="text-xs text-gray-400 mt-0.5">猜中出线 <span class="text-yellow-400 font-bold">+2分</span> · 猜中小组第一 <span class="text-green-400 font-bold">+1分</span></p>
+                <div class="flex justify-center mt-2">
+                    <span id="groupDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
+                </div>
             </div>
 
             <!-- Qualification Rules Card -->
@@ -1108,8 +1124,9 @@ let champPredsData = {};
 let champPendingPick = null;   // section 1 pending
 let midwayPendingPick = null;  // section 3 pending
 
-const CHAMPION_DEADLINE   = new Date('2026-06-24T15:59:00Z'); // June 24 23:59 CST — can edit until then
-const TOP_SCORER_DEADLINE = new Date('2026-06-05T16:00:00Z'); // June 5 midnight CST — permanent lock
+const CHAMPION_DEADLINE   = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — re-editable until then
+const TOP_SCORER_DEADLINE = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — permanent lock
+const GROUP_DEADLINE      = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — group picks lock
 const MIDWAY_OPEN         = new Date('2026-07-04T00:00:00Z'); // July 4 08:00 CST — knockout stage starts
 const MIDWAY_DEADLINE     = new Date('2026-07-09T12:00:00Z'); // July 9 20:00 CST — before R16, permanent lock
 
@@ -1119,7 +1136,88 @@ function loadChampPreds() {
         champPredsData = snap.exists() ? snap.val() : {};
         renderChampion();
         renderMyPreds();
+        updateTabDots();
     });
+}
+
+function fmtCountdown(deadline) {
+    const ms = deadline - new Date();
+    if (ms <= 0) return null;
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    if (d > 7) return `${d}天后截止`;
+    if (d > 0) return `还剩 ${d}天 ${h}小时`;
+    if (h > 0) return `还剩 ${h}小时 ${m}分`;
+    return `还剩 ${m}分钟`;
+}
+
+function updateTabDots() {
+    if (!currentUser) return;
+    const myPred = champPredsData[currentUser.id] || {};
+    const now = new Date();
+
+    // Champion tab dot
+    const champDot = document.getElementById('dot-champion');
+    const needsChamp = !myPred.champion && now < CHAMPION_DEADLINE;
+    if (needsChamp && !champDot) {
+        const btn = document.getElementById('tab-champion');
+        if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-champion" class="tab-dot"></span>');
+    } else if (!needsChamp && champDot) champDot.remove();
+
+    // Top scorer tab dot
+    const scorerDot = document.getElementById('dot-topScorer');
+    const needsScorer = !myPred.topScorer && now < TOP_SCORER_DEADLINE;
+    if (needsScorer && !scorerDot) {
+        const btn = document.getElementById('tab-topScorer');
+        if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-topScorer" class="tab-dot"></span>');
+    } else if (!needsScorer && scorerDot) scorerDot.remove();
+
+    // Groups tab dot — check if any group has no prediction from this user
+    const groupDot = document.getElementById('dot-groups');
+    const uid = currentUser.id;
+    const groupIds = Object.keys(groupsData);
+    const needsGroups = now < GROUP_DEADLINE && groupIds.length > 0 &&
+        !groupIds.every(gid => groupPredsData[`${uid}_${gid}`]);
+    if (needsGroups && !groupDot) {
+        const btn = document.getElementById('tab-groups');
+        if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-groups" class="tab-dot"></span>');
+    } else if (!needsGroups && groupDot) groupDot.remove();
+
+    // Update deadline chips
+    const cd = fmtCountdown(CHAMPION_DEADLINE);
+    const champChip = document.getElementById('champDeadlineChip');
+    if (champChip) {
+        if (!cd) { champChip.textContent = '🔒 已截止'; champChip.className = 'deadline-chip'; }
+        else {
+            const daysLeft = (CHAMPION_DEADLINE - now) / 86400000;
+            champChip.textContent = `⏰ ${cd}`;
+            champChip.className = `deadline-chip${daysLeft <= 3 ? ' soon' : daysLeft > 14 ? ' ok' : ''}`;
+        }
+    }
+    const scorerChip = document.getElementById('scorerDeadlineChip');
+    if (scorerChip) {
+        if (!cd) { scorerChip.textContent = '🔒 已截止'; scorerChip.className = 'deadline-chip'; }
+        else { scorerChip.textContent = `⏰ ${cd}`; scorerChip.className = champChip?.className || 'deadline-chip'; }
+    }
+    const groupChip = document.getElementById('groupDeadlineChip');
+    if (groupChip) {
+        const gcd = fmtCountdown(GROUP_DEADLINE);
+        if (!gcd) { groupChip.textContent = '🔒 已截止'; groupChip.className = 'deadline-chip'; }
+        else {
+            const dLeft = (GROUP_DEADLINE - now) / 86400000;
+            groupChip.textContent = `⏰ ${gcd}`;
+            groupChip.className = `deadline-chip${dLeft <= 3 ? ' soon' : dLeft > 14 ? ' ok' : ''}`;
+        }
+    }
+
+    // Outstanding glow on unfilled cards
+    const c1 = document.getElementById('champCard1');
+    if (c1) { if (needsChamp) c1.classList.add('outstanding-glow'); else c1.classList.remove('outstanding-glow'); }
+    const sc = document.getElementById('scorerCard');
+    if (sc) { if (needsScorer) sc.classList.add('outstanding-glow'); else sc.classList.remove('outstanding-glow'); }
+    const gc = document.getElementById('groupsCard');
+    if (gc) { if (needsGroups) gc.classList.add('outstanding-glow'); else gc.classList.remove('outstanding-glow'); }
 }
 
 function getTeamFlag(name) {
@@ -1141,6 +1239,7 @@ function renderChampion() {
     renderChampSection1(myPred, now);
     renderChampSection2(myPred, now);
     renderChampSection3(myPred, now);
+    updateTabDots();
 }
 
 function buildTeamGrid(groups, pendingName, savedName, onClickFn, extraIndicatorFn) {
@@ -1202,38 +1301,45 @@ function renderChampSection1(myPred, now) {
         return;
     }
 
-    // Before deadline — show current pick (if any) + grid to change
+    // Before deadline — dropdown picker
     const groups = Object.entries(groupsData).sort((a,b) => a[0].localeCompare(b[0]));
     if (!groups.length) { el.innerHTML = `<div class="shimmer rounded-xl h-20"></div>`; return; }
 
-    let html = '';
+    const dropdownOptions = groups.map(([gid, g]) =>
+        `<optgroup label="— ${g.name||gid+'组'} —">${(g.teams||[]).map(t =>
+            `<option value="${t.name}" ${champPendingPick === t.name ? 'selected' : ''}>${t.flag||''} ${t.name}</option>`
+        ).join('')}</optgroup>`
+    ).join('');
 
-    // Current saved pick banner
-    if (myPred.champion && !champPendingPick) {
-        html += `<div class="glass-dark rounded-xl p-3 flex items-center gap-3 mb-3 border border-yellow-400/30">
-            <span class="text-3xl">${getTeamFlag(myPred.champion)}</span>
-            <div class="flex-1">
-                <p class="font-black text-white">${myPred.champion}</p>
-                <p class="text-xs text-green-400">当前选择 · 可在6月24日前随时更换</p>
+    const pending = champPendingPick;
+    const saved = myPred.champion;
+
+    let html = `<select onchange="selectChampTeam(this.value)"
+        class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-3"
+        style="background:rgba(0,0,0,0.4)">
+        <option value="">— 选择你预测的冠军球队 —</option>
+        ${dropdownOptions}
+    </select>`;
+
+    if (pending) {
+        const isChange = !!saved;
+        html += `<div class="glass-dark rounded-2xl p-3 flex items-center gap-3 border border-blue-400/40">
+            <span class="text-3xl">${getTeamFlag(pending)}</span>
+            <div class="flex-1"><p class="font-black text-white">${pending}</p>
+                <p class="text-xs text-gray-400">${isChange ? '确认更换冠军预测？' : '确认选择为冠军？'}</p></div>
+            <div class="flex gap-2">
+                <button onclick="cancelChampPick()"
+                    class="glass border border-white/20 text-gray-400 text-sm font-bold px-3 py-2 rounded-xl active:scale-95">取消</button>
+                <button onclick="confirmChampPick()"
+                    class="gold text-black font-black px-4 py-2 rounded-xl active:scale-95 text-sm">确认 ✓</button>
             </div>
         </div>`;
-    }
-
-    html += buildTeamGrid(groups, champPendingPick, myPred.champion, 'selectChampTeam', null);
-
-    if (champPendingPick) {
-        const isChange = !!myPred.champion;
-        html += `<div class="sticky bottom-20 mt-2">
-            <div class="glass-dark rounded-2xl p-3 flex items-center gap-3 border border-blue-400/40">
-                <span class="text-3xl">${getTeamFlag(champPendingPick)}</span>
-                <div class="flex-1"><p class="font-black text-white">${champPendingPick}</p>
-                    <p class="text-xs text-gray-400">${isChange ? '确认更换冠军预测？' : '确认选择为冠军？'}</p></div>
-                <div class="flex gap-2">
-                    <button onclick="selectChampTeam('${champPendingPick}')"
-                        class="glass border border-white/20 text-gray-400 text-sm font-bold px-3 py-2 rounded-xl active:scale-95">取消</button>
-                    <button onclick="confirmChampPick()"
-                        class="gold text-black font-black px-4 py-2 rounded-xl active:scale-95 text-sm">确认 ✓</button>
-                </div>
+    } else if (saved) {
+        html += `<div class="glass-dark rounded-xl p-3 flex items-center gap-3 border border-yellow-400/30">
+            <span class="text-3xl">${getTeamFlag(saved)}</span>
+            <div class="flex-1">
+                <p class="font-black text-white">${saved}</p>
+                <p class="text-xs text-green-400">✓ 已保存 · 可从下拉菜单重新选择更换</p>
             </div>
         </div>`;
     }
@@ -1318,33 +1424,35 @@ function renderChampSection3(myPred, now) {
         </div>`;
     }
 
-    html += buildTeamGrid(groups, midwayPendingPick, null, 'selectMidwayTeam', (name, isPendingThis) => {
-        const sameAsChamp = myPred.champion && name === myPred.champion;
-        if (isPendingThis) {
-            return sameAsChamp
-                ? { cls: 'border-green-400 bg-green-400/15', label: `<span class="text-green-400 font-bold leading-none" style="font-size:7px">×1.5</span>` }
-                : { cls: 'border-orange-400 bg-orange-400/10', label: `<span class="text-orange-400 font-bold leading-none" style="font-size:7px">×0.5</span>` };
-        }
-        if (sameAsChamp) return { cls: 'border-yellow-400/40 bg-yellow-400/5', label: `<span class="text-yellow-400 leading-none" style="font-size:7px">冠军</span>` };
-        return null;
-    });
+    const dropdownOptions3 = groups.map(([gid, g]) =>
+        `<optgroup label="— ${g.name||gid+'组'} —">${(g.teams||[]).map(t => {
+            const sameAsChamp = myPred.champion && t.name === myPred.champion;
+            const label = `${t.flag||''} ${t.name}${sameAsChamp ? ' ★ (与冠军相同→×1.5)' : ''}`;
+            return `<option value="${t.name}" ${midwayPendingPick === t.name ? 'selected' : ''}>${label}</option>`;
+        }).join('')}</optgroup>`
+    ).join('');
+
+    html += `<select onchange="selectMidwayTeam(this.value)"
+        class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-3"
+        style="background:rgba(0,0,0,0.4)">
+        <option value="">— 选择你预测的半程冠军 —</option>
+        ${dropdownOptions3}
+    </select>`;
 
     if (midwayPendingPick) {
         const sameAsChamp = myPred.champion && midwayPendingPick === myPred.champion;
         const mHint = sameAsChamp
             ? `<p class="text-xs text-green-400">与冠军预测相同 → 冠军积分 ×1.5（最高30分）</p>`
             : (myPred.champion ? `<p class="text-xs text-orange-400">与冠军预测不同 → 冠军积分 ×0.5（降至10分）</p>` : '');
-        html += `<div class="sticky bottom-20 mt-2">
-            <div class="glass-dark rounded-2xl p-3 flex items-center gap-3 border ${sameAsChamp?'border-green-400/40':'border-orange-400/40'}">
-                <span class="text-3xl">${getTeamFlag(midwayPendingPick)}</span>
-                <div class="flex-1"><p class="font-black text-white">${midwayPendingPick}</p>
-                    ${mHint}<p class="text-xs text-red-400">确认后永久锁定！</p></div>
-                <div class="flex gap-2">
-                    <button onclick="selectMidwayTeam('${midwayPendingPick}')"
-                        class="glass border border-white/20 text-gray-400 text-sm font-bold px-3 py-2 rounded-xl active:scale-95">取消</button>
-                    <button onclick="confirmMidwayPick()"
-                        class="gold text-black font-black px-4 py-2 rounded-xl active:scale-95 text-sm">确认 ✓</button>
-                </div>
+        html += `<div class="glass-dark rounded-2xl p-3 flex items-center gap-3 border ${sameAsChamp?'border-green-400/40':'border-orange-400/40'}">
+            <span class="text-3xl">${getTeamFlag(midwayPendingPick)}</span>
+            <div class="flex-1"><p class="font-black text-white">${midwayPendingPick}</p>
+                ${mHint}<p class="text-xs text-red-400">⚠️ 确认后永久锁定！</p></div>
+            <div class="flex gap-2">
+                <button onclick="cancelMidwayPick()"
+                    class="glass border border-white/20 text-gray-400 text-sm font-bold px-3 py-2 rounded-xl active:scale-95">取消</button>
+                <button onclick="confirmMidwayPick()"
+                    class="gold text-black font-black px-4 py-2 rounded-xl active:scale-95 text-sm">确认 ✓</button>
             </div>
         </div>`;
     }
@@ -1353,7 +1461,13 @@ function renderChampSection3(myPred, now) {
 
 window.selectChampTeam = function(teamName) {
     if (new Date() >= CHAMPION_DEADLINE) { toast('冠军竞猜已截止', 'error'); return; }
-    champPendingPick = champPendingPick === teamName ? null : teamName;
+    if (!teamName) { champPendingPick = null; renderChampSection1(champPredsData[currentUser.id] || {}, new Date()); return; }
+    champPendingPick = teamName;
+    renderChampSection1(champPredsData[currentUser.id] || {}, new Date());
+};
+
+window.cancelChampPick = function() {
+    champPendingPick = null;
     renderChampSection1(champPredsData[currentUser.id] || {}, new Date());
 };
 
@@ -1389,7 +1503,13 @@ window.submitTopScorer = async function() {
 window.selectMidwayTeam = function(teamName) {
     if (champPredsData[currentUser.id]?.midway) { toast('半程冠军已锁定', 'error'); return; }
     if (new Date() >= MIDWAY_DEADLINE) { toast('竞猜已截止', 'error'); return; }
-    midwayPendingPick = midwayPendingPick === teamName ? null : teamName;
+    if (!teamName) { midwayPendingPick = null; renderChampSection3(champPredsData[currentUser.id] || {}, new Date()); return; }
+    midwayPendingPick = teamName;
+    renderChampSection3(champPredsData[currentUser.id] || {}, new Date());
+};
+
+window.cancelMidwayPick = function() {
+    midwayPendingPick = null;
     renderChampSection3(champPredsData[currentUser.id] || {}, new Date());
 };
 
@@ -1873,10 +1993,12 @@ async function loadGroups() {
         renderGroups();
         refreshAdminGroupSelects();
         renderChampion();
+        updateTabDots();
     });
     onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
         groupPredsData = snap.exists() ? snap.val() : {};
         renderGroups();
+        updateTabDots();
         if (document.getElementById('content-myPreds').classList.contains('hidden') === false) renderMyPreds();
     });
 }
