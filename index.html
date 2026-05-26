@@ -1009,13 +1009,9 @@ function renderMatchCard(m) {
 }
 
 // ─── Render: Leaderboard ─────────────────────────────────
-function _predSummary(uid) {
+function _countPreds(uid) {
     const cp = champPredsData[uid] || {};
     const gids = Object.keys(groupsData);
-    const groupDone = gids.filter(gid => groupPredsData[`${uid}_${gid}`]).length;
-    const hasThird  = (thirdPicksData[uid]?.picks?.length || 0) >= 8;
-
-    // Count total items, correct, wrong, pending
     let total = 0, correct = 0, wrong = 0, pending = 0;
     const add1 = (has, pts) => {
         if (!has) return;
@@ -1042,13 +1038,25 @@ function _predSummary(uid) {
     const thirdArr = thirdPicksData[uid]?.picks || [];
     if (thirdArr.length) addN(thirdArr.length, thirdPicksData[uid]?.points ?? null);
     Object.values(predsData).filter(p => p.userId === uid).forEach(p => add1(true, p.points));
+    return { total, correct, wrong, pending };
+}
 
+function _predSummary(uid) {
+    const { total, correct, wrong, pending } = _countPreds(uid);
     const dot = '<span class="text-gray-500 font-bold"> · </span>';
     const pct = total ? `<span class="font-bold">${total}项预测</span>` : '<span class="font-bold text-gray-500">暂无预测</span>';
     const stats = total
         ? `<span class="text-green-400 font-bold">✓${correct}</span>${dot}<span class="text-red-400 font-bold">✗${wrong}</span>${dot}<span class="text-yellow-300 font-bold">?${pending}</span>`
         : '';
     return pct + (stats ? dot + stats : '');
+}
+
+function _lbSort([aUid, aS], [bUid, bS]) {
+    const aScore = aS.total || 0, bScore = bS.total || 0;
+    if (bScore !== aScore) return bScore - aScore;
+    const aCnt = _countPreds(aUid).total, bCnt = _countPreds(bUid).total;
+    if (bCnt !== aCnt) return bCnt - aCnt;
+    return (aS.name || '').localeCompare(bS.name || '', 'zh-CN');
 }
 
 function _podiumCard(uid, s, rank, isMe, size) {
@@ -1078,13 +1086,13 @@ function renderLeaderboard() {
         return;
     }
 
-    const sorted = [...entries].sort((a, b) => (b[1].total||0) - (a[1].total||0));
+    const sorted = [...entries].sort(_lbSort);
     let html = '';
 
     // ─ Prize pool podium (shown first if has prize members)
     const prizeEntries = entries.filter(([,s]) => s.prizePool === true);
     if (prizeEntries.length > 0) {
-        const prizeSorted = [...prizeEntries].sort((a,b) => (b[1].total||0) - (a[1].total||0));
+        const prizeSorted = [...prizeEntries].sort(_lbSort);
         html += `<div class="glass rounded-2xl p-4 mb-4 border border-yellow-400/20">
             <p class="font-black text-center gold-text mb-0.5">🎁 大奖游戏排名</p>
             <p class="text-xs text-center text-gray-400 mb-3">仅统计已报名参与者 · 前三名赢取奖品</p>`;
