@@ -292,13 +292,13 @@
     </header>
 
     <!-- Tabs -->
-    <div class="flex border-b border-white/8 bg-black/20 px-1 overflow-x-auto scrollbar-hide">
-        <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active py-3.5 px-3 font-bold text-sm whitespace-nowrap relative">🏆 冠军</button>
-        <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap relative">⚽ 射手</button>
-        <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap relative">🏅 出线</button>
-        <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">🥊 淘汰赛</button>
-        <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📊 排行</button>
-        <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📝 我的</button>
+    <div class="flex border-b border-white/8 bg-black/20">
+        <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active flex-1 py-3 font-bold text-xs whitespace-nowrap relative flex flex-col items-center gap-0.5">🏆<span>冠军</span></button>
+        <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">⚽<span>射手</span></button>
+        <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">🏅<span>出线</span></button>
+        <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🥊<span>淘汰赛</span></button>
+        <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行</span></button>
+        <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📝<span>我的</span></button>
     </div>
 
     <!-- Content -->
@@ -472,8 +472,20 @@
 
         <!-- My Predictions -->
         <div id="content-myPreds" class="hidden">
-            <div class="glass rounded-2xl p-4 mb-4 text-center">
-                <p class="font-black text-xl gold-text">我的预测记录</p>
+            <!-- Profile card -->
+            <div class="glass rounded-2xl p-4 mb-4 flex items-center gap-4">
+                <div class="relative flex-shrink-0">
+                    <div id="myAvatarDisplay"
+                        class="w-16 h-16 rounded-full gold flex items-center justify-center text-black font-black text-2xl overflow-hidden"></div>
+                    <button onclick="document.getElementById('avatarFileInput').click()"
+                        class="absolute -bottom-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-black text-xs font-black active:scale-90">✎</button>
+                    <input type="file" id="avatarFileInput" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-black text-lg truncate" id="myProfileName"></p>
+                    <p class="text-xs text-gray-400" id="myProfileRoom"></p>
+                    <p id="myAvatarStatus" class="text-xs text-gray-500 mt-0.5">点击头像右下角按钮上传照片</p>
+                </div>
             </div>
             <div id="myPredsContainer" class="space-y-2">
                 <div class="text-center py-8 text-gray-400">暂无预测</div>
@@ -702,6 +714,7 @@ let currentRoom = 'public';
 let matchesData = {};
 let predsData = {};
 let scoresData = {};
+let avatarsData = {};
 let wantsPrize = true;
 const ADMIN_DEFAULT_PWD = 'admin2026';
 
@@ -871,8 +884,8 @@ window.logout = function() {
 function startApp() {
     show('app');
     document.getElementById('headerName').textContent = currentUser.name;
-    document.getElementById('headerAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
     document.getElementById('headerRoom').textContent = `房间: ${currentRoom}${demoMode ? ' (演示)' : ''}`;
+    _refreshHeaderAvatar();
 
     loadGroups();
     loadChampPreds();
@@ -897,6 +910,17 @@ function startApp() {
             scoresData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
             updateHeaderPoints();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/users`), snap => {
+            avatarsData = {};
+            if (snap.exists()) {
+                Object.entries(snap.val()).forEach(([uid, u]) => {
+                    if (u.avatar) avatarsData[uid] = u.avatar;
+                });
+            }
+            renderLeaderboard();
+            _refreshHeaderAvatar();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
     }
 }
@@ -1069,9 +1093,7 @@ function _podiumCard(uid, s, rank, isMe, size) {
     return `<div class="flex flex-col items-center gap-1 ${big ? 'pt-0' : 'pt-4'}">
         <div class="${podiumColors[rank-1]} rounded-2xl px-3 py-3 flex flex-col items-center gap-1 w-full ${isMe?'ring-2 ring-yellow-400':''}">
             <span class="text-2xl">${trophyEmoji[rank-1]}</span>
-            <div class="${avatarCls} rounded-full bg-gray-700/80 flex items-center justify-center font-black flex-shrink-0">
-                ${(s.name||'?').charAt(0).toUpperCase()}
-            </div>
+            ${_avatarHtml(uid, s.name, avatarCls, 'text-lg')}
             <p class="${nameCls} text-center truncate w-full">${s.name||'未知'}${isMe?' <span class="text-yellow-400">·我</span>':''}</p>
             <p class="${scoreCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></p>
         </div>
@@ -1108,7 +1130,7 @@ function renderLeaderboard() {
                 const isMe = uid===currentUser.id||s.name===currentUser.name;
                 html += `<div class="glass rounded-xl p-2.5 flex items-center gap-2 mb-1.5 ${isMe?'ring-1 ring-yellow-400':''}">
                     <span class="font-black text-base w-6 text-center text-gray-400">${rank}</span>
-                    <div class="w-7 h-7 rounded-full bg-gray-700/80 flex items-center justify-center font-black text-sm flex-shrink-0">${(s.name||'?').charAt(0).toUpperCase()}</div>
+                    ${_avatarHtml(uid, s.name, 'w-7 h-7', 'text-sm')}
                     <span class="flex-1 text-sm font-bold truncate">${s.name||'未知'}${isMe?' <span class="text-yellow-400 text-xs">我</span>':''}</span>
                     <span class="font-black">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></span>
                 </div>`;
@@ -1123,7 +1145,7 @@ function renderLeaderboard() {
                 const tc=rank<=3?'text-current':'text-white';
                 html += `<div class="${rCls} rounded-xl p-3 flex items-center gap-3 mb-1.5 ${isMe?'ring-2 ring-yellow-400':''}">
                     ${rIcon}
-                    <div class="w-8 h-8 rounded-full bg-gray-700/80 flex items-center justify-center font-black text-base flex-shrink-0">${(s.name||'?').charAt(0).toUpperCase()}</div>
+                    ${_avatarHtml(uid, s.name, 'w-8 h-8', 'text-base')}
                     <span class="flex-1 font-bold text-sm truncate ${tc}">${s.name||'未知'}${isMe?' <span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">我</span>':''}</span>
                     <span class="text-xl font-black ${tc}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></span>
                 </div>`;
@@ -1147,9 +1169,7 @@ function renderLeaderboard() {
 
         html += `<div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe ? 'ring-2 ring-yellow-400' : ''}">
             ${rankIcon}
-            <div class="w-9 h-9 rounded-full bg-gray-700/80 flex items-center justify-center font-black text-lg flex-shrink-0">
-                ${(s.name||'?').charAt(0).toUpperCase()}
-            </div>
+            ${_avatarHtml(uid, s.name, 'w-9 h-9', 'text-lg')}
             <div class="flex-1 min-w-0">
                 <div class="font-bold text-sm flex items-center gap-1.5">
                     <span class="truncate ${textCls}">${s.name||'未知'}</span>
@@ -1169,8 +1189,92 @@ function updateHeaderPoints() {
     if (my) document.getElementById('headerPoints').innerHTML = `${my.total||0} <span class="text-xs font-normal text-gray-400">分</span>`;
 }
 
+// ─── Avatar helpers ───────────────────────────────────────
+function _avatarHtml(uid, name, sizeCls, textCls) {
+    const src = avatarsData[uid];
+    if (src) {
+        return `<img src="${src}" class="${sizeCls} rounded-full object-cover flex-shrink-0" alt="${name||''}">`;
+    }
+    return `<div class="${sizeCls} rounded-full bg-gray-700/80 flex items-center justify-center font-black ${textCls||''} flex-shrink-0">${(name||'?').charAt(0).toUpperCase()}</div>`;
+}
+
+function _refreshHeaderAvatar() {
+    const el = document.getElementById('headerAvatar');
+    if (!el || !currentUser) return;
+    const src = avatarsData[currentUser.id];
+    if (src) {
+        el.style.backgroundImage = `url(${src})`;
+        el.style.backgroundSize = 'cover';
+        el.style.backgroundPosition = 'center';
+        el.textContent = '';
+    } else {
+        el.style.backgroundImage = '';
+        el.textContent = currentUser.name.charAt(0).toUpperCase();
+    }
+}
+
+function _refreshMyProfileCard() {
+    if (!currentUser) return;
+    const nameEl = document.getElementById('myProfileName');
+    const roomEl = document.getElementById('myProfileRoom');
+    const avatarEl = document.getElementById('myAvatarDisplay');
+    if (nameEl) nameEl.textContent = currentUser.name;
+    if (roomEl) roomEl.textContent = `房间: ${currentRoom || '演示'}`;
+    if (avatarEl) {
+        const src = avatarsData[currentUser.id];
+        if (src) {
+            avatarEl.innerHTML = `<img src="${src}" class="w-full h-full object-cover" alt="">`;
+        } else {
+            avatarEl.innerHTML = currentUser.name.charAt(0).toUpperCase();
+        }
+    }
+}
+
+window.handleAvatarUpload = function(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const status = document.getElementById('myAvatarStatus');
+    if (status) status.textContent = '压缩中…';
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = new Image();
+        img.onload = async () => {
+            const canvas = document.createElement('canvas');
+            const MAX = 200;
+            const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            // Crop to square from center
+            const side = Math.min(img.width, img.height);
+            const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+            canvas.width = MAX; canvas.height = MAX;
+            ctx.drawImage(img, sx, sy, side, side, 0, 0, MAX, MAX);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            avatarsData[currentUser.id] = dataUrl;
+            _refreshHeaderAvatar();
+            _refreshMyProfileCard();
+            if (status) status.textContent = '上传中…';
+            if (!demoMode) {
+                try {
+                    await update(ref(db, `rooms/${currentRoom}/users/${currentUser.id}`), { avatar: dataUrl });
+                    if (status) status.textContent = '✅ 头像已保存';
+                } catch(err) {
+                    if (status) status.textContent = '❌ 保存失败，请重试';
+                }
+            } else {
+                if (status) status.textContent = '✅ 头像已更新（演示模式）';
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+};
+
 // ─── Render: My Predictions ───────────────────────────────
 function renderMyPreds() {
+    _refreshMyProfileCard();
     const container = document.getElementById('myPredsContainer');
     let html = '';
 
