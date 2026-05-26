@@ -124,6 +124,29 @@
     </div>
 </div>
 
+<!-- ══════════ ONBOARDING WIZARD ══════════ -->
+<div id="wizardOverlay" class="fixed inset-0 bg-black/95 hidden" style="z-index:55">
+    <div class="flex flex-col h-full w-full">
+        <div id="wizHeader" class="flex items-center gap-3 p-4 border-b border-white/10 shrink-0">
+            <button onclick="wizardClose()" id="wizCloseBtn" class="w-8 h-8 flex items-center justify-center glass rounded-full text-gray-400 text-sm shrink-0">&times;</button>
+            <div class="flex-1">
+                <div class="flex justify-between items-center text-xs mb-1.5">
+                    <span id="wizStep" class="text-gray-400"></span>
+                    <span id="wizTitle" class="font-bold text-white text-right truncate ml-2"></span>
+                </div>
+                <div class="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div id="wizBar" class="h-full bg-gradient-to-r from-yellow-400 to-yellow-300 rounded-full transition-all duration-300" style="width:0%"></div>
+                </div>
+            </div>
+        </div>
+        <div id="wizContent" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+        <div class="p-4 flex gap-3 border-t border-white/10 shrink-0">
+            <button onclick="wizardSkip()" id="wizSkipBtn" class="flex-1 glass border border-white/20 text-gray-300 font-bold py-3.5 rounded-2xl text-sm active:scale-95">跳过</button>
+            <button onclick="wizardNext()" id="wizNextBtn" class="flex-[2] gold text-black font-black py-3.5 rounded-2xl text-sm active:scale-95">下一步 →</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══════════ LOGIN MODAL ══════════ -->
 <div id="loginModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-40 hidden p-4">
     <div class="glass rounded-3xl p-8 max-w-sm w-full text-center slide-up">
@@ -150,11 +173,11 @@
                 <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span>（微信同名）支付 15€ / 120人民币<br>前三名奖品：<span class="text-yellow-300">🥇 夺冠球队真品球衣</span> · 二三名待定</p>
                 <div class="flex gap-2">
                     <button type="button" id="prizeYesBtn" onclick="togglePrize(true)"
-                        class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm transition-all">
+                        class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm transition-all">
                         ✅ 参加
                     </button>
                     <button type="button" id="prizeNoBtn" onclick="togglePrize(false)"
-                        class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm transition-all">
+                        class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm transition-all">
                         ❌ 不参加
                     </button>
                 </div>
@@ -626,7 +649,7 @@ let currentRoom = 'public';
 let matchesData = {};
 let predsData = {};
 let scoresData = {};
-let wantsPrize = false;
+let wantsPrize = true;
 const ADMIN_DEFAULT_PWD = 'admin2026';
 
 window.togglePrize = function(val) {
@@ -704,7 +727,8 @@ async function bootstrap() {
         currentRoom = savedRoom;
         startApp();
     } else {
-        show('loginModal');
+        // New user → show wizard with login step
+        wizardShowLogin();
     }
 }
 
@@ -739,16 +763,13 @@ window.login = async function() {
                 if (match) { uid = match[0]; isExisting = true; }
             }
             if (isExisting) {
-                // Verify PIN
+                // 2/3 logic: name+room already match (2 of 3); PIN is best-effort
                 const userSnap = await get(ref(db, `rooms/${room}/users/${uid}`));
                 const savedPin = userSnap.val()?.pin;
-                if (savedPin && savedPin !== pin) {
-                    toast('PIN码错误，请检查后重试', 'error');
-                    btn.textContent = '加入游戏 →';
-                    btn.disabled = false;
-                    return;
+                if (savedPin && pin && savedPin !== pin) {
+                    toast('PIN码不匹配，已用昵称+房间号找回账号 ⚠️', 'error');
                 }
-                // Update prizePool and PIN
+                // Update prizePool and PIN (always update PIN to whatever they typed)
                 await update(ref(db, `rooms/${room}/users/${uid}`), { prizePool: wantsPrize, pin });
                 await update(ref(db, `rooms/${room}/scores/${uid}`), { prizePool: wantsPrize });
             } else {
@@ -1163,13 +1184,57 @@ function getChampPts(teamName) {
   return DEFAULT_CHAMP_ODDS[teamName] ?? 200;
 }
 
+// ─── Top Scorer Odds Points (based on 2026-05-26 Golden Boot odds) ─────────
+const DEFAULT_SCORER_ODDS = {
+  // 10 pts — Top favorites
+  '姆巴佩':10,'Mbappe':10,'Mbappé':10,
+  '凯恩':10,'Kane':10,'Harry Kane':10,
+  // 20 pts
+  '梅西':20,'Messi':20,'Lionel Messi':20,
+  '哈兰德':20,'Haaland':20,'Erling Haaland':20,
+  // 25 pts
+  '亚马尔':25,'Yamal':25,'Lamine Yamal':25,
+  '奥亚萨瓦尔':25,'Oyarzabal':25,'Mikel Oyarzabal':25,
+  // 30 pts
+  'C罗':30,'罗纳尔多':30,'Ronaldo':30,'Cristiano Ronaldo':30,'CR7':30,
+  '维尼修斯':30,'Vinicius':30,'Vinicius Junior':30,
+  // 35 pts
+  '劳塔罗':35,'Lautaro':35,'Lautaro Martinez':35,
+  '登贝莱':35,'Dembele':35,'Dembélé':35,
+  // 40 pts
+  '卢卡库':40,'Lukaku':40,'Romelu Lukaku':40,
+  '拉菲尼亚':40,'Raphinha':40,
+  // 45 pts
+  '阿尔瓦雷斯':45,'Julian Alvarez':45,
+  '莫拉塔':45,'Morata':45,'Alvaro Morata':45,
+  '沃尔特马德':45,'Woltemade':45,'Nick Woltemade':45,
+  // 60 pts
+  '加克波':60,'Gakpo':60,'贝林厄姆':60,'Bellingham':60,
+  '萨卡':60,'Saka':60,'维尔茨':60,'Wirtz':60,
+  '哈弗茨':60,'Havertz':60,'穆西亚拉':60,'Musiala':60,
+  '萨拉赫':60,'Salah':60,'内马尔':60,'Neymar':60,
+  '拉什福德':60,'Rashford':60,
+  // 100 pts
+  '普利西奇':100,'Pulisic':100,'大卫':100,'Jonathan David':100,
+  '索洛特':100,'Sorloth':100,
+};
+
+function getTopScorerPts(name) {
+  if (!name) return 150;
+  if (DEFAULT_SCORER_ODDS[name] !== undefined) return DEFAULT_SCORER_ODDS[name];
+  const lower = name.toLowerCase().trim();
+  const key = Object.keys(DEFAULT_SCORER_ODDS).find(k => k.toLowerCase() === lower);
+  return key ? DEFAULT_SCORER_ODDS[key] : 150;
+}
+
 function loadChampPreds() {
-    if (demoMode) { renderChampion(); return; }
+    if (demoMode) { renderChampion(); tryShowWizard(); return; }
     onValue(ref(db, `rooms/${currentRoom}/champPreds`), snap => {
         champPredsData = snap.exists() ? snap.val() : {};
         renderChampion();
         renderMyPreds();
         updateTabDots();
+        tryShowWizard();
     });
 }
 
@@ -1390,9 +1455,10 @@ function renderChampSection2(myPred, now) {
     if (!el) return;
 
     if (myPred.topScorer) {
+        const scorerMaxPts = myPred.topScorerMaxPts || getTopScorerPts(myPred.topScorer);
         let badge = myPred.topScorerPoints !== null && myPred.topScorerPoints !== undefined
-            ? `<span class="${myPred.topScorerPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.topScorerPoints}分</span>`
-            : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓</span>`;
+            ? `<span class="${myPred.topScorerPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.topScorerPoints}分</span>`
+            : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓 (最高+${scorerMaxPts}分)</span>`;
         el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
             <span class="text-4xl">⚽</span>
             <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
@@ -1407,12 +1473,15 @@ function renderChampSection2(myPred, now) {
         return;
     }
 
-    el.innerHTML = `<div class="flex gap-2">
-        <input type="text" id="topScorerInput" placeholder="球员名字，如：内马尔" maxlength="20"
+    el.innerHTML = `<p class="text-xs text-gray-500 mb-2">🎲 热门球员赔率低（10分起）· 冷门球员赔率高（最高150分）</p>
+    <div class="flex gap-2 mb-2">
+        <input type="text" id="topScorerInput" placeholder="球员名字，如：姆巴佩 / 内马尔" maxlength="30"
             class="flex-1 glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-gray-600"
+            oninput="updateScorerPreview(this.value)"
             onkeypress="if(event.key==='Enter') submitTopScorer()">
         <button onclick="submitTopScorer()" class="gold text-black font-black px-4 py-3 rounded-xl text-sm active:scale-95">确认</button>
     </div>
+    <div id="scorerPreview" class="text-xs text-gray-500"></div>
     <p class="text-xs text-red-400 mt-2">⚠️ 确认后永久锁定，无法更改！</p>`;
 }
 
@@ -1528,19 +1597,33 @@ window.confirmChampPick = async function() {
     toast(isChange ? `🏆 冠军预测已改为 ${teamName}（猜中+${maxPts}分）！` : `🏆 ${teamName} 已选为冠军预测！猜中可得+${maxPts}分`);
 };
 
+window.updateScorerPreview = function(val) {
+    const el = document.getElementById('scorerPreview');
+    if (!el) return;
+    const name = val?.trim();
+    if (!name) { el.textContent = ''; return; }
+    const pts = getTopScorerPts(name);
+    const isKnown = pts < 150;
+    el.innerHTML = isKnown
+        ? `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`
+        : `<span class="text-gray-400">未知球员 · 若猜中得 <span class="text-yellow-400 font-bold">+${pts}分</span></span>`;
+};
+
 window.submitTopScorer = async function() {
     if (champPredsData[currentUser.id]?.topScorer) { toast('最佳射手已锁定', 'error'); return; }
     if (new Date() >= TOP_SCORER_DEADLINE) { toast('竞猜已截止', 'error'); return; }
     const input = document.getElementById('topScorerInput');
     const name = input?.value?.trim();
     if (!name) { toast('请输入球员姓名', 'error'); return; }
-    if (!confirm(`确认将 "${name}" 锁定为最佳射手预测？锁定后无法更改！`)) return;
+    const maxPts = getTopScorerPts(name);
+    if (!confirm(`确认将 "${name}" 锁定为最佳射手预测？\n猜中可得 +${maxPts}分 · 锁定后无法更改！`)) return;
     const existing = champPredsData[currentUser.id] || {};
     const pred = { ...existing, userId: currentUser.id, topScorer: name, topScorerAt: Date.now(),
+        topScorerMaxPts: maxPts,
         champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null, midwayPoints: existing.midwayPoints ?? null };
     if (demoMode) { champPredsData[currentUser.id] = pred; renderChampion(); }
     else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
-    toast(`⚽ "${name}" 已永久锁定为最佳射手预测！`);
+    toast(`⚽ "${name}" 已永久锁定！猜中得+${maxPts}分`);
 };
 
 window.selectMidwayTeam = function(teamName) {
@@ -1619,9 +1702,10 @@ window.submitChampResult = async function() {
             delta += pts;
         }
 
-        // Top scorer points
+        // Top scorer points (dynamic based on odds at prediction time)
         if (topScorerResult && (p.topScorerPoints === null || p.topScorerPoints === undefined)) {
-            const pts = (p.topScorer && p.topScorer.toLowerCase() === topScorerResult) ? 10 : 0;
+            const scorerBase = p.topScorerMaxPts || getTopScorerPts(p.topScorer || '');
+            const pts = (p.topScorer && p.topScorer.toLowerCase() === topScorerResult) ? scorerBase : 0;
             updates[`rooms/${currentRoom}/champPreds/${uid}/topScorerPoints`] = pts;
             delta += pts;
         }
@@ -2038,6 +2122,7 @@ async function loadGroups() {
         refreshAdminGroupSelects();
         renderChampion();
         updateTabDots();
+        tryShowWizard();
     });
     onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
         groupPredsData = snap.exists() ? snap.val() : {};
@@ -2383,6 +2468,370 @@ function defaultGroups() {
         K: { name:'K组', teams:[{name:'葡萄牙',flag:'🇵🇹'},{name:'乌兹别克斯坦',flag:'🇺🇿'},{name:'哥伦比亚',flag:'🇨🇴'},{name:'刚果',flag:'🇨🇩'}], qualified:null, winner:null },
         L: { name:'L组', teams:[{name:'英格兰',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},{name:'克罗地亚',flag:'🇭🇷'},{name:'加纳',flag:'🇬🇭'},{name:'巴拿马',flag:'🇵🇦'}], qualified:null, winner:null },
     };
+}
+
+// ─── Onboarding Wizard ────────────────────────────────────
+let _wizSteps = [], _wizIdx = 0, _wizShown = false;
+let _wizGpStates = {}, _wizChampPick = null;
+
+function wizardShowLogin() {
+    document.getElementById('wizardOverlay').classList.remove('hidden');
+    document.getElementById('wizHeader').classList.add('hidden');
+    document.getElementById('wizSkipBtn').textContent = '演示模式';
+    document.getElementById('wizNextBtn').textContent = '加入游戏 →';
+    document.getElementById('wizContent').innerHTML = _renderWizLogin();
+}
+
+function _renderWizLogin() {
+    return `
+    <div class="text-center py-4">
+        <div class="text-6xl mb-3">🏆</div>
+        <h1 class="text-3xl font-black mb-1">2026 世界杯</h1>
+        <p class="font-bold text-lg gold-text mb-6">竞猜挑战赛</p>
+    </div>
+    <div class="glass rounded-2xl p-4 space-y-3">
+        <input id="wiz-name" type="text" placeholder="输入你的昵称" maxlength="16"
+            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+        <input id="wiz-room" type="text" placeholder="房间号（可选，默认公共房间）" maxlength="16"
+            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+        <input id="wiz-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
+            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
+            oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4)">
+        <p class="text-xs text-gray-500 text-center">首次登录自定义PIN；换设备时输入相同昵称+房间号+PIN找回账号</p>
+        <div class="glass-dark rounded-2xl px-4 py-3">
+            <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
+            <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span>（微信同名）支付 15€ / 120人民币<br>前三名：<span class="text-yellow-300">🥇 夺冠球队真品球衣</span> · 二三名待定</p>
+            <div class="flex gap-2">
+                <button type="button" id="wizPrizeYes" onclick="wizTogglePrize(true)"
+                    class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
+                <button type="button" id="wizPrizeNo" onclick="wizTogglePrize(false)"
+                    class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+let _wizPrize = true;
+window.wizTogglePrize = function(val) {
+    _wizPrize = val;
+    document.getElementById('wizPrizeYes').className = `flex-1 border-2 ${val?'border-yellow-400/40 bg-yellow-400/10 text-yellow-300':'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
+    document.getElementById('wizPrizeNo').className = `flex-1 border-2 ${!val?'border-yellow-400/40 bg-yellow-400/10 text-yellow-300':'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
+};
+
+function _buildWizSteps() {
+    const now = new Date(), uid = currentUser?.id;
+    if (!uid) return [];
+    const myPred = champPredsData[uid] || {};
+    const steps = [];
+    if (!myPred.champion && now < CHAMPION_DEADLINE) steps.push({ type:'champion' });
+    if (!myPred.topScorer && now < TOP_SCORER_DEADLINE) steps.push({ type:'topScorer' });
+    if (now < GROUP_DEADLINE) {
+        const gids = Object.keys(groupsData).sort();
+        const unfilled = gids.filter(gid => !groupPredsData[`${uid}_${gid}`]);
+        for (let i = 0; i < unfilled.length; i += 3)
+            steps.push({ type:'groups', groupIds: unfilled.slice(i, i+3) });
+    }
+    return steps;
+}
+
+function tryShowWizard() {
+    if (_wizShown || !currentUser || !Object.keys(groupsData).length) return;
+    const steps = _buildWizSteps();
+    if (!steps.length) return;
+    _wizShown = true;
+    _wizSteps = steps;
+    _wizIdx = 0;
+    _wizGpStates = {};
+    _wizChampPick = null;
+    document.getElementById('wizardOverlay').classList.remove('hidden');
+    document.getElementById('wizHeader').classList.remove('hidden');
+    document.getElementById('wizSkipBtn').textContent = '跳过';
+    _renderWizStep();
+}
+
+function _renderWizStep() {
+    const step = _wizSteps[_wizIdx];
+    const total = _wizSteps.length;
+    document.getElementById('wizStep').textContent = `第 ${_wizIdx+1} 步 / ${total}`;
+    document.getElementById('wizBar').style.width = `${(_wizIdx/total)*100}%`;
+    document.getElementById('wizNextBtn').textContent = _wizIdx === total-1 ? '完成 ✓' : '下一步 →';
+    document.getElementById('wizSkipBtn').textContent = '跳过';
+
+    if (step.type === 'champion') {
+        document.getElementById('wizTitle').textContent = '🏆 冠军预测';
+        document.getElementById('wizContent').innerHTML = _renderWizChamp();
+    } else if (step.type === 'topScorer') {
+        document.getElementById('wizTitle').textContent = '⚽ 最佳射手';
+        document.getElementById('wizContent').innerHTML = _renderWizScorer();
+    } else {
+        const names = step.groupIds.map(g => groupsData[g]?.name||g+'组').join(' · ');
+        document.getElementById('wizTitle').textContent = `🏅 ${names}`;
+        step.groupIds.forEach(gid => {
+            if (!_wizGpStates[gid]) _wizGpStates[gid] = { selected:[], winner:null, thirdBet:null };
+        });
+        document.getElementById('wizContent').innerHTML = step.groupIds.map(gid => _renderWizGroupCard(gid)).join('');
+    }
+    document.getElementById('wizContent').scrollTop = 0;
+}
+
+function _renderWizChamp() {
+    const groups = Object.entries(groupsData).sort((a,b)=>a[0].localeCompare(b[0]));
+    const opts = groups.map(([gid,g])=>
+        `<optgroup label="— ${g.name||gid+'组'} —">${(g.teams||[]).map(t=>{
+            const pts=getChampPts(t.name);
+            return `<option value="${t.name}" ${_wizChampPick===t.name?'selected':''}>${t.flag||''} ${t.name}  · 猜中+${pts}分</option>`;
+        }).join('')}</optgroup>`
+    ).join('');
+    const preview = _wizChampPick ? `<div class="mt-3 glass-dark rounded-xl p-3 flex items-center gap-3 border border-yellow-400/40">
+        <span class="text-3xl">${getTeamFlag(_wizChampPick)}</span>
+        <div><p class="font-black">${_wizChampPick}</p>
+        <p class="text-xs text-yellow-400 font-bold">猜中可得 +${getChampPts(_wizChampPick)}分</p></div></div>` : '';
+    return `<div class="glass rounded-2xl p-4">
+        <p class="text-sm text-gray-300 mb-1">选择你认为会赢得 2026 世界杯的球队</p>
+        <p class="text-xs text-gray-500 mb-3">🎲 赔率越高积分越多（20–250分）· 截止前可随时修改</p>
+        <select onchange="wizPickChamp(this.value)" style="background:rgba(0,0,0,0.4)"
+            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+            <option value="">— 选择冠军球队 —</option>${opts}
+        </select>${preview}
+    </div>`;
+}
+
+function _renderWizScorer() {
+    return `<div class="glass rounded-2xl p-4">
+        <p class="text-sm text-gray-300 mb-1">填写你认为会拿最佳射手奖的球员</p>
+        <p class="text-xs text-gray-500 mb-1">热门球员赔率低（姆巴佩10分）· 冷门球员最高150分</p>
+        <p class="text-xs text-red-400 mb-4">⚠️ 确认后永久锁定，无法更改</p>
+        <input type="text" id="wizScorerInput" placeholder="球员名字，如：姆巴佩 / 内马尔" maxlength="30"
+            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-gray-600"
+            oninput="wizScorerPreview(this.value)">
+        <div id="wizScorerPreview" class="text-xs text-gray-500 mt-2"></div>
+    </div>`;
+}
+
+window.wizScorerPreview = function(val) {
+    const el = document.getElementById('wizScorerPreview');
+    if (!el) return;
+    const name = val?.trim();
+    if (!name) { el.textContent=''; return; }
+    const pts = getTopScorerPts(name);
+    el.innerHTML = pts < 150
+        ? `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`
+        : `<span class="text-gray-400">未知球员 · 若猜中得 <span class="text-yellow-400 font-bold">+${pts}分</span></span>`;
+};
+
+function _buildWizGroupRows(gid) {
+    const g = groupsData[gid];
+    const s = _wizGpStates[gid] || {selected:[],winner:null,thirdBet:null};
+    const twoFull = s.selected.length >= 2;
+    return (g?.teams||[]).map(t => {
+        const isOut=s.selected.includes(t.name), isThird=s.thirdBet===t.name, isWinner=s.winner===t.name;
+        let cls,right;
+        if (isOut) {
+            cls='border-yellow-400 bg-yellow-400/10';
+            right=`<div class="flex items-center gap-1.5">
+                <button onclick="event.stopPropagation();wizToggleWinner('${gid}','${t.name}')"
+                    class="text-xs px-2 py-1 rounded-lg ${isWinner?'gold text-black font-bold':'glass border border-white/20 text-gray-400'}">
+                    ${isWinner?'👑':'押第一'}</button>
+                <span class="text-yellow-400 font-bold text-xs">出线✓</span></div>`;
+        } else if (isThird) {
+            cls='border-orange-400 bg-orange-400/10';
+            right='<span class="text-orange-400 font-bold text-xs">🎲第三</span>';
+        } else if (twoFull) {
+            cls='border-orange-400/30 glass';
+            right='<span class="text-orange-400/60 text-xs">押第三?</span>';
+        } else {
+            cls='border-white/10 glass';
+            right='<span class="text-gray-600 text-xs">○</span>';
+        }
+        return `<div onclick="wizToggleTeam('${gid}','${t.name}')"
+            class="flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 ${cls} cursor-pointer active:opacity-70">
+            <span class="text-2xl">${t.flag||'🏳️'}</span>
+            <span class="font-bold flex-1 text-sm">${t.name}</span>
+            ${right}</div>`;
+    }).join('');
+}
+
+function _renderWizGroupCard(gid) {
+    const g = groupsData[gid];
+    const s = _wizGpStates[gid] || {selected:[],winner:null,thirdBet:null};
+    const filled = s.selected.length >= 2;
+    return `<div class="glass rounded-2xl p-3">
+        <div class="flex items-center justify-between mb-2">
+            <p class="font-black text-sm">${g?.name||gid+'组'}</p>
+            <span class="text-xs ${filled?'text-green-400':'text-gray-500'}" id="wiz-gst-${gid}">${filled?'✓ 已选':'选2支出线队'}</span>
+        </div>
+        <div class="space-y-1.5" id="wiz-group-${gid}">${_buildWizGroupRows(gid)}</div>
+    </div>`;
+}
+
+function _rerenderWizGroup(gid) {
+    const rowsEl = document.getElementById(`wiz-group-${gid}`);
+    if (rowsEl) rowsEl.innerHTML = _buildWizGroupRows(gid);
+    const stEl = document.getElementById(`wiz-gst-${gid}`);
+    if (stEl) {
+        const filled = (_wizGpStates[gid]?.selected||[]).length >= 2;
+        stEl.className = `text-xs ${filled?'text-green-400':'text-gray-500'}`;
+        stEl.textContent = filled ? '✓ 已选' : '选2支出线队';
+    }
+}
+
+window.wizPickChamp = function(name) {
+    _wizChampPick = name || null;
+    document.getElementById('wizContent').innerHTML = _renderWizChamp();
+};
+
+window.wizToggleTeam = function(gid, name) {
+    const s = _wizGpStates[gid] = _wizGpStates[gid] || {selected:[],winner:null,thirdBet:null};
+    if (s.selected.includes(name)) { s.selected=s.selected.filter(n=>n!==name); if(s.winner===name)s.winner=null; }
+    else if (s.thirdBet===name) { s.thirdBet=null; }
+    else if (s.selected.length<2) { s.selected.push(name); }
+    else { s.thirdBet=name; }
+    _rerenderWizGroup(gid);
+};
+
+window.wizToggleWinner = function(gid, name) {
+    const s = _wizGpStates[gid]; if(!s) return;
+    s.winner = s.winner===name ? null : name;
+    _rerenderWizGroup(gid);
+};
+
+window.wizardSkip = function() {
+    if (!currentUser) { _wizEnterDemoMode(); return; }
+    _wizAdvance();
+};
+
+window.wizardClose = function() {
+    if (!currentUser) { _wizEnterDemoMode(); return; }
+    document.getElementById('wizardOverlay').classList.add('hidden');
+};
+
+function _wizEnterDemoMode() {
+    demoMode = true;
+    demo.matches = defaultMatches();
+    const name = document.getElementById('wiz-name')?.value?.trim() || 'Player';
+    currentUser = { id: 'demo_' + name, name };
+    demo.scores[currentUser.id] = { name, total:0, exact:0, correct:0, wrong:0 };
+    localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
+    localStorage.setItem('wc2026_room', 'public');
+    currentRoom = 'public';
+    document.getElementById('wizardOverlay').classList.add('hidden');
+    startApp();
+}
+
+window.wizardNext = async function() {
+    const nextBtn = document.getElementById('wizNextBtn');
+
+    // Login step (no currentUser yet)
+    if (!currentUser) {
+        const name = document.getElementById('wiz-name')?.value?.trim();
+        const room = document.getElementById('wiz-room')?.value?.trim() || 'public';
+        const pin  = document.getElementById('wiz-pin')?.value?.trim();
+        if (!name) { toast('请输入昵称', 'error'); return; }
+        if (!pin || pin.length < 4) { toast('请设置4位数字PIN码', 'error'); return; }
+
+        nextBtn.textContent = '加入中...';
+        nextBtn.disabled = true;
+        currentRoom = room;
+        wantsPrize = _wizPrize;
+
+        try {
+            if (!db) throw new Error('no db');
+            const usersSnap = await get(ref(db, `rooms/${room}/users`));
+            let uid = null, isExisting = false;
+            if (usersSnap.exists()) {
+                const users = usersSnap.val();
+                const match = Object.entries(users).find(([,u]) => u.name === name);
+                if (match) { uid = match[0]; isExisting = true; }
+            }
+            if (isExisting) {
+                const userSnap = await get(ref(db, `rooms/${room}/users/${uid}`));
+                const savedPin = userSnap.val()?.pin;
+                if (savedPin && pin && savedPin !== pin) toast('PIN码不匹配，已用昵称+房间号找回账号 ⚠️');
+                await update(ref(db, `rooms/${room}/users/${uid}`), { prizePool: wantsPrize, pin });
+                await update(ref(db, `rooms/${room}/scores/${uid}`), { prizePool: wantsPrize });
+            } else {
+                uid = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+                await set(ref(db, `rooms/${room}/users/${uid}`), { name, joinedAt:Date.now(), prizePool:wantsPrize, pin });
+                await set(ref(db, `rooms/${room}/scores/${uid}`), { name, total:0, exact:0, correct:0, wrong:0, prizePool:wantsPrize });
+                const mSnap = await get(ref(db, `rooms/${room}/matches`));
+                if (!mSnap.exists()) {
+                    await set(ref(db, `rooms/${room}/matches`), defaultMatches());
+                    await set(ref(db, `rooms/${room}/settings`), { adminPassword: ADMIN_DEFAULT_PWD });
+                }
+            }
+            currentUser = { id: uid, name };
+        } catch(e) {
+            demoMode = true; demo.matches = defaultMatches();
+            currentUser = { id: 'demo_' + name, name };
+            demo.scores[currentUser.id] = { name, total:0, exact:0, correct:0, wrong:0 };
+            toast('以演示模式加入', 'error');
+        }
+        localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
+        localStorage.setItem('wc2026_room', currentRoom);
+        nextBtn.textContent = '加入游戏 →';
+        nextBtn.disabled = false;
+
+        // Start app data loading, then switch wizard to prediction steps
+        document.getElementById('wizHeader').classList.remove('hidden');
+        document.getElementById('wizSkipBtn').textContent = '跳过';
+        startApp();
+        // Wizard will be re-triggered by tryShowWizard once data loads
+        document.getElementById('wizardOverlay').classList.add('hidden');
+        return;
+    }
+
+    // Prediction steps
+    const step = _wizSteps[_wizIdx];
+    if (step?.type === 'champion' && _wizChampPick) {
+        const existing = champPredsData[currentUser.id] || {};
+        const maxPts = getChampPts(_wizChampPick);
+        const pred = { ...existing, userId: currentUser.id, champion: _wizChampPick, champAt: Date.now(),
+            champMaxPts: maxPts, champPoints: existing.champPoints??null,
+            topScorerPoints: existing.topScorerPoints??null, midwayPoints: existing.midwayPoints??null };
+        if (demoMode) champPredsData[currentUser.id] = pred;
+        else await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred);
+        toast(`🏆 ${_wizChampPick} 已保存！猜中+${maxPts}分`);
+    } else if (step?.type === 'topScorer') {
+        const name = document.getElementById('wizScorerInput')?.value?.trim();
+        if (name) {
+            if (!confirm(`确认将 "${name}" 永久锁定为最佳射手预测？`)) return;
+            const maxPts = getTopScorerPts(name);
+            const existing = champPredsData[currentUser.id] || {};
+            const pred = { ...existing, userId: currentUser.id, topScorer: name, topScorerAt: Date.now(),
+                topScorerMaxPts: maxPts, champPoints: existing.champPoints??null,
+                topScorerPoints: existing.topScorerPoints??null, midwayPoints: existing.midwayPoints??null };
+            if (demoMode) champPredsData[currentUser.id] = pred;
+            else await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred);
+            toast(`⚽ "${name}" 已锁定！猜中+${maxPts}分`);
+        }
+    } else if (step?.type === 'groups') {
+        const toSave = step.groupIds.filter(gid => (_wizGpStates[gid]?.selected||[]).length >= 2);
+        if (toSave.length > 0) {
+            await Promise.all(toSave.map(gid => {
+                const s = _wizGpStates[gid];
+                const pred = { userId: currentUser.id, groupId: gid, qualified: s.selected,
+                    winner: s.winner||null, thirdBet: s.thirdBet||null, submittedAt: Date.now(), points: null };
+                const key = `${currentUser.id}_${gid}`;
+                if (demoMode) { groupPredsData[key]=pred; return Promise.resolve(); }
+                return set(ref(db, `rooms/${currentRoom}/groupPreds/${key}`), pred);
+            }));
+            toast(`🎯 ${toSave.length} 组预测已保存！`);
+        }
+    }
+    _wizAdvance();
+};
+
+function _wizAdvance() {
+    _wizIdx++;
+    if (_wizIdx >= _wizSteps.length) {
+        document.getElementById('wizardOverlay').classList.add('hidden');
+        document.getElementById('wizBar').style.width = '100%';
+        toast('🎉 填题完成！');
+        renderChampion(); renderGroups();
+        return;
+    }
+    _wizGpStates = {}; _wizChampPick = null;
+    _renderWizStep();
 }
 
 // ─── Start ────────────────────────────────────────────────
