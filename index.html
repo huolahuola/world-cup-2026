@@ -197,31 +197,30 @@
                 <div class="space-y-3">
                     <input id="lp-name" type="text" placeholder="输入你的昵称" maxlength="16"
                         class="w-full glass rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                        onkeypress="if(event.key==='Enter')document.getElementById('lp-room').focus()">
-                    <input id="lp-room" type="text" placeholder="房间号（不参加大奖可留空）" maxlength="16"
-                        class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                         onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
-                    <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
-                        class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
-                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-                        onkeypress="if(event.key==='Enter')lpLogin()">
-                    <p class="text-xs text-gray-500 text-center">参加大奖游戏请联系拉筋获取专属房间号；不参加可不填</p>
-                    <p class="text-xs text-gray-600 text-center">换设备时输入相同昵称+房间号+PIN即可找回账号</p>
                     <div class="glass-dark rounded-2xl px-4 py-3">
                         <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
-                        <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span> 获得专属房间号</p>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 mb-2">
                             <button type="button" id="lpPrizeYes" onclick="lpTogglePrize(true)"
                                 class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
                             <button type="button" id="lpPrizeNo" onclick="lpTogglePrize(false)"
                                 class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
                         </div>
+                        <div id="lpRoomWrap" class="mt-2">
+                            <input id="lp-room" type="text" placeholder="联系拉筋获取专属房间号" maxlength="16"
+                                class="w-full glass rounded-xl px-4 py-2.5 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
+                        </div>
                     </div>
+                    <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
+                        class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+                        onkeypress="if(event.key==='Enter')lpLogin()">
+                    <p class="text-xs text-gray-600 text-center">换设备时输入相同昵称+房间号+PIN即可找回账号</p>
                     <button id="lpLoginBtn" onclick="lpLogin()"
                         class="w-full gold text-black font-black py-4 rounded-2xl text-lg active:scale-95 transition-transform">
                         加入游戏 →
                     </button>
-                    <p class="text-center text-xs text-gray-500">同一房间号的朋友共享排行榜</p>
                 </div>
             </div>
 
@@ -4271,13 +4270,18 @@ window.lpTogglePrize = function(val) {
     _lpPrize = val;
     document.getElementById('lpPrizeYes').className = `flex-1 border-2 ${val ? 'border-yellow-400/40 bg-yellow-400/10 text-yellow-300' : 'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
     document.getElementById('lpPrizeNo').className  = `flex-1 border-2 ${!val ? 'border-yellow-400/40 bg-yellow-400/10 text-yellow-300' : 'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
+    const roomWrap = document.getElementById('lpRoomWrap');
+    if (roomWrap) roomWrap.style.display = val ? '' : 'none';
+    if (!val) { const ri = document.getElementById('lp-room'); if(ri) ri.value = ''; }
 };
 
 window.lpLogin = async function() {
     const name = document.getElementById('lp-name').value.trim();
-    const room = document.getElementById('lp-room').value.trim() || 'public';
+    const roomRaw = document.getElementById('lp-room').value.trim();
+    const room = _lpPrize && roomRaw ? roomRaw : 'public';
     const pin  = document.getElementById('lp-pin').value.trim();
     if (!name) { toast('请输入昵称', 'error'); return; }
+    if (_lpPrize && !roomRaw) { toast('参加大奖游戏需要输入房间号', 'error'); return; }
     if (!pin || pin.length < 4) { toast('请设置4位数字PIN码', 'error'); return; }
 
     const btn = document.getElementById('lpLoginBtn');
