@@ -1043,8 +1043,8 @@ function _predSummary(uid) {
     if (thirdArr.length) addN(thirdArr.length, thirdPicksData[uid]?.points ?? null);
     Object.values(predsData).filter(p => p.userId === uid).forEach(p => add1(true, p.points));
 
-    const dot = '<span class="text-gray-500"> · </span>';
-    const pct = total ? `<span class="text-white font-bold">${total}</span><span class="text-gray-300">项预测</span>` : '<span class="text-gray-500">暂无预测</span>';
+    const dot = '<span class="text-gray-500 font-bold"> · </span>';
+    const pct = total ? `<span class="font-bold">${total}项预测</span>` : '<span class="font-bold text-gray-500">暂无预测</span>';
     const stats = total
         ? `<span class="text-green-400 font-bold">✓${correct}</span>${dot}<span class="text-red-400 font-bold">✗${wrong}</span>${dot}<span class="text-yellow-300 font-bold">?${pending}</span>`
         : '';
@@ -1147,7 +1147,7 @@ function renderLeaderboard() {
                     <span class="truncate ${textCls}">${s.name||'未知'}</span>
                     ${isMe ? '<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>' : ''}
                 </div>
-                <div class="text-xs mt-0.5 text-gray-400">${_predSummary(uid)}</div>
+                <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
             </div>
             <div class="text-2xl font-black ${textCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
         </div>`;
