@@ -356,12 +356,13 @@
         <!-- Top Scorer -->
         <div id="content-topScorer" class="hidden">
             <div class="glass rounded-2xl p-4 mb-3 text-center">
-                <p class="font-black text-xl gold-text">⚽ 最佳射手竞猜</p>
-                <p class="text-xs text-gray-400 mt-0.5">预测 2026 世界杯最终最佳射手</p>
+                <p class="font-black text-xl gold-text">⚽ 射手竞猜</p>
+                <p class="text-xs text-gray-400 mt-0.5">预测小组赛最佳射手 · 小组赛结束后预测金靴奖</p>
             </div>
+            <!-- 小组赛最佳射手 -->
             <div id="scorerCard" class="glass rounded-2xl p-4 mb-3">
                 <div class="flex items-center justify-between mb-1">
-                    <p class="font-black text-base gold-text">⚽ 最佳射手</p>
+                    <p class="font-black text-base gold-text">⚽ 小组赛最佳射手</p>
                     <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">10分</span>
                 </div>
                 <div class="flex items-center gap-2 mb-3">
@@ -370,11 +371,22 @@
                 </div>
                 <div id="champSection2"><div class="shimmer rounded-xl h-12"></div></div>
             </div>
+            <!-- 金靴奖 -->
+            <div id="goldenBootCard" class="glass rounded-2xl p-4 mb-3">
+                <div class="flex items-center justify-between mb-1">
+                    <p class="font-black text-base gold-text">👟 金靴奖</p>
+                    <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">10分</span>
+                </div>
+                <div class="flex items-center gap-2 mb-3">
+                    <span id="goldenBootDeadlineChip" class="deadline-chip">⏰ 小组赛结束后开放</span>
+                </div>
+                <div id="champSection4"><div class="shimmer rounded-xl h-12"></div></div>
+            </div>
             <div class="glass-dark rounded-2xl p-4 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
-                <p>· 填写你认为会拿最佳射手奖的球员姓名</p>
-                <p>· 截止 <b class="text-white">6月10日 23:59 CET</b>，截止前可随时修改</p>
-                <p>· 与实际最佳射手姓名完全匹配得 <b class="text-white">+10分</b></p>
+                <p>· <b class="text-white">小组赛最佳射手</b>：截止 6月10日 23:59 CET，截止前可随时修改</p>
+                <p>· <b class="text-white">金靴奖</b>：小组赛结束后（约6月27日）开放，截止7月18日 23:59 CET</p>
+                <p>· 预测与实际结果完全匹配得分；越冷门赔率越高</p>
             </div>
         </div>
 
@@ -542,8 +554,11 @@
                 <select id="champResultSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
                     <option value="">— 选择冠军球队 —</option>
                 </select>
-                <p class="text-xs text-gray-300 mb-1">最佳射手（留空则暂不结算射手积分）</p>
-                <input type="text" id="topScorerResultInput" placeholder="填写最佳射手姓名" maxlength="30"
+                <p class="text-xs text-gray-300 mb-1">小组赛最佳射手（留空则暂不结算）</p>
+                <input type="text" id="topScorerResultInput" placeholder="填写小组赛最佳射手姓名" maxlength="30"
+                    class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400 placeholder-gray-600">
+                <p class="text-xs text-gray-300 mb-1">金靴奖得主（留空则暂不结算）</p>
+                <input type="text" id="goldenBootResultInput" placeholder="填写金靴奖得主姓名" maxlength="30"
                     class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400 placeholder-gray-600">
                 <button onclick="submitChampResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认并结算所有积分</button>
             </div>
@@ -995,21 +1010,56 @@ function renderMatchCard(m) {
 
 // ─── Render: Leaderboard ─────────────────────────────────
 function _predSummary(uid) {
+    const cp = champPredsData[uid] || {};
     const gids = Object.keys(groupsData);
     const groupDone = gids.filter(gid => groupPredsData[`${uid}_${gid}`]).length;
-    const hasChamp  = !!(champPredsData[uid]?.champion);
-    const hasScorer = !!(champPredsData[uid]?.topScorer);
     const hasThird  = (thirdPicksData[uid]?.picks?.length || 0) >= 8;
-    const matchCnt  = Object.values(predsData).filter(p => p.userId === uid).length;
-    const parts = [];
-    parts.push(hasChamp  ? '<span class="text-green-400">冠军✓</span>'  : '<span class="opacity-30">冠军</span>');
-    parts.push(hasScorer ? '<span class="text-green-400">射手✓</span>'  : '<span class="opacity-30">射手</span>');
-    if (gids.length) parts.push(groupDone === gids.length
-        ? `<span class="text-green-400">出线✓</span>`
-        : `<span class="${groupDone>0?'text-yellow-400':'opacity-30'}">出线${groupDone}/${gids.length}</span>`);
-    parts.push(hasThird  ? '<span class="text-green-400">第三✓</span>'  : '<span class="opacity-30">第三</span>');
-    if (matchCnt) parts.push(`<span class="text-blue-300">淘汰${matchCnt}场</span>`);
-    return parts.join('<span class="opacity-20"> · </span>');
+
+    // Count total items, correct, wrong, pending
+    let total = 0, correct = 0, wrong = 0, pending = 0;
+    const addPred = (has, pts) => {
+        if (!has) return;
+        total++;
+        if (pts === null || pts === undefined) pending++;
+        else if (pts > 0) correct++;
+        else wrong++;
+    };
+    addPred(cp.champion,   cp.champPoints);
+    addPred(cp.midway,     cp.midwayPoints);
+    addPred(cp.topScorer,  cp.topScorerPoints);
+    addPred(cp.goldenBoot, cp.goldenBootPoints);
+    for (const gid of gids) {
+        const p = groupPredsData[`${uid}_${gid}`];
+        addPred(p?.qualified?.length, p?.points);
+    }
+    if (hasThird) addPred(true, thirdPicksData[uid]?.points ?? null);
+    Object.values(predsData).filter(p => p.userId === uid).forEach(p => addPred(true, p.points));
+
+    const dot = '<span class="opacity-20"> · </span>';
+    const pct = total ? `${total}项预测` : '暂无预测';
+    const stats = total
+        ? `正确 ${correct} · 错误 ${wrong} · 待定 ${pending}`
+        : '';
+    return `<span class="opacity-70">${pct}</span>${stats ? dot + `<span class="opacity-50">${stats}</span>` : ''}`;
+}
+
+function _podiumCard(uid, s, rank, isMe, size) {
+    const big = size === 'big';
+    const avatarCls = big ? 'w-14 h-14 text-2xl' : 'w-11 h-11 text-lg';
+    const nameCls   = big ? 'text-sm font-black' : 'text-xs font-bold';
+    const scoreCls  = big ? 'text-3xl font-black' : 'text-2xl font-black';
+    const podiumColors = ['rank-gold','rank-silver','rank-bronze'];
+    const trophyEmoji  = ['🏆','🥈','🥉'];
+    return `<div class="flex flex-col items-center gap-1 ${big ? 'pt-0' : 'pt-4'}">
+        <div class="${podiumColors[rank-1]} rounded-2xl px-3 py-3 flex flex-col items-center gap-1 w-full ${isMe?'ring-2 ring-yellow-400':''}">
+            <span class="text-2xl">${trophyEmoji[rank-1]}</span>
+            <div class="${avatarCls} rounded-full bg-gray-700/80 flex items-center justify-center font-black flex-shrink-0">
+                ${(s.name||'?').charAt(0).toUpperCase()}
+            </div>
+            <p class="${nameCls} text-center truncate w-full">${s.name||'未知'}${isMe?' <span class="text-yellow-400">·我</span>':''}</p>
+            <p class="${scoreCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></p>
+        </div>
+    </div>`;
 }
 
 function renderLeaderboard() {
@@ -1020,21 +1070,66 @@ function renderLeaderboard() {
         return;
     }
 
-    const sorted = entries.sort((a, b) => (b[1].total||0) - (a[1].total||0));
+    const sorted = [...entries].sort((a, b) => (b[1].total||0) - (a[1].total||0));
     let html = '';
+
+    // ─ Prize pool podium (shown first if has prize members)
+    const prizeEntries = entries.filter(([,s]) => s.prizePool === true);
+    if (prizeEntries.length > 0) {
+        const prizeSorted = [...prizeEntries].sort((a,b) => (b[1].total||0) - (a[1].total||0));
+        html += `<div class="glass rounded-2xl p-4 mb-4 border border-yellow-400/20">
+            <p class="font-black text-center gold-text mb-0.5">🎁 大奖游戏排名</p>
+            <p class="text-xs text-center text-gray-400 mb-3">仅统计已报名参与者 · 前三名赢取奖品</p>`;
+        if (prizeSorted.length >= 3) {
+            const [p1uid,p1s] = prizeSorted[0], [p2uid,p2s] = prizeSorted[1], [p3uid,p3s] = prizeSorted[2];
+            html += `<div class="grid grid-cols-3 gap-2 mb-3">
+                ${_podiumCard(p2uid, p2s, 2, p2uid===currentUser.id||p2s.name===currentUser.name, 'small')}
+                ${_podiumCard(p1uid, p1s, 1, p1uid===currentUser.id||p1s.name===currentUser.name, 'big')}
+                ${_podiumCard(p3uid, p3s, 3, p3uid===currentUser.id||p3s.name===currentUser.name, 'small')}
+            </div>`;
+            prizeSorted.slice(3).forEach(([uid, s], i) => {
+                const rank = i + 4;
+                const isMe = uid===currentUser.id||s.name===currentUser.name;
+                html += `<div class="glass rounded-xl p-2.5 flex items-center gap-2 mb-1.5 ${isMe?'ring-1 ring-yellow-400':''}">
+                    <span class="font-black text-base w-6 text-center text-gray-400">${rank}</span>
+                    <div class="w-7 h-7 rounded-full bg-gray-700/80 flex items-center justify-center font-black text-sm flex-shrink-0">${(s.name||'?').charAt(0).toUpperCase()}</div>
+                    <span class="flex-1 text-sm font-bold truncate">${s.name||'未知'}${isMe?' <span class="text-yellow-400 text-xs">我</span>':''}</span>
+                    <span class="font-black">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></span>
+                </div>`;
+            });
+        } else {
+            prizeSorted.forEach(([uid, s], i) => {
+                const rank = i+1, isMe = uid===currentUser.id||s.name===currentUser.name;
+                let rCls='glass', rIcon=`<span class="font-black text-xl w-8 text-center">${rank}</span>`;
+                if(rank===1){rCls='rank-gold';rIcon='<span class="text-2xl w-8 text-center">🥇</span>';}
+                else if(rank===2){rCls='rank-silver';rIcon='<span class="text-2xl w-8 text-center">🥈</span>';}
+                else if(rank===3){rCls='rank-bronze';rIcon='<span class="text-2xl w-8 text-center">🥉</span>';}
+                const tc=rank<=3?'text-current':'text-white';
+                html += `<div class="${rCls} rounded-xl p-3 flex items-center gap-3 mb-1.5 ${isMe?'ring-2 ring-yellow-400':''}">
+                    ${rIcon}
+                    <div class="w-8 h-8 rounded-full bg-gray-700/80 flex items-center justify-center font-black text-base flex-shrink-0">${(s.name||'?').charAt(0).toUpperCase()}</div>
+                    <span class="flex-1 font-bold text-sm truncate ${tc}">${s.name||'未知'}${isMe?' <span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">我</span>':''}</span>
+                    <span class="text-xl font-black ${tc}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></span>
+                </div>`;
+            });
+        }
+        html += `</div>`;
+    }
+
+    // ─ Full leaderboard
+    html += `<p class="text-xs text-gray-500 font-bold mb-2">📊 总排行</p>`;
     sorted.forEach(([uid, s], i) => {
         const rank = i + 1;
         const isMe = uid === currentUser.id || s.name === currentUser.name;
         let rankCls = 'glass';
-        let rankIcon = `<span class="font-black text-xl w-8 text-center">${rank}</span>`;
-        if (rank === 1) { rankCls = 'rank-gold'; rankIcon = '<span class="text-2xl w-8 text-center">🥇</span>'; }
-        else if (rank === 2) { rankCls = 'rank-silver'; rankIcon = '<span class="text-2xl w-8 text-center">🥈</span>'; }
-        else if (rank === 3) { rankCls = 'rank-bronze'; rankIcon = '<span class="text-2xl w-8 text-center">🥉</span>'; }
+        let rankIcon = `<span class="font-black text-base w-7 text-center text-gray-400">${rank}</span>`;
+        if (rank === 1) { rankCls = 'rank-gold'; rankIcon = '<span class="text-2xl w-7 text-center">🏆</span>'; }
+        else if (rank === 2) { rankCls = 'rank-silver'; rankIcon = '<span class="text-2xl w-7 text-center">🥈</span>'; }
+        else if (rank === 3) { rankCls = 'rank-bronze'; rankIcon = '<span class="text-2xl w-7 text-center">🥉</span>'; }
 
         const textCls = (rank <= 3) ? 'text-current' : 'text-white';
 
-        html += `
-        <div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 ${isMe ? 'ring-2 ring-yellow-400' : ''}">
+        html += `<div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe ? 'ring-2 ring-yellow-400' : ''}">
             ${rankIcon}
             <div class="w-9 h-9 rounded-full bg-gray-700/80 flex items-center justify-center font-black text-lg flex-shrink-0">
                 ${(s.name||'?').charAt(0).toUpperCase()}
@@ -1044,42 +1139,11 @@ function renderLeaderboard() {
                     <span class="truncate ${textCls}">${s.name||'未知'}</span>
                     ${isMe ? '<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>' : ''}
                 </div>
-                <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
+                <div class="text-xs mt-0.5 text-gray-400">${_predSummary(uid)}</div>
             </div>
             <div class="text-2xl font-black ${textCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
         </div>`;
     });
-
-    // Prize pool sub-leaderboard
-    const prizeEntries = entries.filter(([,s]) => s.prizePool === true);
-    if (prizeEntries.length > 0) {
-        const prizeSorted = [...prizeEntries].sort((a,b) => (b[1].total||0) - (a[1].total||0));
-        html += `<div class="glass rounded-2xl p-4 mt-4 border border-yellow-400/20">
-            <p class="font-black text-center gold-text mb-0.5">🎁 大奖游戏排名</p>
-            <p class="text-xs text-center text-gray-400 mb-3">仅统计已报名参与者 · 前三名赢取奖品</p>
-            <div class="space-y-2">`;
-        prizeSorted.forEach(([uid, s], i) => {
-            const rank = i + 1;
-            const isMe = uid === currentUser.id || s.name === currentUser.name;
-            let rankCls = 'glass', rankIcon = `<span class="font-black text-xl w-8 text-center">${rank}</span>`;
-            if (rank===1) { rankCls='rank-gold'; rankIcon='<span class="text-2xl w-8 text-center">🥇</span>'; }
-            else if (rank===2) { rankCls='rank-silver'; rankIcon='<span class="text-2xl w-8 text-center">🥈</span>'; }
-            else if (rank===3) { rankCls='rank-bronze'; rankIcon='<span class="text-2xl w-8 text-center">🥉</span>'; }
-            const tc = rank<=3 ? 'text-current' : 'text-white';
-            html += `<div class="${rankCls} rounded-xl p-3 flex items-center gap-3 ${isMe?'ring-2 ring-yellow-400':''}">
-                ${rankIcon}
-                <div class="w-8 h-8 rounded-full bg-gray-700/80 flex items-center justify-center font-black text-base flex-shrink-0">
-                    ${(s.name||'?').charAt(0).toUpperCase()}
-                </div>
-                <div class="flex-1 min-w-0 font-bold text-sm flex items-center gap-1">
-                    <span class="truncate ${tc}">${s.name||'未知'}</span>
-                    ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>':''}
-                </div>
-                <div class="text-xl font-black ${tc}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
-            </div>`;
-        });
-        html += `</div></div>`;
-    }
 
     document.getElementById('leaderboardContainer').innerHTML = html;
 }
@@ -1114,8 +1178,18 @@ function renderMyPreds() {
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
                 <span class="text-3xl">⚽</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">最佳射手 · 10分</p>
+                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">小组赛最佳射手 · 10分</p>
                 <p class="font-black text-white">${myChamp.topScorer}</p></div>${b}
+            </div>`;
+        }
+        if (myChamp.goldenBoot) {
+            let b = myChamp.goldenBootPoints !== null && myChamp.goldenBootPoints !== undefined
+                ? `<span class="${myChamp.goldenBootPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.goldenBootPoints}分</span>`
+                : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
+            html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
+                <span class="text-3xl">👟</span>
+                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">金靴奖 · 10分</p>
+                <p class="font-black text-white">${myChamp.goldenBoot}</p></div>${b}
             </div>`;
         }
         if (myChamp.midway) {
@@ -1220,9 +1294,11 @@ let champPredsData = {};
 let champPendingPick = null;   // section 1 pending
 let midwayPendingPick = null;  // section 3 pending
 
-const CHAMPION_DEADLINE   = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — re-editable until then
-const TOP_SCORER_DEADLINE = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — permanent lock
-const GROUP_DEADLINE      = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — group picks lock
+const CHAMPION_DEADLINE     = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — re-editable until then
+const TOP_SCORER_DEADLINE   = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — permanent lock
+const GROUP_DEADLINE        = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — group picks lock
+const GOLDEN_BOOT_OPEN      = new Date('2026-06-27T22:00:00Z'); // group stage ends ~June 27 — golden boot opens
+const GOLDEN_BOOT_DEADLINE  = new Date('2026-07-18T21:59:00Z'); // July 18 23:59 CEST — day before final
 const MIDWAY_OPEN         = new Date('2026-07-04T00:00:00Z'); // July 4 08:00 CST — knockout stage starts
 const MIDWAY_DEADLINE     = new Date('2026-07-09T12:00:00Z'); // July 9 20:00 CST — before R16, permanent lock
 
@@ -1370,9 +1446,10 @@ function updateTabDots() {
         if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-champion" class="tab-dot"></span>');
     } else if (!needsChamp && champDot) champDot.remove();
 
-    // Top scorer tab dot
+    // Top scorer / golden boot tab dot
     const scorerDot = document.getElementById('dot-topScorer');
-    const needsScorer = !myPred.topScorer && now < TOP_SCORER_DEADLINE;
+    const needsScorer = (!myPred.topScorer && now < TOP_SCORER_DEADLINE) ||
+                        (!myPred.goldenBoot && now >= GOLDEN_BOOT_OPEN && now < GOLDEN_BOOT_DEADLINE);
     if (needsScorer && !scorerDot) {
         const btn = document.getElementById('tab-topScorer');
         if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-topScorer" class="tab-dot"></span>');
@@ -1444,6 +1521,7 @@ function renderChampion() {
     renderChampSection1(myPred, now);
     renderChampSection2(myPred, now);
     renderChampSection3(myPred, now);
+    renderChampSection4(myPred, now);
     updateTabDots();
 }
 
@@ -1755,7 +1833,118 @@ window.submitTopScorer = async function() {
         champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null, midwayPoints: existing.midwayPoints ?? null };
     if (demoMode) { champPredsData[currentUser.id] = pred; renderChampion(); }
     else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
-    toast(`⚽ 最佳射手已更新为 "${name}"！猜中得+${maxPts}分`);
+    toast(`⚽ 小组赛最佳射手已更新为 "${name}"！猜中得+${maxPts}分`);
+};
+
+function renderChampSection4(myPred, now) {
+    const el = document.getElementById('champSection4');
+    if (!el) return;
+    const chip = document.getElementById('goldenBootDeadlineChip');
+
+    if (now < GOLDEN_BOOT_OPEN) {
+        if (chip) chip.textContent = '⏰ 小组赛结束后开放（约6月27日）';
+        el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center">
+            <p class="text-2xl mb-2">⏳</p>
+            <p class="text-sm text-white font-bold mb-1">小组赛结束后开放</p>
+            <p class="text-xs text-gray-400">约 2026年6月27日起可预测全程金靴奖得主</p>
+        </div>`;
+        return;
+    }
+
+    const cd = fmtCountdown(GOLDEN_BOOT_DEADLINE);
+    if (chip) chip.textContent = cd ? `⏰ 还剩 ${cd}` : '🔒 已截止';
+
+    if (now >= GOLDEN_BOOT_DEADLINE) {
+        if (myPred.goldenBoot) {
+            const maxPts = myPred.goldenBootMaxPts || getTopScorerPts(myPred.goldenBoot);
+            let badge = myPred.goldenBootPoints !== null && myPred.goldenBootPoints !== undefined
+                ? `<span class="${myPred.goldenBootPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.goldenBootPoints}分</span>`
+                : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓（最高+${maxPts}分）</span>`;
+            el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
+                <span class="text-4xl">👟</span>
+                <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
+                    <span class="font-black text-white text-lg">${myPred.goldenBoot}</span>${badge}
+                </div><p class="text-xs text-gray-500 mt-0.5">🔒 竞猜已截止</p></div>
+            </div>`;
+        } else {
+            el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
+        }
+        return;
+    }
+
+    const _cur = myPred.goldenBoot || '';
+    el.innerHTML = `<p class="text-xs text-gray-500 mb-3">🎲 越冷门赔率越高 · 截止前可随时修改${_cur ? ' · <span class="text-green-400">已预测</span>' : ''}</p>
+    <select id="goldenBootSelect" onchange="onGoldenBootSelectChange(this.value)"
+        style="background:rgba(0,0,0,0.4)"
+        class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-2">
+        <option value="">— 选择球员 —</option>${_scorerSelectOpts(_cur)}
+    </select>
+    <div id="goldenBootOtherWrap" class="hidden mb-2">
+        <input type="text" id="goldenBootOtherInput" placeholder="填写球员姓名（中文或英文）" maxlength="30"
+            class="w-full glass-dark rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-gray-600"
+            oninput="updateGoldenBootPreview(this.value)">
+    </div>
+    <div id="goldenBootPreview" class="text-xs text-gray-500 mb-2"></div>
+    <button onclick="submitGoldenBoot()" class="w-full gold text-black font-black py-3 rounded-xl text-sm active:scale-95">确认金靴预测 ✓</button>
+    <p class="text-xs text-gray-500 mt-2 text-center">截止 7月18日 CET 23:59 前可随时修改</p>`;
+    // Restore select state
+    if (_cur && _cur !== '__other__') {
+        const s = document.getElementById('goldenBootSelect');
+        if (s) { s.value = _cur; onGoldenBootSelectChange(_cur); }
+    } else if (_cur) {
+        const s = document.getElementById('goldenBootSelect');
+        if (s) { s.value = '__other__'; onGoldenBootSelectChange('__other__'); }
+        const inp = document.getElementById('goldenBootOtherInput');
+        if (inp) inp.value = _cur;
+    }
+}
+
+window.onGoldenBootSelectChange = function(val) {
+    const wrap = document.getElementById('goldenBootOtherWrap');
+    const preview = document.getElementById('goldenBootPreview');
+    if (val === '__other__') {
+        if (wrap) wrap.classList.remove('hidden');
+        if (preview) preview.textContent = '';
+    } else {
+        if (wrap) wrap.classList.add('hidden');
+        if (val && preview) {
+            const pts = getTopScorerPts(val);
+            preview.innerHTML = `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`;
+        } else if (preview) { preview.textContent = ''; }
+    }
+};
+
+window.updateGoldenBootPreview = function(val) {
+    const el = document.getElementById('goldenBootPreview');
+    if (!el) return;
+    const name = val?.trim();
+    if (!name) { el.textContent = ''; return; }
+    const pts = getTopScorerPts(name);
+    el.innerHTML = pts < 50
+        ? `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`
+        : `<span class="text-gray-400">未知球员 · 若猜中得 <span class="text-yellow-400 font-bold">+${pts}分</span></span>`;
+};
+
+window.submitGoldenBoot = async function() {
+    if (new Date() >= GOLDEN_BOOT_DEADLINE) { toast('金靴竞猜已截止', 'error'); return; }
+    if (new Date() < GOLDEN_BOOT_OPEN) { toast('金靴竞猜尚未开放', 'error'); return; }
+    const sel = document.getElementById('goldenBootSelect');
+    const selVal = sel?.value;
+    let name;
+    if (selVal === '__other__') {
+        name = document.getElementById('goldenBootOtherInput')?.value?.trim();
+        if (!name) { toast('请填写球员姓名', 'error'); return; }
+    } else {
+        name = selVal;
+        if (!name) { toast('请选择球员', 'error'); return; }
+    }
+    const maxPts = getTopScorerPts(name);
+    const existing = champPredsData[currentUser.id] || {};
+    const pred = { ...existing, userId: currentUser.id, goldenBoot: name, goldenBootAt: Date.now(),
+        goldenBootMaxPts: maxPts, goldenBootPoints: existing.goldenBootPoints ?? null };
+    if (demoMode) { champPredsData[currentUser.id] = pred; renderChampion(); }
+    else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
+    toast(`👟 金靴预测已更新为 "${name}"！猜中得+${maxPts}分`);
 };
 
 window.selectMidwayTeam = function(teamName) {
@@ -1798,6 +1987,7 @@ window.submitChampResult = async function() {
     if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
     const champion = document.getElementById('champResultSel').value;
     const topScorerResult = (document.getElementById('topScorerResultInput')?.value || '').trim().toLowerCase();
+    const goldenBootResult = (document.getElementById('goldenBootResultInput')?.value || '').trim().toLowerCase();
     if (!champion) { toast('请选择冠军球队', 'error'); return; }
     if (!confirm(`确认 ${champion} 为2026世界杯冠军？此操作将结算所有冠军相关积分。`)) return;
 
@@ -1810,6 +2000,7 @@ window.submitChampResult = async function() {
     const updates = {};
     updates[`rooms/${currentRoom}/settings/champion`] = champion;
     if (topScorerResult) updates[`rooms/${currentRoom}/settings/topScorer`] = topScorerResult;
+    if (goldenBootResult) updates[`rooms/${currentRoom}/settings/goldenBoot`] = goldenBootResult;
 
     Object.entries(allPreds).forEach(([uid, p]) => {
         const s = JSON.parse(JSON.stringify(allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 }));
@@ -1839,6 +2030,14 @@ window.submitChampResult = async function() {
             const scorerBase = p.topScorerMaxPts || getTopScorerPts(p.topScorer || '');
             const pts = (p.topScorer && p.topScorer.toLowerCase() === topScorerResult) ? scorerBase : 0;
             updates[`rooms/${currentRoom}/champPreds/${uid}/topScorerPoints`] = pts;
+            delta += pts;
+        }
+
+        // Golden boot points
+        if (goldenBootResult && (p.goldenBootPoints === null || p.goldenBootPoints === undefined)) {
+            const base = p.goldenBootMaxPts || getTopScorerPts(p.goldenBoot || '');
+            const pts = (p.goldenBoot && p.goldenBoot.toLowerCase() === goldenBootResult) ? base : 0;
+            updates[`rooms/${currentRoom}/champPreds/${uid}/goldenBootPoints`] = pts;
             delta += pts;
         }
 
