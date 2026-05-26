@@ -1279,11 +1279,95 @@ window.handleAvatarUpload = function(event) {
     event.target.value = '';
 };
 
+// ─── Score range calculator ───────────────────────────────
+function _scoreRange(uid) {
+    const cp = champPredsData[uid] || {};
+    const gids = Object.keys(groupsData);
+    let earned = 0, maxAdd = 0;
+
+    const settle = (pts, maxPts) => {
+        if (pts !== null && pts !== undefined) earned += pts;
+        else if (maxPts > 0) maxAdd += maxPts;
+    };
+
+    // Champion (with midway multiplier)
+    if (cp.champion) {
+        const base = cp.champMaxPts || getChampPts(cp.champion);
+        const mult = cp.midway ? (cp.midway === cp.champion ? 1.5 : 0.5) : 1;
+        settle(cp.champPoints, Math.round(base * mult));
+    }
+
+    // Top scorer
+    if (cp.topScorer) {
+        settle(cp.topScorerPoints, cp.topScorerMaxPts || getTopScorerPts(cp.topScorer));
+    }
+
+    // Golden boot
+    if (cp.goldenBoot) {
+        settle(cp.goldenBootPoints, cp.goldenBootMaxPts || getTopScorerPts(cp.goldenBoot));
+    }
+
+    // Group predictions: max = 2 per qualified team + 1 for winner
+    for (const gid of gids) {
+        const p = groupPredsData[`${uid}_${gid}`];
+        if (!p) continue;
+        const groupMax = (p.qualified?.length || 0) * 2 + (p.winner ? 1 : 0);
+        settle(p.points, groupMax);
+    }
+
+    // Knockout match predictions: max 3 per match
+    Object.values(predsData).filter(p => p.userId === uid).forEach(p => settle(p.points, 3));
+
+    // Third picks: not yet scored — count as pending unknown
+    const thirdPicks = thirdPicksData[uid]?.picks || [];
+    const thirdPts = thirdPicksData[uid]?.points;
+    const thirdPending = thirdPts === null || thirdPts === undefined;
+
+    return {
+        earned,                     // already locked in
+        min: earned,                // worst case = keep what's earned
+        max: earned + maxAdd,       // best case = everything pending scores max
+        thirdPending: thirdPending && thirdPicks.length > 0
+    };
+}
+
 // ─── Render: My Predictions ───────────────────────────────
 function renderMyPreds() {
     _refreshMyProfileCard();
     const container = document.getElementById('myPredsContainer');
     let html = '';
+
+    // Score range banner
+    const uid = currentUser.id;
+    const range = _scoreRange(uid);
+    const { total: predTotal } = _countPreds(uid);
+    if (predTotal > 0) {
+        const earnedBadge = range.earned > 0
+            ? `<span class="text-yellow-400 font-black text-lg">${range.earned}</span><span class="text-xs text-gray-400">分已到手</span>`
+            : `<span class="text-gray-500 text-sm">暂无得分</span>`;
+        const maxLabel = range.thirdPending
+            ? `${range.max}<span class="text-xs text-gray-400">分+</span>`
+            : `${range.max}<span class="text-xs text-gray-400">分</span>`;
+        html += `<div class="glass rounded-2xl p-4 mb-3">
+            <p class="text-xs text-gray-400 font-bold mb-3">📊 我的得分范围</p>
+            <div class="flex items-center justify-between">
+                <div class="text-center flex-1">
+                    <p class="text-2xl font-black text-white">${range.min}<span class="text-xs font-normal text-gray-400">分</span></p>
+                    <p class="text-xs text-gray-500 mt-0.5">最低（全错）</p>
+                </div>
+                <div class="text-gray-600 font-black text-xl">~</div>
+                <div class="text-center flex-1">
+                    <p class="text-2xl font-black text-yellow-400">${range.max}${range.thirdPending?'<span class="text-sm text-gray-400">+</span>':''}<span class="text-xs font-normal text-gray-400">分</span></p>
+                    <p class="text-xs text-gray-500 mt-0.5">最高（全对）</p>
+                </div>
+            </div>
+            ${range.earned > 0 ? `<div class="mt-3 pt-3 border-t border-white/8 text-center">
+                <span class="text-sm text-gray-300">已确认得分：</span>
+                <span class="text-yellow-400 font-black text-base">${range.earned}分</span>
+            </div>` : ''}
+            ${range.thirdPending ? `<p class="text-xs text-gray-500 text-center mt-2">* 第三名出线积分待赛制确认后计算</p>` : ''}
+        </div>`;
+    }
 
     // Champion predictions (new 3-section model)
     const myChamp = champPredsData[currentUser?.id];
