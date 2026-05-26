@@ -2711,15 +2711,20 @@ function _renderWizGroupsAll(groupIds) {
     </div>${cards}`;
 }
 
-function _renderWizThirdPlace(groupIds) {
+function _buildWizThirdPool(groupIds) {
     const pool = [];
     groupIds.forEach(gid => {
         const g = groupsData[gid];
         const sel = _wizGpStates[gid]?.selected || [];
         (g?.teams||[]).forEach(t => { if (!sel.includes(t.name)) pool.push({ ...t, groupName: g?.name||gid+'组' }); });
     });
+    return pool;
+}
+
+function _buildWizThirdItems(groupIds) {
+    const pool = _buildWizThirdPool(groupIds);
     const cnt = _wizThirdPicks.length;
-    const items = pool.map(t => {
+    return pool.map(t => {
         const isPicked = _wizThirdPicks.includes(t.name);
         const full = cnt >= 8 && !isPicked;
         const cls = isPicked ? 'border-orange-400 bg-orange-400/10' : full ? 'border-white/5 glass opacity-30 pointer-events-none' : 'border-white/10 glass';
@@ -2733,15 +2738,20 @@ function _renderWizThirdPlace(groupIds) {
             ${isPicked ? '<span class="text-orange-400 font-black text-sm shrink-0">✓</span>' : ''}
         </div>`;
     }).join('');
+}
+
+function _renderWizThirdPlace(groupIds) {
+    const pool = _buildWizThirdPool(groupIds);
+    const cnt = _wizThirdPicks.length;
     return `<div class="glass-dark rounded-xl p-3 mb-3">
         <p class="text-sm font-bold">选出 <b class="text-orange-400">8支</b> 最佳第三名晋级球队</p>
         <p class="text-xs text-gray-400 mt-0.5">每组第三、第四名共 ${pool.length} 队，其中 8 队将晋级淘汰赛</p>
     </div>
     <div class="flex items-center justify-between mb-2 px-0.5">
         <span class="text-xs text-gray-400">点击选择·再点取消</span>
-        <span class="text-sm font-black ${cnt>=8?'text-green-400':'text-orange-400'}">${cnt} / 8 已选</span>
+        <span id="wiz-third-count" class="text-sm font-black ${cnt>=8?'text-green-400':'text-orange-400'}">${cnt} / 8 已选</span>
     </div>
-    <div class="grid grid-cols-2 gap-1.5">${items}</div>`;
+    <div class="grid grid-cols-2 gap-1.5" id="wiz-third-grid">${_buildWizThirdItems(groupIds)}</div>`;
 }
 
 function _renderWizChamp() {
@@ -2907,8 +2917,15 @@ window.wizToggleWinnerAll = function(gid, name) {
 window.wizToggleThird = function(name) {
     if (_wizThirdPicks.includes(name)) _wizThirdPicks = _wizThirdPicks.filter(n=>n!==name);
     else if (_wizThirdPicks.length < 8) _wizThirdPicks.push(name);
+    const cnt = _wizThirdPicks.length;
+    const countEl = document.getElementById('wiz-third-count');
+    if (countEl) {
+        countEl.textContent = `${cnt} / 8 已选`;
+        countEl.className = `text-sm font-black ${cnt>=8?'text-green-400':'text-orange-400'}`;
+    }
     const step = _wizSteps[_wizIdx];
-    document.getElementById('wizContent').innerHTML = _renderWizThirdPlace(step.groupIds);
+    const gridEl = document.getElementById('wiz-third-grid');
+    if (gridEl) gridEl.innerHTML = _buildWizThirdItems(step.groupIds);
 };
 
 window.wizardSkip = function() {
