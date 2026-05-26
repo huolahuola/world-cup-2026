@@ -315,7 +315,7 @@
                 <div class="hidden px-4 pb-4">
                     <div class="glass-dark rounded-xl p-3 text-xs space-y-1.5 text-gray-300">
                         <p>🏆 <b class="text-yellow-400">冠军预测</b> 截止6月10日 CET 23:59，可随时修改，猜中 <b class="text-white">+20~250分（按赔率）</b></p>
-                        <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月10日 CET 23:59，锁定后不可改，猜中 <b class="text-white">+10分</b></p>
+                        <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月10日 CET 23:59，锁定后不可改，猜中 <b class="text-white">按赔率（10~100分）</b></p>
                         <p>🎯 <b class="text-blue-300">半程冠军</b> 7月4日淘汰赛起开放，7月9日截止，完全独立计分：</p>
                         <p>· 原始冠军猜对 → <b class="text-yellow-400">+赔率积分（20~250分）</b></p>
                         <p>· 半程冠军猜对 → <b class="text-blue-300">+赔率×0.5分</b>（独立，不影响原始）</p>
@@ -341,10 +341,10 @@
             <div class="glass rounded-2xl p-4 mb-3">
                 <div class="flex items-center justify-between mb-1">
                     <p class="font-black text-base" style="color:#60a5fa">🎯 半程冠军</p>
-                    <span class="text-xs bg-blue-400/10 text-blue-300 px-2 py-0.5 rounded-full font-bold">10分+系数</span>
+                    <span class="text-xs bg-blue-400/10 text-blue-300 px-2 py-0.5 rounded-full font-bold">赔率×0.5独立计分</span>
                 </div>
                 <p class="text-xs text-gray-400 mb-1">🔓 7月4日淘汰赛开始后开放 · 截止7月9日 · 截止前可随时修改</p>
-                <p class="text-xs text-orange-400 mb-3">与冠军选相同 → 冠军×1.5 · 不同 → 冠军×0.5</p>
+                <p class="text-xs text-blue-300 mb-3">独立计分，猜中冠军得赔率×0.5分；两次选同队且猜对额外+25%奖励</p>
                 <div id="champSection3"><div class="shimmer rounded-xl h-16"></div></div>
             </div>
         </div>
@@ -353,15 +353,15 @@
         <div id="content-topScorer" class="hidden">
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
-                <p>· <b class="text-white">小组赛最佳射手</b>：截止 6月10日 23:59 CET，截止前可随时修改，猜中得分按赔率（10~50分）</p>
-                <p>· <b class="text-white">金靴奖</b>：小组赛结束后（约6月27日）开放，截止7月18日 23:59 CET，猜中得分按赔率（10~50分）</p>
-                <p>· 越冷门赔率越高，热门球员猜中+10分，其他球员+50分</p>
+                <p>· <b class="text-white">小组赛最佳射手</b>：截止 6月10日 23:59 CET，截止前可随时修改，猜中得分按赔率（10~100分）</p>
+                <p>· <b class="text-white">金靴奖</b>：小组赛结束后（约6月27日）开放，截止7月18日 23:59 CET，猜中得分按赔率（10~100分）</p>
+                <p>· 越冷门赔率越高，热门球员+10分，冷门球员最高+100分，名单外球员+50分</p>
             </div>
             <!-- 小组赛最佳射手 -->
             <div id="scorerCard" class="glass rounded-2xl p-4 mb-3">
                 <div class="flex items-center justify-between mb-1">
                     <p class="font-black text-base gold-text">⚽ 小组赛最佳射手</p>
-                    <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">10分</span>
+                    <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">按赔率</span>
                 </div>
                 <div class="flex items-center gap-2 mb-3">
                     <span id="scorerDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
@@ -373,7 +373,7 @@
             <div id="goldenBootCard" class="glass rounded-2xl p-4 mb-3">
                 <div class="flex items-center justify-between mb-1">
                     <p class="font-black text-base gold-text">👟 金靴奖</p>
-                    <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">10分</span>
+                    <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">按赔率</span>
                 </div>
                 <div class="flex items-center gap-2 mb-3">
                     <span id="goldenBootDeadlineChip" class="deadline-chip">⏰ 小组赛结束后开放</span>
@@ -1427,9 +1427,10 @@ function renderMyPreds() {
             let b = myChamp.champPoints !== null && myChamp.champPoints !== undefined
                 ? `<span class="${myChamp.champPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.champPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
+            const _champBase = myChamp.champMaxPts || getChampPts(myChamp.champion);
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
                 <span class="text-3xl">${getTeamFlag(myChamp.champion)}</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">冠军 · 20分</p>
+                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">冠军 · 猜中+${_champBase}分</p>
                 <p class="font-black text-white">${myChamp.champion}</p></div>${b}
             </div>`;
         }
@@ -1437,9 +1438,10 @@ function renderMyPreds() {
             let b = myChamp.topScorerPoints !== null && myChamp.topScorerPoints !== undefined
                 ? `<span class="${myChamp.topScorerPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.topScorerPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
+            const _scorerBase = myChamp.topScorerMaxPts || getTopScorerPts(myChamp.topScorer);
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
                 <span class="text-3xl">⚽</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">小组赛最佳射手 · 10分</p>
+                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">小组赛最佳射手 · 猜中+${_scorerBase}分</p>
                 <p class="font-black text-white">${myChamp.topScorer}</p></div>${b}
             </div>`;
         }
@@ -1447,9 +1449,10 @@ function renderMyPreds() {
             let b = myChamp.goldenBootPoints !== null && myChamp.goldenBootPoints !== undefined
                 ? `<span class="${myChamp.goldenBootPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.goldenBootPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
+            const _goldenBase = myChamp.goldenBootMaxPts || getTopScorerPts(myChamp.goldenBoot);
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
                 <span class="text-3xl">👟</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">金靴奖 · 10分</p>
+                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">金靴奖 · 猜中+${_goldenBase}分</p>
                 <p class="font-black text-white">${myChamp.goldenBoot}</p></div>${b}
             </div>`;
         }
@@ -1925,7 +1928,7 @@ function renderChampSection2(myPred, now) {
     }
 
     const _curScorer = myPred.topScorer || '';
-    el.innerHTML = `<p class="text-xs text-gray-500 mb-3">🎲 越冷门赔率越高 · 热门球员猜中10分 · 其他+50分${_curScorer ? ' · <span class="text-green-400">截止前可随时修改</span>' : ''}</p>
+    el.innerHTML = `<p class="text-xs text-gray-500 mb-3">🎲 越冷门赔率越高（10~100分） · 名单外球员+50分${_curScorer ? ' · <span class="text-green-400">截止前可随时修改</span>' : ''}</p>
     <select id="topScorerSelect" onchange="onScorerSelectChange(this.value)"
         style="background:rgba(0,0,0,0.4)"
         class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-2">
