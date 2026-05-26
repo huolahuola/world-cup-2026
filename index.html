@@ -352,9 +352,11 @@
 
         <!-- Top Scorer -->
         <div id="content-topScorer" class="hidden">
-            <div class="glass rounded-2xl p-4 mb-3 text-center">
-                <p class="font-black text-xl gold-text">⚽ 射手竞猜</p>
-                <p class="text-xs text-gray-400 mt-0.5">预测小组赛最佳射手 · 小组赛结束后预测金靴奖</p>
+            <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
+                <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
+                <p>· <b class="text-white">小组赛最佳射手</b>：截止 6月10日 23:59 CET，截止前可随时修改，猜中得分按赔率（10~50分）</p>
+                <p>· <b class="text-white">金靴奖</b>：小组赛结束后（约6月27日）开放，截止7月18日 23:59 CET，猜中得分按赔率（10~50分）</p>
+                <p>· 越冷门赔率越高，热门球员猜中+10分，其他球员+50分</p>
             </div>
             <!-- 小组赛最佳射手 -->
             <div id="scorerCard" class="glass rounded-2xl p-4 mb-3">
@@ -378,12 +380,6 @@
                     <span id="goldenBootDeadlineChip" class="deadline-chip">⏰ 小组赛结束后开放</span>
                 </div>
                 <div id="champSection4"><div class="shimmer rounded-xl h-12"></div></div>
-            </div>
-            <div class="glass-dark rounded-2xl p-4 text-xs text-gray-300 space-y-1.5">
-                <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
-                <p>· <b class="text-white">小组赛最佳射手</b>：截止 6月10日 23:59 CET，截止前可随时修改</p>
-                <p>· <b class="text-white">金靴奖</b>：小组赛结束后（约6月27日）开放，截止7月18日 23:59 CET</p>
-                <p>· 预测与实际结果完全匹配得分；越冷门赔率越高</p>
             </div>
         </div>
 
@@ -449,6 +445,13 @@
 
         <!-- Knockout Matches -->
         <div id="content-knockout" class="hidden">
+            <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
+                <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
+                <p>· 每场淘汰赛比赛均可预测比分</p>
+                <p>· 猜中<b class="text-white">精确比分</b> → <b class="text-yellow-400">+3分</b></p>
+                <p>· 猜中<b class="text-white">胜负平结果</b>（比分不同）→ <b class="text-green-400">+1分</b></p>
+                <p>· 比赛开始前可修改预测，开始后锁定</p>
+            </div>
             <div id="matchesContainer">
                 <div class="shimmer rounded-2xl h-24 mb-3"></div>
                 <div class="shimmer rounded-2xl h-24 mb-3"></div>
@@ -458,9 +461,17 @@
 
         <!-- Leaderboard -->
         <div id="content-leaderboard" class="hidden">
-            <div class="glass rounded-2xl p-4 mb-4 text-center">
-                <p class="text-xs text-gray-400 mb-1">实时更新 · 结果公布后自动计算</p>
+            <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
+                <p class="font-bold text-yellow-400 mb-1">📋 积分来源</p>
+                <p>· 冠军预测 <b class="text-white">按赔率 ×1.5/1/0.5</b>（半程系数）</p>
+                <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
+                <p>· 每组出线 <b class="text-yellow-400">+2分</b>，猜中第一 <b class="text-green-400">+1分</b>；第三名出线 +分（待定）</p>
+                <p>· 淘汰赛精确比分 <b class="text-yellow-400">+3分</b>，猜中结果 <b class="text-green-400">+1分</b></p>
+                <p>· 比分未出结果前，预测数越多排名越高</p>
+            </div>
+            <div class="glass rounded-2xl p-3 mb-4 text-center">
                 <p class="font-black text-xl gold-text">积分排行榜</p>
+                <p class="text-xs text-gray-400 mt-0.5">实时更新 · 结果公布后自动计算</p>
             </div>
             <div id="leaderboardContainer" class="space-y-2">
                 <div class="text-center py-8 text-gray-400">加载中...</div>
