@@ -1140,6 +1140,26 @@ function renderMyPreds() {
         });
     }
 
+    // Third-place picks
+    const myThirdPicks = thirdPicksData[currentUser.id]?.picks || [];
+    if (myThirdPicks.length) {
+        const tpPoints = thirdPicksData[currentUser.id]?.points;
+        let tpBadge = tpPoints !== null && tpPoints !== undefined
+            ? `<span class="${tpPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${tpPoints}分</span>`
+            : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
+        const flags = myThirdPicks.map(name => {
+            const team = Object.values(groupsData).flatMap(g => g.teams||[]).find(t => t.name === name);
+            return `<span class="inline-flex items-center gap-1 bg-orange-900/30 border border-orange-500/30 rounded-lg px-2 py-1 text-xs font-bold">${team?.flag||'🏳️'} ${name}</span>`;
+        }).join('');
+        html += `<p class="text-xs text-gray-500 font-bold pt-2 pb-1">最佳第三名出线（8队）</p>
+        <div class="glass rounded-xl p-3 mb-1">
+            <div class="flex justify-between items-start gap-2">
+                <div class="flex flex-wrap gap-1.5 flex-1">${flags}</div>
+                ${tpBadge}
+            </div>
+        </div>`;
+    }
+
     // Match (knockout) predictions
     const mine = Object.entries(predsData).filter(([k]) => k.startsWith(currentUser.id + '_'));
     if (mine.length) {
@@ -2235,6 +2255,7 @@ async function loadGroups() {
     onValue(ref(db, `rooms/${currentRoom}/thirdPicks`), snap => {
         thirdPicksData = snap.exists() ? snap.val() : {};
         renderGroups();
+        if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
     });
 }
 
