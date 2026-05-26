@@ -1567,15 +1567,30 @@ window.generatePredCard = async function(mode = 'full') {
     const ctx = cv.getContext('2d');
     ctx.scale(SCALE, SCALE);
 
-    // ── Background ──
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#0a0a18'); bg.addColorStop(0.5, '#0f0f2a'); bg.addColorStop(1, '#12082a');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // ── Colors / helpers ──
+    const C = {
+        bg:      '#0d1117',
+        bgCard:  '#161b22',
+        bgAlt:   '#1c2128',
+        border:  'rgba(255,255,255,0.08)',
+        borderG: 'rgba(251,191,36,0.5)',
+        gold:    '#fbbf24',
+        goldDim: 'rgba(251,191,36,0.55)',
+        white:   '#f0f6fc',
+        gray1:   '#8b949e',
+        gray2:   '#484f58',
+        green:   '#3fb950',
+        orange:  '#f78166',
+        dim:     'rgba(255,255,255,0.2)',
+    };
 
-    // Subtle grid pattern
-    ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    // Background
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+    // Subtle dot pattern
+    ctx.fillStyle = 'rgba(255,255,255,0.022)';
+    for (let dx = 0; dx < W; dx += 32) for (let dy = 0; dy < H; dy += 32) {
+        ctx.beginPath(); ctx.arc(dx, dy, 1, 0, Math.PI*2); ctx.fill();
+    }
 
     // Rounded rect helper
     const rr = (x, y, w, h, r, fill, stroke, sw = 1) => {
@@ -1590,42 +1605,43 @@ window.generatePredCard = async function(mode = 'full') {
         if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw; ctx.stroke(); }
     };
 
+    const divider = (y) => {
+        ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(P+14, y); ctx.lineTo(W-P-14, y); ctx.stroke();
+    };
+
     const sectionTitle = (label, y) => {
-        ctx.font = f(10, true); ctx.fillStyle = '#4b5563';
+        ctx.font = f(9, true); ctx.fillStyle = C.gray2;
         ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.fillText(label.toUpperCase(), P + 14, y);
-        ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(P + 14, y + 10); ctx.lineTo(W - P - 14, y + 10); ctx.stroke();
+        ctx.fillText(label.toUpperCase(), P + 16, y);
+        divider(y + 11);
         ctx.textBaseline = 'alphabetic';
     };
 
     let cy = 0;
 
     // ── Header ──
-    const hg = ctx.createLinearGradient(0, 0, W, HDR_H);
-    hg.addColorStop(0, '#3b0764'); hg.addColorStop(0.5, '#1e1b4b'); hg.addColorStop(1, '#0c1a4a');
-    ctx.fillStyle = hg; ctx.fillRect(0, 0, W, HDR_H);
-    // Bottom edge shimmer
-    const shimmer = ctx.createLinearGradient(0, 0, W, 0);
-    shimmer.addColorStop(0, 'rgba(251,191,36,0)'); shimmer.addColorStop(0.5, 'rgba(251,191,36,0.5)'); shimmer.addColorStop(1, 'rgba(251,191,36,0)');
-    ctx.fillStyle = shimmer; ctx.fillRect(0, HDR_H - 2, W, 2);
-    // Title
-    ctx.font = f(22, true); ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('⚽  2026 FIFA 世界杯竞猜', W / 2, HDR_H * 0.42);
-    ctx.font = f(11); ctx.fillStyle = 'rgba(251,191,36,0.7)';
-    ctx.fillText(isShare ? '分享版  ·  来猜猜谁能夺冠？' : '完整预测存档', W / 2, HDR_H * 0.72);
+    // Dark panel with gold bottom stripe
+    ctx.fillStyle = C.bgCard; ctx.fillRect(0, 0, W, HDR_H);
+    ctx.fillStyle = C.gold; ctx.fillRect(0, HDR_H - 3, W, 3);
+    // Left gold accent block
+    ctx.fillStyle = C.gold; ctx.fillRect(P, 18, 4, HDR_H - 36);
+    // Title text
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = f(21, true); ctx.fillStyle = C.white;
+    ctx.fillText('2026 FIFA 世界杯竞猜', P + 22, HDR_H * 0.4);
+    ctx.font = f(11); ctx.fillStyle = C.gold;
+    ctx.fillText(isShare ? '预测分享卡 · 来和我一起猜！' : '完整预测存档', P + 22, HDR_H * 0.7);
+    // Date top right
+    ctx.textAlign = 'right'; ctx.font = f(9); ctx.fillStyle = C.gray2;
+    ctx.fillText(new Date().toLocaleDateString('zh-CN'), W - P, HDR_H * 0.5);
     ctx.textBaseline = 'alphabetic';
     cy = HDR_H + GAP;
 
     // ── User card ──
-    rr(P, cy, W - P*2, USER_H, 14, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.1)');
-    // Left accent bar
-    const accentG = ctx.createLinearGradient(0, cy, 0, cy + USER_H);
-    accentG.addColorStop(0, '#a855f7'); accentG.addColorStop(1, '#3b82f6');
-    ctx.fillStyle = accentG; ctx.fillRect(P, cy + 14, 3, USER_H - 28);
-    // Avatar
-    const AR = 26, AX = P + 22, AY = cy + (USER_H - AR*2) / 2;
+    rr(P, cy, W-P*2, USER_H, 10, C.bgCard, C.border);
+    ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 12, 3, USER_H - 24);
+    const AR = 28, AX = P + 20, AY = cy + (USER_H - AR*2) / 2;
     const avatarSrc = avatarsData[uid];
     if (avatarSrc) {
         await new Promise(res => {
@@ -1639,67 +1655,60 @@ window.generatePredCard = async function(mode = 'full') {
             img.onerror = res; img.src = avatarSrc;
         });
     } else {
-        const avatarG = ctx.createLinearGradient(AX, AY, AX+AR*2, AY+AR*2);
-        avatarG.addColorStop(0, '#7c3aed'); avatarG.addColorStop(1, '#2563eb');
         ctx.beginPath(); ctx.arc(AX+AR, AY+AR, AR, 0, Math.PI*2);
-        ctx.fillStyle = avatarG; ctx.fill();
-        ctx.font = f(24, true); ctx.fillStyle = '#fff';
+        ctx.fillStyle = C.bgAlt; ctx.fill();
+        ctx.strokeStyle = C.gold; ctx.lineWidth = 2; ctx.stroke();
+        ctx.font = f(26, true); ctx.fillStyle = C.gold;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText((name[0]||'?').toUpperCase(), AX+AR, AY+AR);
         ctx.textBaseline = 'alphabetic';
     }
-    // Name + subtitle
     const TX = AX + AR*2 + 16;
-    ctx.font = f(20, true); ctx.fillStyle = '#f1f5f9'; ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = f(22, true); ctx.fillStyle = C.white;
     ctx.fillText(name, TX, cy + USER_H * 0.38);
-    ctx.font = f(11); ctx.fillStyle = '#4b5563';
-    ctx.fillText('FIFA World Cup 2026 · ' + new Date().toLocaleDateString('zh-CN'), TX, cy + USER_H * 0.68);
+    ctx.font = f(10); ctx.fillStyle = C.gray1;
+    ctx.fillText('FIFA World Cup 2026', TX, cy + USER_H * 0.68);
     ctx.textBaseline = 'alphabetic';
     cy += USER_H + GAP;
 
     // ── Sentence card ──
     const comment = _genComment(sentence, myC);
     if (sentence) {
-        rr(P, cy, W-P*2, 88, 12, 'rgba(79,70,229,0.12)', 'rgba(99,102,241,0.35)');
-        ctx.font = f(36, true); ctx.fillStyle = 'rgba(99,102,241,0.2)'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        ctx.fillText('"', P + 12, cy + 2);
-        ctx.font = f(11, true); ctx.fillStyle = '#6366f1'; ctx.textBaseline = 'middle';
-        ctx.fillText('一句话', P + 38, cy + 16);
-        ctx.font = f(14, true); ctx.fillStyle = '#c7d2fe';
-        ctx.fillText(sentence, P + 38, cy + 36);
-        // Claude comment divider
-        ctx.strokeStyle = 'rgba(99,102,241,0.2)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(P+14, cy+50); ctx.lineTo(W-P-14, cy+50); ctx.stroke();
-        ctx.font = f(9, true); ctx.fillStyle = '#4338ca'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.fillText('🤖 Claude 锐评', P+14, cy+62);
-        ctx.font = f(10); ctx.fillStyle = '#818cf8';
-        ctx.fillText(comment, P+90, cy+62);
+        rr(P, cy, W-P*2, 88, 10, C.bgCard, C.borderG);
+        ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 10, 3, 68);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.font = f(9, true); ctx.fillStyle = C.gold;
+        ctx.fillText('一句话说出我的预感', P + 16, cy + 19);
+        ctx.font = f(15, true); ctx.fillStyle = C.white;
+        ctx.fillText(sentence, P + 16, cy + 40);
+        divider(cy + 54);
+        ctx.font = f(9, true); ctx.fillStyle = C.gray2;
+        ctx.fillText('🤖 Claude 锐评', P + 16, cy + 68);
+        ctx.font = f(10); ctx.fillStyle = C.gray1;
+        ctx.fillText(comment, P + 94, cy + 68);
         ctx.textBaseline = 'alphabetic';
         cy += 88 + GAP;
     }
 
     // ── Share: summary stats ──
     if (isShare) {
-        const totalPreds = pickRows.length + gpRows.length * 2 + thirdPicks.length;
         const groupsFilled = gpRows.length;
         const stats = [
             ['🏆', '冠军预测', myC.champion ? '已选' : '未填'],
             ['🏅', '小组预测', `${groupsFilled}/${gids.length} 组`],
             ['🎲', '第三名押注', thirdPicks.length ? `${thirdPicks.length} 支` : '未填'],
         ];
-        rr(P, cy, W-P*2, 64, 12, 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0.09)');
-        sectionTitle('预测概况', cy + 16);
-        const colW2 = (W - P*2 - 28) / 3;
+        rr(P, cy, W-P*2, 64, 10, C.bgCard, C.border);
+        sectionTitle('预测概况', cy + 14);
+        const colW2 = (W - P*2) / 3;
         stats.forEach(([icon, label, val], i) => {
-            const cx2 = P + 14 + i * colW2 + colW2/2;
+            const cx2 = P + i * colW2 + colW2/2;
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.font = f(18); ctx.fillStyle = '#e5e7eb';
-            ctx.fillText(icon, cx2, cy + 36);
-            ctx.font = f(9); ctx.fillStyle = '#4b5563';
-            ctx.fillText(label, cx2, cy + 52);
-            ctx.font = f(10, true); ctx.fillStyle = '#f0f0f0';
-            ctx.fillText(val, cx2 + 22, cy + 36);
+            ctx.font = f(16); ctx.fillStyle = C.white;
+            ctx.fillText(icon + ' ' + val, cx2, cy + 40);
+            ctx.font = f(9); ctx.fillStyle = C.gray2;
+            ctx.fillText(label, cx2, cy + 55);
             ctx.textBaseline = 'alphabetic';
         });
         cy += 64 + GAP;
@@ -1709,17 +1718,15 @@ window.generatePredCard = async function(mode = 'full') {
     if (!isShare) {
         // Picks section
         if (pickRows.length) {
-            const SH = 40 + pickRows.length * 40 + 10;
-            rr(P, cy, W-P*2, SH, 12, 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0.09)');
-            sectionTitle('竞猜选择', cy + 16);
-            let ry = cy + 32;
+            const SH = 36 + pickRows.length * 40 + 8;
+            rr(P, cy, W-P*2, SH, 10, C.bgCard, C.border);
+            sectionTitle('竞猜选择', cy + 14);
+            let ry = cy + 28;
             pickRows.forEach(([icon, label, val]) => {
-                // Row separator
-                ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(P+14, ry); ctx.lineTo(W-P-14, ry); ctx.stroke();
-                ctx.font = f(11); ctx.fillStyle = '#6b7280'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                divider(ry);
+                ctx.font = f(11); ctx.fillStyle = C.gray1; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
                 ctx.fillText(icon + '  ' + label, P+16, ry+20);
-                ctx.font = f(14, true); ctx.fillStyle = '#f0f0f0'; ctx.textAlign = 'right';
+                ctx.font = f(14, true); ctx.fillStyle = C.gold; ctx.textAlign = 'right';
                 ctx.fillText(val, W-P-16, ry+20);
                 ctx.textBaseline = 'alphabetic';
                 ry += 40;
@@ -1729,20 +1736,18 @@ window.generatePredCard = async function(mode = 'full') {
 
         // Groups section
         if (gpRows.length) {
-            const SH = 44 + gpRows.length * GP_ROW_H + 18;
-            rr(P, cy, W-P*2, SH, 12, 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0.09)');
-            sectionTitle('小组出线预测', cy + 16);
+            const SH = 36 + gpRows.length * GP_ROW_H + 18;
+            rr(P, cy, W-P*2, SH, 10, C.bgCard, C.border);
+            sectionTitle('小组出线预测', cy + 14);
 
             const labelW = 32, innerW = W - P*2 - 28;
             const colW = (innerW - labelW) / 4;
             const startX = P + 14 + labelW;
-            let gy = cy + 36;
+            let gy = cy + 28;
 
             gpRows.forEach(({ label, qualified, winner, teams }) => {
-                // Alternate row tint
-                rr(P + 14, gy, W - P*2 - 28, GP_ROW_H, 6, 'rgba(255,255,255,0.02)');
-
-                ctx.font = f(10, true); ctx.fillStyle = '#374151';
+                divider(gy);
+                ctx.font = f(9, true); ctx.fillStyle = C.gray2;
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(label, P + 14 + labelW/2, gy + GP_ROW_H/2);
 
@@ -1756,30 +1761,29 @@ window.generatePredCard = async function(mode = 'full') {
                     const cellX = startX + i * colW;
                     const cellCX = cellX + colW/2;
 
-                    if (isQ)      rr(cellX+2, gy+3, colW-4, GP_ROW_H-6, 7, 'rgba(251,191,36,0.15)');
-                    else if (isT) rr(cellX+2, gy+3, colW-4, GP_ROW_H-6, 7, 'rgba(251,146,60,0.12)');
+                    if (isQ) rr(cellX+2, gy+4, colW-4, GP_ROW_H-8, 6, 'rgba(251,191,36,0.1)');
+                    else if (isT) rr(cellX+2, gy+4, colW-4, GP_ROW_H-8, 6, 'rgba(247,129,102,0.1)');
 
                     if (isQ) {
-                        ctx.strokeStyle = isW ? 'rgba(251,191,36,0.8)' : 'rgba(251,191,36,0.4)';
-                        ctx.lineWidth = isW ? 2 : 1;
-                        ctx.beginPath(); ctx.moveTo(cellX+6, gy+3); ctx.lineTo(cellX+colW-6, gy+3); ctx.stroke();
+                        ctx.strokeStyle = C.gold; ctx.lineWidth = isW ? 2 : 1;
+                        ctx.beginPath(); ctx.moveTo(cellX+8, gy+4); ctx.lineTo(cellX+colW-8, gy+4); ctx.stroke();
                     }
 
-                    const col = isQ ? '#fbbf24' : isT ? '#fb923c' : 'rgba(255,255,255,0.22)';
+                    const col = isQ ? C.gold : isT ? '#f78166' : C.gray2;
                     ctx.fillStyle = col;
                     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                     ctx.font = f(16); ctx.fillText(team.flag || '🏳', cellCX, gy + 22);
                     ctx.font = f(9, isW); ctx.fillText(isW ? team.name+' ★' : team.name, cellCX, gy + 43);
-                    if (isT && !isQ) { ctx.font = f(8); ctx.fillStyle = '#fb923c'; ctx.fillText('第三', cellCX, gy+54); }
+                    if (isT && !isQ) { ctx.font = f(8); ctx.fillStyle = '#f78166'; ctx.fillText('第三', cellCX, gy+54); }
                 });
                 gy += GP_ROW_H;
             });
 
             // Legend
             ctx.textBaseline = 'middle'; ctx.font = f(9); ctx.textAlign = 'left';
-            ctx.fillStyle = '#fbbf24'; ctx.fillText('★/金色 = 出线', P+14, gy+9);
-            if (thirdPicks.length) { ctx.fillStyle = '#fb923c'; ctx.fillText('橙色 = 押注第三', P+130, gy+9); }
-            ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillText('暗色 = 未出线', P+270, gy+9);
+            ctx.fillStyle = C.gold; ctx.fillText('金色 = 出线  ★ = 小组第一', P+14, gy+9);
+            if (thirdPicks.length) { ctx.fillStyle = '#f78166'; ctx.fillText('橙色 = 押注第三', P+200, gy+9); }
+            ctx.fillStyle = C.gray2; ctx.fillText('暗色 = 未出线', P+350, gy+9);
             ctx.textBaseline = 'alphabetic';
             cy += SH + GAP;
         }
@@ -1788,59 +1792,59 @@ window.generatePredCard = async function(mode = 'full') {
     // ── Similarity card ──
     if (simInfo) {
         const SIM_H = 64;
-        rr(P, cy, W-P*2, SIM_H, 12, 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0.09)');
-        sectionTitle('与其他玩家的相似度', cy + 16);
+        rr(P, cy, W-P*2, SIM_H, 10, C.bgCard, C.border);
+        sectionTitle('与其他玩家的相似度', cy + 14);
         const pct = n => n.total > 0 ? Math.round(n.same/n.total*100)+'%' : '—';
-        const half = (W - P*2 - 28) / 2;
-        // Most similar
-        rr(P+14, cy+28, half-6, 28, 6, 'rgba(163,230,53,0.08)', 'rgba(163,230,53,0.2)');
+        const half = (W - P*2) / 2;
         ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.font = f(10); ctx.fillStyle = '#a3e635';
-        ctx.fillText('🤝 最相似', P+22, cy+42);
-        ctx.font = f(11, true); ctx.fillStyle = '#d9f99d';
-        ctx.fillText(simInfo.most.name, P+80, cy+36);
-        ctx.font = f(9); ctx.fillStyle = '#4b7c0a';
-        ctx.fillText(`${simInfo.most.same}/${simInfo.most.total} · ${pct(simInfo.most)}`, P+80, cy+50);
+        // Most similar
+        ctx.font = f(9); ctx.fillStyle = C.green;
+        ctx.fillText('🤝 最相似', P+16, cy+44);
+        ctx.font = f(13, true); ctx.fillStyle = C.white;
+        ctx.fillText(simInfo.most.name, P+80, cy+38);
+        ctx.font = f(9); ctx.fillStyle = C.gray2;
+        ctx.fillText(`${simInfo.most.same}/${simInfo.most.total} · ${pct(simInfo.most)}`, P+80, cy+54);
         // Least similar
-        const rx = P+14+half+6;
-        rr(rx, cy+28, half-6, 28, 6, 'rgba(248,113,113,0.08)', 'rgba(248,113,113,0.2)');
-        ctx.font = f(10); ctx.fillStyle = '#f87171';
-        ctx.fillText('🙃 最不同', rx+8, cy+42);
-        ctx.font = f(11, true); ctx.fillStyle = '#fca5a5';
-        ctx.fillText(simInfo.least.name, rx+66, cy+36);
-        ctx.font = f(9); ctx.fillStyle = '#7f1d1d';
-        ctx.fillText(`${simInfo.least.same}/${simInfo.least.total} · ${pct(simInfo.least)}`, rx+66, cy+50);
+        const rx = P + half;
+        ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(rx, cy+26); ctx.lineTo(rx, cy+58); ctx.stroke();
+        ctx.font = f(9); ctx.fillStyle = C.orange;
+        ctx.fillText('🙃 最不同', rx+16, cy+44);
+        ctx.font = f(13, true); ctx.fillStyle = C.white;
+        ctx.fillText(simInfo.least.name, rx+80, cy+38);
+        ctx.font = f(9); ctx.fillStyle = C.gray2;
+        ctx.fillText(`${simInfo.least.same}/${simInfo.least.total} · ${pct(simInfo.least)}`, rx+80, cy+54);
         ctx.textBaseline = 'alphabetic';
         cy += SIM_H + GAP;
     }
 
     // ── Footer ──
     const FH = 132;
-    rr(P, cy, W-P*2, FH, 14, 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0.08)');
-    // Left accent line
-    ctx.fillStyle = 'rgba(251,191,36,0.3)'; ctx.fillRect(P, cy+24, 3, FH-48);
-    // QR code
-    const QR = 96, qrX = W-P-14-QR, qrY = cy+18;
+    rr(P, cy, W-P*2, FH, 10, C.bgCard, C.border);
+    ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 12, 3, FH - 24);
+    // QR code (light bg for contrast)
+    const QR = 94, qrX = W-P-16-QR, qrY = cy+19;
     const siteUrl = 'https://huolahuola.github.io/world-cup-2026/';
-    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(siteUrl)}&size=${QR*2}x${QR*2}&bgcolor=0a0a18&color=f1f5f9&margin=3`;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(siteUrl)}&size=${QR*2}x${QR*2}&bgcolor=f0f6fc&color=0d1117&margin=2`;
     await new Promise(res => {
         const img = new Image(); img.crossOrigin = 'anonymous';
         img.onload = () => {
-            rr(qrX-6, qrY-6, QR+12, QR+12, 8, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.12)');
+            rr(qrX-4, qrY-4, QR+8, QR+8, 6, '#f0f6fc');
             ctx.drawImage(img, qrX, qrY, QR, QR);
             res();
         };
         img.onerror = res; img.src = qrSrc;
     });
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.font = f(16, true); ctx.fillStyle = '#fbbf24';
-    ctx.fillText('扫码加入竞猜', P+22, cy+36);
-    ctx.font = f(11); ctx.fillStyle = '#d1d5db';
-    ctx.fillText('一起预测，2026 世界杯谁夺冠？', P+22, cy+56);
-    ctx.font = f(10); ctx.fillStyle = '#374151';
-    ctx.fillText('huolahuola.github.io/world-cup-2026', P+22, cy+76);
-    ctx.font = f(9); ctx.fillStyle = '#1f2937';
-    ctx.fillText('生成于 ' + new Date().toLocaleDateString('zh-CN'), P+22, cy+108);
+    ctx.font = f(18, true); ctx.fillStyle = C.gold;
+    ctx.fillText('扫码一起猜！', P+18, cy+36);
+    ctx.font = f(11); ctx.fillStyle = C.white;
+    ctx.fillText('2026 FIFA 世界杯竞猜', P+18, cy+58);
+    ctx.font = f(10); ctx.fillStyle = C.gray1;
+    ctx.fillText('huolahuola.github.io', P+18, cy+76);
+    ctx.fillText('/world-cup-2026', P+18, cy+92);
+    ctx.font = f(9); ctx.fillStyle = C.gray2;
+    ctx.fillText('生成于 ' + new Date().toLocaleDateString('zh-CN'), P+18, cy+112);
     ctx.textBaseline = 'alphabetic';
 
     // ── Download ──
