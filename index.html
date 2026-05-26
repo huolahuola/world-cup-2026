@@ -3712,20 +3712,15 @@ function _buildWizSteps() {
     if (!uid) return [];
     const myPred = champPredsData[uid] || {};
     const steps = [];
-    if (!myPred.champion && now < CHAMPION_DEADLINE) steps.push({ type:'champion' });
-    if (!myPred.topScorer && now < TOP_SCORER_DEADLINE) steps.push({ type:'topScorer' });
+    // Always include active steps (not just unfilled) so wizard covers all predictions
+    if (now < CHAMPION_DEADLINE) steps.push({ type:'champion' });
+    if (now < TOP_SCORER_DEADLINE) steps.push({ type:'topScorer' });
     if (now < GROUP_DEADLINE && Object.keys(groupsData).length > 0) {
         const gids = Object.keys(groupsData).sort();
-        const unfilled = gids.filter(gid => !groupPredsData[`${uid}_${gid}`]);
-        const hasThirdPicks = (thirdPicksData[uid]?.picks?.length || 0) >= 8;
-        if (unfilled.length > 0) {
-            steps.push({ type:'groupsAll', groupIds: gids });
-            if (!hasThirdPicks) steps.push({ type:'thirdPlace', groupIds: gids });
-        } else if (!hasThirdPicks) {
-            steps.push({ type:'thirdPlace', groupIds: gids });
-        }
+        steps.push({ type:'groupsAll', groupIds: gids });
+        steps.push({ type:'thirdPlace', groupIds: gids });
     }
-    if (!myPred.wcSentence) steps.push({ type:'sentence' });
+    steps.push({ type:'sentence' });
     return steps;
 }
 
