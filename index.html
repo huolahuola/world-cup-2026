@@ -248,7 +248,7 @@
                     <div class="glass-dark rounded-xl p-3 text-xs space-y-1.5 text-gray-300">
                         <p>🏆 <b class="text-yellow-400">冠军预测</b> 截止6月24日，可随时修改，猜中 <b class="text-white">+20分</b></p>
                         <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月5日，锁定后不可改，猜中 <b class="text-white">+10分</b></p>
-                        <p>🎯 <b class="text-blue-300">半程冠军</b> 淘汰赛第二轮前截止，猜中 <b class="text-white">+10分</b></p>
+                        <p>🎯 <b class="text-blue-300">半程冠军</b> 7月4日淘汰赛起开放，7月9日截止，猜中 <b class="text-white">+10分</b></p>
                         <div class="mt-2 pt-2 border-t border-white/10">
                             <p class="font-bold text-green-400 mb-1">半程冠军系数（影响冠军积分）：</p>
                             <p>· 半程 = 冠军选择 → 冠军积分 <b class="text-green-400">×1.5（最高30分）</b></p>
@@ -285,7 +285,7 @@
                     <p class="font-black text-base" style="color:#60a5fa">🎯 半程冠军</p>
                     <span class="text-xs bg-blue-400/10 text-blue-300 px-2 py-0.5 rounded-full font-bold">10分+系数</span>
                 </div>
-                <p class="text-xs text-gray-400 mb-1">截止淘汰赛第二轮前 · 确认后永久锁定</p>
+                <p class="text-xs text-gray-400 mb-1">7月4日淘汰赛开始后开放 · 截止7月9日 · 确认后永久锁定</p>
                 <p class="text-xs text-orange-400 mb-3">与冠军选相同 → 冠军×1.5 · 不同 → 冠军×0.5</p>
                 <div id="champSection3"><div class="shimmer rounded-xl h-16"></div></div>
             </div>
@@ -1097,7 +1097,8 @@ let midwayPendingPick = null;  // section 3 pending
 
 const CHAMPION_DEADLINE   = new Date('2026-06-24T15:59:00Z'); // June 24 23:59 CST — can edit until then
 const TOP_SCORER_DEADLINE = new Date('2026-06-05T16:00:00Z'); // June 5 midnight CST — permanent lock
-const MIDWAY_DEADLINE     = new Date('2026-07-09T12:00:00Z'); // July 9 20:00 CST (before R16)
+const MIDWAY_OPEN         = new Date('2026-07-04T00:00:00Z'); // July 4 08:00 CST — knockout stage starts
+const MIDWAY_DEADLINE     = new Date('2026-07-09T12:00:00Z'); // July 9 20:00 CST — before R16, permanent lock
 
 function loadChampPreds() {
     if (demoMode) { renderChampion(); return; }
@@ -1281,6 +1282,15 @@ function renderChampSection3(myPred, now) {
 
     if (now >= MIDWAY_DEADLINE) {
         el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
+        return;
+    }
+
+    if (now < MIDWAY_OPEN) {
+        el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center">
+            <p class="text-2xl mb-2">⏳</p>
+            <p class="text-sm text-white font-bold mb-1">淘汰赛开始后开放</p>
+            <p class="text-xs text-gray-400">约 2026年7月4日 · 届时可选择你认为的半程最强队</p>
+        </div>`;
         return;
     }
 
