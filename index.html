@@ -198,14 +198,15 @@
                     <input id="lp-name" type="text" placeholder="输入你的昵称" maxlength="16"
                         class="w-full glass rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                         onkeypress="if(event.key==='Enter')document.getElementById('lp-room').focus()">
-                    <input id="lp-room" type="text" placeholder="房间号（联系拉筋获取）" maxlength="16"
+                    <input id="lp-room" type="text" placeholder="房间号（不参加大奖可留空）" maxlength="16"
                         class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                         onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
                     <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
                         class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
                         onkeypress="if(event.key==='Enter')lpLogin()">
-                    <p class="text-xs text-gray-500 text-center">换设备时输入相同昵称+房间号+PIN即可找回账号</p>
+                    <p class="text-xs text-gray-500 text-center">参加大奖游戏请联系拉筋获取专属房间号；不参加可不填</p>
+                    <p class="text-xs text-gray-600 text-center">换设备时输入相同昵称+房间号+PIN即可找回账号</p>
                     <div class="glass-dark rounded-2xl px-4 py-3">
                         <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
                         <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span> 获得专属房间号</p>
@@ -478,9 +479,13 @@
                 <p>· 淘汰赛精确比分 <b class="text-yellow-400">+3分</b>，猜中结果 <b class="text-green-400">+1分</b></p>
                 <p>· 比分未出结果前，预测数越多排名越高</p>
             </div>
-            <div class="glass rounded-2xl p-3 mb-4 text-center">
+            <div class="glass rounded-2xl p-3 mb-3 text-center">
                 <p class="font-black text-xl gold-text">积分排行榜</p>
                 <p class="text-xs text-gray-400 mt-0.5">实时更新 · 结果公布后自动计算</p>
+            </div>
+            <div class="flex gap-2 mb-3">
+                <button id="lbModeRoom" onclick="setLbMode('room')" class="flex-1 gold text-black font-black py-2.5 rounded-xl text-sm active:scale-95 transition-transform">🏠 本房间</button>
+                <button id="lbModeGlobal" onclick="setLbMode('global')" class="flex-1 glass border border-white/20 text-gray-300 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">🌍 全服总榜</button>
             </div>
             <div id="leaderboardContainer" class="space-y-2">
                 <div class="text-center py-8 text-gray-400">加载中...</div>
@@ -744,6 +749,8 @@ let currentRoom = 'public';
 let matchesData = {};
 let predsData = {};
 let scoresData = {};
+let _lbMode = 'room';
+let _globalScores = null; // [{uid, name, total, exact, correct, wrong, roomId, prizePool}]
 let avatarsData = {};
 let wantsPrize = true;
 const ADMIN_DEFAULT_PWD = 'admin2026';
@@ -1137,6 +1144,48 @@ function _podiumCard(uid, s, rank, isMe, size) {
 
 function renderLeaderboard() {
     const container = document.getElementById('leaderboardContainer');
+
+    // ── Global mode ──
+    if (_lbMode === 'global') {
+        if (!_globalScores) {
+            container.innerHTML = `<div class="text-center py-12 text-gray-500">加载中...</div>`;
+            return;
+        }
+        if (!_globalScores.length) {
+            container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">🌍</p><p>暂无数据</p></div>`;
+            return;
+        }
+        const sorted = [..._globalScores].sort((a,b) => (b.total||0)-(a.total||0));
+        let html = `<p class="text-xs text-gray-500 font-bold mb-2">🌍 全服总榜 · 共 ${sorted.length} 名参与者</p>`;
+        sorted.forEach((s, i) => {
+            const rank = i+1;
+            const isMe = s.name === currentUser.name;
+            let rankCls = 'glass', rankIcon = `<span class="font-black text-base w-7 text-center text-gray-400">${rank}</span>`;
+            if (rank===1){rankCls='rank-gold';rankIcon='<span class="text-2xl w-7 text-center">🏆</span>';}
+            else if(rank===2){rankCls='rank-silver';rankIcon='<span class="text-2xl w-7 text-center">🥈</span>';}
+            else if(rank===3){rankCls='rank-bronze';rankIcon='<span class="text-2xl w-7 text-center">🥉</span>';}
+            const textCls = rank<=3?'text-current':'text-white';
+            const roomTag = s.roomId !== currentRoom
+                ? `<span class="text-[10px] bg-white/10 text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">${s.roomName||s.roomId}</span>`
+                : `<span class="text-[10px] bg-blue-400/20 text-blue-300 px-1.5 py-0.5 rounded-full flex-shrink-0">本房间</span>`;
+            html += `<div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
+                ${rankIcon}
+                ${_avatarHtml(s._gid, s.name, 'w-9 h-9', 'text-lg')}
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-sm flex items-center gap-1.5 flex-wrap">
+                        <span class="truncate ${textCls}">${s.name||'未知'}</span>
+                        ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">我</span>':''}
+                        ${roomTag}
+                    </div>
+                </div>
+                <div class="text-2xl font-black ${textCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
+            </div>`;
+        });
+        container.innerHTML = html;
+        return;
+    }
+
+    // ── Room mode ──
     const entries = Object.entries(scoresData);
     if (!entries.length) {
         container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">🏅</p><p>暂无参与者</p></div>`;
@@ -1222,6 +1271,43 @@ function renderLeaderboard() {
 function updateHeaderPoints() {
     const my = Object.values(scoresData).find(s => s.name === currentUser.name);
     if (my) document.getElementById('headerPoints').innerHTML = `${my.total||0} <span class="text-xs font-normal text-gray-400">分</span>`;
+}
+
+// ─── Global Leaderboard ───────────────────────────────────
+window.setLbMode = async function(mode) {
+    _lbMode = mode;
+    const roomBtn   = document.getElementById('lbModeRoom');
+    const globalBtn = document.getElementById('lbModeGlobal');
+    if (roomBtn && globalBtn) {
+        roomBtn.className   = `flex-1 ${mode==='room'?'gold text-black':'glass border border-white/20 text-gray-300'} font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform`;
+        globalBtn.className = `flex-1 ${mode==='global'?'gold text-black':'glass border border-white/20 text-gray-300'} font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform`;
+        if (mode==='global') globalBtn.textContent = '⏳ 加载中…';
+    }
+    if (mode === 'global' && !_globalScores) await _loadGlobalScores();
+    if (globalBtn && mode==='global') globalBtn.textContent = '🌍 全服总榜';
+    renderLeaderboard();
+};
+
+async function _loadGlobalScores() {
+    if (demoMode || !db) { _globalScores = []; return; }
+    try {
+        const { get: fbGet, ref: fbRef } = await Promise.resolve({ get, ref });
+        const snap = await fbGet(fbRef(db, 'rooms'));
+        if (!snap.exists()) { _globalScores = []; return; }
+        const list = [];
+        snap.forEach(roomSnap => {
+            const roomId = roomSnap.key;
+            const roomName = roomId === 'public' ? '公共房间' : `房间 ${roomId}`;
+            const scores = roomSnap.child('scores').val() || {};
+            Object.entries(scores).forEach(([uid, s]) => {
+                list.push({ _gid: `${roomId}__${uid}`, ...s, roomId, roomName });
+            });
+        });
+        _globalScores = list;
+    } catch(e) {
+        console.error('Global scores load failed:', e);
+        _globalScores = [];
+    }
 }
 
 // ─── Avatar helpers ───────────────────────────────────────
@@ -1395,6 +1481,42 @@ function _scoreRange(uid) {
     return { earned, min: earned, max: earned + maxAdd, lines };
 }
 
+// ─── Claude Card Commentary ──────────────────────────────
+function _genComment(sentence, picks) {
+    const _pick = (arr, seed) => arr[seed % arr.length];
+    const _hash = s => s.split('').reduce((a,c) => ((a<<5)-a+c.charCodeAt(0))|0, 0) >>> 0;
+
+    if (!sentence) {
+        const nulls = ['此人缄默，深不可测。', '无言以对，猜测空间无限大。', '留白也是一种战略。', '预言家从不轻易开口。'];
+        return _pick(nulls, _hash(picks?.champion||'x'));
+    }
+    const h = _hash(sentence);
+    const rules = [
+        [/阿根廷|梅西|messi/i,    ['小组赛就哭了怎么办？', '梅西已退役但信仰不退。', '双冠王梦想，胆子不小。', '阿根廷球迷的倔强令Claude折服。']],
+        [/法国|姆巴佩|mbappe/i,   ['法国人连国歌都唱不齐，但能夺冠。', '姆巴佩单骑救主模式开启。', '法国：实力碾压，运气看脸。', '高卢雄鸡鸣得响啊。']],
+        [/巴西|内马尔|桑巴/i,     ['五年一届的心碎传统要延续？', '桑巴军团永远有看头。', '内马尔又伤了——Claude预言。', '巴西每届都是热门，奇怪。']],
+        [/英格兰|英格|coming home/i,['It\'s coming home第N+1次。', '南门泡茶中，请勿打扰。', '英格兰球迷的永恒执念。', '这次真的回家了！——Claude不确信']],
+        [/西班牙|传控|tiki/i,     ['传控足球的复仇之旅。', '90分钟横传，赛后夺冠。', '哲学足球无懈可击——除非落后。', '西班牙看得我睡着了，但冠军了。']],
+        [/葡萄牙|C罗|我罗|siuuu/i,['SIUUUU！！！', 'C罗的执念，Claude也叹服。', '球王之战开幕！Claude买票了。', '我罗老当益壮，令人动容。']],
+        [/德国|德意志|日耳曼/i,   ['日耳曼战车寻找修复包。', '4-2成为历史教训。', '德国机器的轰鸣声回来了？', '严谨的预测，严谨的球队。']],
+        [/美国|主场|东道主|休斯/i, ['主场光环+1，确实存在。', '美国队：我们有万亿GDP。', '东道主效应，历史证明有用。', '休斯顿，我们有问题——没有，夺冠了。']],
+        [/中国|国足/i,            ['国足出线，Claude已记入历史。', '这句话需要勇气，Claude鼓掌。', '国足球迷的执念感天动地。', '中国足球的春天要来了吗？']],
+        [/日本|武士|蓝武士/i,     ['亚洲之光继续发光。', '日本足球已经进化完毕。', '武士精神无惧强敌，Claude认可。', '亚洲荣耀由日本来扛？']],
+        [/爆冷|黑马|upset/i,      ['爆冷猎手上线，高风险高回报。', '你的预测收益率感人。', 'Claude表示这个概率……很有意思。', '黑马爱好者，另类英雄。']],
+        [/复仇|报仇|revenge/i,    ['复仇的火焰烧得很旺。', '世界杯版"君子报仇"。', '输球不忘复仇，Claude记下了。', '恩怨情仇全在球场上了断。']],
+        [/再次|蝉联|again/i,      ['连冠难，但梦想可以有。', '历史总是惊人地相似？', '二次夺冠的奇迹，Claude拭目以待。']],
+    ];
+    for (const [pat, pool] of rules) {
+        if (pat.test(sentence)) return _pick(pool, h);
+    }
+    if (picks?.champion) {
+        const fb = [`${picks.champion}的铁粉已就位，Claude已标记。`, `押注${picks.champion}，魄力十足。`, `全押${picks.champion}，不留后路。`];
+        return _pick(fb, h);
+    }
+    const generic = ['文字背后深藏功与名。', '言简意赅，境界极高。', '短短一句，信息量巨大。', '预测风格独树一帜，Claude佩服。'];
+    return _pick(generic, h);
+}
+
 // ─── Similarity ──────────────────────────────────────────
 function _calcSimilarity(myUid, otherUid) {
     let same = 0, total = 0;
@@ -1472,7 +1594,7 @@ window.generatePredCard = async function(mode = 'full') {
     const GAP = 10;
     let H = HDR_H + GAP;
     H += USER_H + GAP;
-    if (sentence)  H += 58 + GAP;
+    if (sentence)  H += 88 + GAP;
     if (isShare) {
         // share: summary stats block
         H += 64 + GAP;
@@ -1581,17 +1703,24 @@ window.generatePredCard = async function(mode = 'full') {
     cy += USER_H + GAP;
 
     // ── Sentence card ──
+    const comment = _genComment(sentence, myC);
     if (sentence) {
-        rr(P, cy, W-P*2, 58, 12, 'rgba(79,70,229,0.12)', 'rgba(99,102,241,0.35)');
-        // Quote mark decoration
+        rr(P, cy, W-P*2, 88, 12, 'rgba(79,70,229,0.12)', 'rgba(99,102,241,0.35)');
         ctx.font = f(36, true); ctx.fillStyle = 'rgba(99,102,241,0.2)'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        ctx.fillText('"', P + 12, cy + 4);
+        ctx.fillText('"', P + 12, cy + 2);
         ctx.font = f(11, true); ctx.fillStyle = '#6366f1'; ctx.textBaseline = 'middle';
-        ctx.fillText('一句话', P + 38, cy + 18);
+        ctx.fillText('一句话', P + 38, cy + 16);
         ctx.font = f(14, true); ctx.fillStyle = '#c7d2fe';
-        ctx.fillText(sentence, P + 38, cy + 40);
+        ctx.fillText(sentence, P + 38, cy + 36);
+        // Claude comment divider
+        ctx.strokeStyle = 'rgba(99,102,241,0.2)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(P+14, cy+50); ctx.lineTo(W-P-14, cy+50); ctx.stroke();
+        ctx.font = f(9, true); ctx.fillStyle = '#4338ca'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText('🤖 Claude 锐评', P+14, cy+62);
+        ctx.font = f(10); ctx.fillStyle = '#818cf8';
+        ctx.fillText(comment, P+90, cy+62);
         ctx.textBaseline = 'alphabetic';
-        cy += 58 + GAP;
+        cy += 88 + GAP;
     }
 
     // ── Share: summary stats ──
@@ -3598,7 +3727,7 @@ function _renderWizLogin() {
     <div class="glass rounded-2xl p-4 space-y-3">
         <input id="wiz-name" type="text" placeholder="输入你的昵称" maxlength="16"
             class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-        <input id="wiz-room" type="text" placeholder="房间号（可选，默认公共房间）" maxlength="16"
+        <input id="wiz-room" type="text" placeholder="房间号（参加大奖游戏请联系拉筋获取）" maxlength="16"
             class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
         <input id="wiz-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
             class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
