@@ -347,6 +347,16 @@
                 <p class="text-xs text-blue-300 mb-3">独立计分，猜中冠军得赔率×0.5分；两次选同队且猜对额外+25%奖励</p>
                 <div id="champSection3"><div class="shimmer rounded-xl h-16"></div></div>
             </div>
+
+            <!-- World Cup Sentence -->
+            <div class="glass rounded-2xl p-4 mb-3">
+                <p class="font-black text-sm text-gray-300 mb-2">💬 一句话描述本届世界杯的走向</p>
+                <textarea id="wcSentenceInput" maxlength="60" rows="2" oninput="document.getElementById('wcSentenceLen').textContent=this.value.length" onblur="saveWcSentence()" placeholder="例如：梅西告别战，阿根廷再夺冠…" class="w-full bg-white/5 text-white text-sm placeholder-gray-600 resize-none outline-none rounded-xl px-3 py-2 border border-white/10 focus:border-white/30"></textarea>
+                <div class="flex items-center justify-between mt-1.5">
+                    <span class="text-xs text-gray-600"><span id="wcSentenceLen">0</span>/60字</span>
+                    <button onclick="saveWcSentence()" class="text-xs bg-white/10 active:bg-white/20 text-gray-300 px-3 py-1 rounded-lg transition-colors">保存</button>
+                </div>
+            </div>
         </div>
 
         <!-- Top Scorer -->
@@ -1435,6 +1445,8 @@ window.generatePredCard = async function() {
     const ff = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif';
     const f = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px ${ff}`;
 
+    const sentence = (myC.wcSentence || '').trim();
+
     const pickRows = [
         myC.champion    && ['🏆', '冠军预测',   myC.champion],
         myC.midway      && ['🎯', '半程冠军',   myC.midway],
@@ -1445,16 +1457,20 @@ window.generatePredCard = async function() {
     const gpRows = gids.map(gid => {
         const p = groupPredsData[`${uid}_${gid}`];
         if (!p?.qualified?.length) return null;
-        return { label: groupsData[gid]?.name || gid, qualified: p.qualified, winner: p.winner };
+        const g = groupsData[gid];
+        return { label: g?.name || gid, qualified: p.qualified, winner: p.winner, teams: g?.teams || [] };
     }).filter(Boolean);
 
+    const GP_ROW_H = 58; // each group row: flag + name in 2 sub-lines
+    const simInfo = _findSimilarUsers(uid);
     // Height calculation
-    let H = 68 + 12;                                                   // header + gap
-    H += 68 + 12;                                                      // user card + gap
-    if (pickRows.length)   H += 36 + pickRows.length * 38 + 8 + 12;
-    if (gpRows.length)     H += 36 + gpRows.length  * 34 + 8 + 12;
-    if (thirdPicks.length) H += 36 + Math.ceil(thirdPicks.length / 4) * 34 + 8 + 12;
-    H += 136;                                                          // footer (QR + text)
+    let H = 68 + 12;                                               // header + gap
+    H += 68 + 12;                                                  // user card + gap
+    if (sentence)        H += 52 + 12;                             // sentence card
+    if (pickRows.length) H += 36 + pickRows.length * 38 + 8 + 12;
+    if (gpRows.length)   H += 40 + gpRows.length * GP_ROW_H + 16 + 12; // +16 for legend row at bottom
+    if (simInfo)         H += 52 + 12;                             // similarity card
+    H += 136;                                                      // footer (QR + text)
 
     const SCALE = 2;
     const cv = document.createElement('canvas');
@@ -1535,6 +1551,17 @@ window.generatePredCard = async function() {
     ctx.fillText('2026 FIFA World Cup 竞猜', AX + AR * 2 + 14, cy + 50);
     cy += 68 + 12;
 
+    // ── Sentence card ──
+    if (sentence) {
+        rr(P, cy, W - P * 2, 52, 12, 'rgba(99,102,241,0.1)', 'rgba(99,102,241,0.3)');
+        ctx.font = f(10, true); ctx.fillStyle = '#818cf8'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText('💬 一句话', P + 14, cy + 16);
+        ctx.font = f(13, true); ctx.fillStyle = '#e0e7ff'; ctx.textBaseline = 'middle';
+        ctx.fillText(sentence, P + 14, cy + 36);
+        ctx.textBaseline = 'alphabetic';
+        cy += 52 + 12;
+    }
+
     // ── Picks section ──
     if (pickRows.length) {
         drawSection('竞猜选择', pickRows, 38, ([icon, label, val], ry) => {
@@ -1545,51 +1572,113 @@ window.generatePredCard = async function() {
         });
     }
 
-    // ── Groups section ──
+    // ── Groups section (detailed: all 4 teams per group) ──
     if (gpRows.length) {
-        const SH = 36 + gpRows.length * 34 + 8;
+        const SH = 40 + gpRows.length * GP_ROW_H + 16; // +16 legend footer
         rr(P, cy, W - P * 2, SH, 12, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.09)');
-        // Title + legend on the same line
-        ctx.font = f(11, true); ctx.fillStyle = '#64748b';
-        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+
+        // Section title
+        ctx.textBaseline = 'middle';
+        ctx.font = f(11, true); ctx.fillStyle = '#64748b'; ctx.textAlign = 'left';
         ctx.fillText('小组出线预测', P + 14, cy + 18);
-        ctx.font = f(10); ctx.fillStyle = '#fcd34d'; ctx.textAlign = 'right';
-        ctx.fillText('★ = 小组第一', W - P - 14, cy + 18);
         ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(P + 14, cy + 27); ctx.lineTo(W - P - 14, cy + 27); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(P + 14, cy + 28); ctx.lineTo(W - P - 14, cy + 28); ctx.stroke();
         ctx.textBaseline = 'alphabetic';
-        let gy = cy + 36;
-        gpRows.forEach(({ label, qualified, winner }) => {
-            ctx.font = f(12, true); ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'left';
-            ctx.fillText(label, P + 16, gy + 12);
-            // Star placed after winner's name within the list
-            const val = qualified.map(t => t === winner ? t + ' ★' : t).join('  ·  ');
-            ctx.font = f(12); ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'right';
-            ctx.fillText(val, W - P - 16, gy + 12);
-            gy += 34;
+
+        const labelW = 34;
+        const innerW  = W - P * 2 - 28;   // card inner width (padding both sides)
+        const colW    = (innerW - labelW) / 4;
+        const startX  = P + 14 + labelW;
+        let gy = cy + 40;
+
+        gpRows.forEach(({ label, qualified, winner, teams }) => {
+            // Group label centred vertically
+            ctx.font = f(11, true); ctx.fillStyle = '#475569';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(label, P + 14 + labelW / 2, gy + GP_ROW_H / 2);
+
+            // Sort: winner → 2nd qualifier → third pick → rest
+            const rank = t => {
+                if (t.name === winner)               return 0;
+                if (qualified.includes(t.name))      return 1;
+                if (thirdPicks.includes(t.name))     return 2;
+                return 3;
+            };
+            const sorted = [...teams].sort((a, b) => rank(a) - rank(b));
+
+            sorted.forEach((team, i) => {
+                const isQ  = qualified.includes(team.name);
+                const isW  = team.name === winner;
+                const isT  = thirdPicks.includes(team.name);
+                const cellX  = startX + i * colW;
+                const cellCX = cellX + colW / 2;
+
+                // Cell background tint
+                if (isW)      rr(cellX + 2, gy + 3, colW - 4, GP_ROW_H - 6, 7, 'rgba(251,191,36,0.14)');
+                else if (isQ) rr(cellX + 2, gy + 3, colW - 4, GP_ROW_H - 6, 7, 'rgba(255,255,255,0.07)');
+                else if (isT) rr(cellX + 2, gy + 3, colW - 4, GP_ROW_H - 6, 7, 'rgba(251,146,60,0.14)');
+
+                // Top accent line for qualified teams
+                if (isQ || isW) {
+                    ctx.strokeStyle = isW ? 'rgba(251,191,36,0.55)' : 'rgba(255,255,255,0.2)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(cellX + 6, gy + 3);
+                    ctx.lineTo(cellX + colW - 6, gy + 3);
+                    ctx.stroke();
+                }
+
+                // Flag emoji
+                const col = isW ? '#fbbf24' : isQ ? '#f1f5f9' : isT ? '#fb923c' : 'rgba(255,255,255,0.28)';
+                ctx.fillStyle = col;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.font = f(17);
+                ctx.fillText(team.flag || '🏳', cellCX, gy + 20);
+
+                // Team name (with ★ for winner)
+                ctx.font = f(10, isW);
+                ctx.fillText(isW ? team.name + ' ★' : team.name, cellCX, gy + 42);
+
+                // "第三" badge for third-place picks that aren't qualified
+                if (isT && !isQ) {
+                    ctx.font = f(8); ctx.fillStyle = '#fb923c';
+                    ctx.fillText('第三', cellCX, gy + 53);
+                }
+            });
+
+            gy += GP_ROW_H;
         });
+
+        // Legend row at the bottom
+        ctx.textBaseline = 'middle';
+        ctx.font = f(9); ctx.fillStyle = '#fbbf24'; ctx.textAlign = 'left';
+        ctx.fillText('★ 小组第一', P + 14, gy + 8);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('白色 = 出线', P + 80, gy + 8);
+        if (thirdPicks.length) {
+            ctx.fillStyle = '#fb923c';
+            ctx.fillText('橙色 = 押注第三名晋级', P + 150, gy + 8);
+        }
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillText('暗色 = 未出线', P + 320, gy + 8);
+        ctx.textBaseline = 'alphabetic';
+
         cy += SH + 12;
     }
 
-    // ── Third picks section ──
-    if (thirdPicks.length) {
-        const COLS = 4, rowH = 34;
-        const tRows = Math.ceil(thirdPicks.length / COLS);
-        const SH = 36 + tRows * rowH + 8;
-        rr(P, cy, W - P * 2, SH, 12, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.09)');
-        ctx.font = f(11, true); ctx.fillStyle = '#64748b';
-        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.fillText('第三名出线预测', P + 14, cy + 18);
-        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(P + 14, cy + 27); ctx.lineTo(W - P - 14, cy + 27); ctx.stroke();
+    // ── Similarity card ──
+    if (simInfo) {
+        rr(P, cy, W - P * 2, 52, 12, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.09)');
+        ctx.textBaseline = 'middle';
+        ctx.font = f(10, true); ctx.fillStyle = '#64748b'; ctx.textAlign = 'left';
+        ctx.fillText('🧩 预测相似度', P + 14, cy + 16);
+        const pct = n => n.total > 0 ? Math.round(n.same / n.total * 100) + '%' : '—';
+        ctx.font = f(11); ctx.fillStyle = '#a3e635';
+        ctx.fillText(`最相似：${simInfo.most.name}（${simInfo.most.same}/${simInfo.most.total} · ${pct(simInfo.most)}）`, P + 14, cy + 36);
+        ctx.fillStyle = '#f87171';
+        ctx.fillText(`最不同：${simInfo.least.name}（${simInfo.least.same}/${simInfo.least.total} · ${pct(simInfo.least)}）`, P + 14 + (W - P * 2) / 2, cy + 36);
         ctx.textBaseline = 'alphabetic';
-        const colW = (W - P * 2) / COLS;
-        thirdPicks.forEach((t, i) => {
-            const col = i % COLS, row = Math.floor(i / COLS);
-            ctx.font = f(13); ctx.fillStyle = '#fcd34d'; ctx.textAlign = 'center';
-            ctx.fillText(t, P + colW * (col + 0.5), cy + 36 + row * rowH + 12);
-        });
-        cy += SH + 12;
+        cy += 52 + 12;
     }
 
     // ── Footer (QR + text) ──
@@ -2075,6 +2164,12 @@ function renderChampion() {
     renderChampSection2(myPred, now);
     renderChampSection3(myPred, now);
     renderChampSection4(myPred, now);
+    const sentEl = document.getElementById('wcSentenceInput');
+    if (sentEl && document.activeElement !== sentEl) {
+        sentEl.value = myPred.wcSentence || '';
+        const lenEl = document.getElementById('wcSentenceLen');
+        if (lenEl) lenEl.textContent = (myPred.wcSentence || '').length;
+    }
     updateTabDots();
 }
 
@@ -2323,6 +2418,17 @@ window.selectChampTeam = function(teamName) {
 window.cancelChampPick = function() {
     champPendingPick = null;
     renderChampSection1(champPredsData[currentUser.id] || {}, new Date());
+};
+
+window.saveWcSentence = async function() {
+    if (!currentUser) return;
+    const val = (document.getElementById('wcSentenceInput')?.value || '').trim();
+    const existing = champPredsData[currentUser.id] || {};
+    if ((existing.wcSentence || '') === val) return;
+    const pred = { ...existing, wcSentence: val };
+    if (demoMode) { champPredsData[currentUser.id] = pred; }
+    else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
+    if (val) toast('💬 已保存');
 };
 
 window.confirmChampPick = async function() {
