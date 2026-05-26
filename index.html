@@ -1303,7 +1303,7 @@ function loadChampPreds() {
         renderChampion();
         renderMyPreds();
         updateTabDots();
-        tryShowWizard();
+        _scheduleWizard();
     });
 }
 
@@ -2195,7 +2195,15 @@ function defaultMatches() {
 // ─── Groups State ────────────────────────────────────────
 let groupsData = {};
 let groupPredsData = {};
+let thirdPicksData = {};
 let gpState = { groupId: null, selected: [], winner: null, thirdBet: null };
+
+// Debounce wizard trigger so all Firebase listeners settle before checking
+let _tryWizTimer = null;
+function _scheduleWizard() {
+    clearTimeout(_tryWizTimer);
+    _tryWizTimer = setTimeout(tryShowWizard, 600);
+}
 
 // ─── Load Groups ─────────────────────────────────────────
 async function loadGroups() {
@@ -2216,13 +2224,17 @@ async function loadGroups() {
         refreshAdminGroupSelects();
         renderChampion();
         updateTabDots();
-        tryShowWizard();
+        _scheduleWizard();
     });
     onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
         groupPredsData = snap.exists() ? snap.val() : {};
         renderGroups();
         updateTabDots();
         if (document.getElementById('content-myPreds').classList.contains('hidden') === false) renderMyPreds();
+    });
+    onValue(ref(db, `rooms/${currentRoom}/thirdPicks`), snap => {
+        thirdPicksData = snap.exists() ? snap.val() : {};
+        renderGroups();
     });
 }
 
@@ -2234,22 +2246,33 @@ function renderGroups() {
         return;
     }
     let html = '';
+    const myThirdPicks = thirdPicksData[currentUser.id]?.picks || [];
+
     Object.entries(groupsData).sort((a,b) => a[0].localeCompare(b[0])).forEach(([gid, g]) => {
         const predKey = `${currentUser.id}_${gid}`;
         const myPred = groupPredsData[predKey];
         const isFinished = Array.isArray(g.qualified) && g.qualified.length >= 2;
         const teams = g.teams || [];
 
+        // Teams predicted to qualify (top 2) from this group
+        const qualifiedTeams = myPred?.qualified || [];
+        // Third-place picks from this group
+        const thirdFromGroup = myThirdPicks.filter(name => teams.some(t => t.name === name));
+
         let teamsHtml = teams.map(t => {
             let cls = 'glass', badge = '';
+            const isThird = myThirdPicks.includes(t.name);
             if (isFinished) {
                 if (g.qualified.includes(t.name)) {
                     cls = 'bg-green-900/40 border border-green-500/40';
                     badge = g.winner === t.name ? '<span class="text-sm">🥇</span>' : '<span class="text-green-400 text-xs font-bold">出线</span>';
                 }
-            } else if (myPred?.qualified?.includes(t.name)) {
+            } else if (qualifiedTeams.includes(t.name)) {
                 cls = 'bg-blue-900/40 border border-blue-500/40';
-                badge = myPred.winner === t.name ? '<span class="text-sm">👑</span>' : '<span class="text-blue-300 text-xs">✓</span>';
+                badge = myPred.winner === t.name ? '<span class="text-sm">👑</span>' : '<span class="text-blue-300 text-xs font-bold">出线✓</span>';
+            } else if (isThird) {
+                cls = 'bg-orange-900/30 border border-orange-500/40';
+                badge = '<span class="text-orange-400 text-xs font-bold">第三✓</span>';
             }
             return `<div class="flex items-center gap-2 px-3 py-2 rounded-xl ${cls}">
                 <span class="text-2xl">${t.flag||'🏳️'}</span>
@@ -2272,7 +2295,8 @@ function renderGroups() {
                 ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full ml-1">待揭晓</span>`;
             }
             const winnerTxt = myPred.winner ? ` · 第一: ${myPred.winner}` : '';
-            myPredLine = `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-white/8">我预测出线: <span class="text-white font-bold">${myPred.qualified.join('、')}</span>${winnerTxt}${ptsBadge}</p>`;
+            const thirdTxt = thirdFromGroup.length ? ` · 第三出线: <span class="text-orange-400 font-bold">${thirdFromGroup.join('、')}</span>` : '';
+            myPredLine = `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-white/8">我预测出线: <span class="text-white font-bold">${myPred.qualified.join('、')}</span>${winnerTxt}${thirdTxt}${ptsBadge}</p>`;
         }
 
         const btn = isFinished ? '' : `<button onclick="openGroupPredModal('${gid}')"
@@ -2622,8 +2646,11 @@ function _buildWizSteps() {
     if (now < GROUP_DEADLINE && Object.keys(groupsData).length > 0) {
         const gids = Object.keys(groupsData).sort();
         const unfilled = gids.filter(gid => !groupPredsData[`${uid}_${gid}`]);
+        const hasThirdPicks = (thirdPicksData[uid]?.picks?.length || 0) >= 8;
         if (unfilled.length > 0) {
             steps.push({ type:'groupsAll', groupIds: gids });
+            if (!hasThirdPicks) steps.push({ type:'thirdPlace', groupIds: gids });
+        } else if (!hasThirdPicks) {
             steps.push({ type:'thirdPlace', groupIds: gids });
         }
     }
@@ -3056,7 +3083,7 @@ window.wizardNext = async function() {
     } else if (step?.type === 'thirdPlace') {
         if (_wizThirdPicks.length > 0) {
             const pred = { userId: currentUser.id, picks: [..._wizThirdPicks], submittedAt: Date.now(), points: null };
-            if (demoMode) { /* stored in memory only */ }
+            if (demoMode) { thirdPicksData[currentUser.id] = pred; }
             else await set(ref(db, `rooms/${currentRoom}/thirdPicks/${currentUser.id}`), pred);
             toast(`🎲 已选 ${_wizThirdPicks.length} 支最佳第三名！`);
         }
