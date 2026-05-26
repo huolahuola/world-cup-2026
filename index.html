@@ -226,8 +226,9 @@
     <!-- Tabs -->
     <div class="flex border-b border-white/8 bg-black/20 px-1 overflow-x-auto scrollbar-hide">
         <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active py-3.5 px-3 font-bold text-sm whitespace-nowrap">🏆 冠军</button>
+        <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">⚽ 射手</button>
         <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">🏅 出线</button>
-        <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">⚽ 淘汰赛</button>
+        <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">🥊 淘汰赛</button>
         <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📊 排行</button>
         <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn py-3.5 px-3 font-bold text-sm text-gray-400 whitespace-nowrap">📝 我的</button>
     </div>
@@ -269,16 +270,6 @@
                 <div id="champSection1"><div class="shimmer rounded-xl h-16"></div></div>
             </div>
 
-            <!-- Section 2: Top Scorer -->
-            <div class="glass rounded-2xl p-4 mb-3">
-                <div class="flex items-center justify-between mb-1">
-                    <p class="font-black text-base gold-text">⚽ 最佳射手</p>
-                    <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">10分</span>
-                </div>
-                <p class="text-xs text-gray-400 mb-3">截止 6月5日 · 确认后永久锁定，无法更改</p>
-                <div id="champSection2"><div class="shimmer rounded-xl h-12"></div></div>
-            </div>
-
             <!-- Section 3: Midway Champion -->
             <div class="glass rounded-2xl p-4 mb-3">
                 <div class="flex items-center justify-between mb-1">
@@ -288,6 +279,28 @@
                 <p class="text-xs text-gray-400 mb-1">7月4日淘汰赛开始后开放 · 截止7月9日 · 确认后永久锁定</p>
                 <p class="text-xs text-orange-400 mb-3">与冠军选相同 → 冠军×1.5 · 不同 → 冠军×0.5</p>
                 <div id="champSection3"><div class="shimmer rounded-xl h-16"></div></div>
+            </div>
+        </div>
+
+        <!-- Top Scorer -->
+        <div id="content-topScorer" class="hidden">
+            <div class="glass rounded-2xl p-4 mb-3 text-center">
+                <p class="font-black text-xl gold-text">⚽ 最佳射手竞猜</p>
+                <p class="text-xs text-gray-400 mt-0.5">预测 2026 世界杯最终最佳射手</p>
+            </div>
+            <div class="glass rounded-2xl p-4 mb-3">
+                <div class="flex items-center justify-between mb-1">
+                    <p class="font-black text-base gold-text">⚽ 最佳射手</p>
+                    <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">10分</span>
+                </div>
+                <p class="text-xs text-gray-400 mb-3">截止 6月5日 · 确认后永久锁定，无法更改</p>
+                <div id="champSection2"><div class="shimmer rounded-xl h-12"></div></div>
+            </div>
+            <div class="glass-dark rounded-2xl p-4 text-xs text-gray-300 space-y-1.5">
+                <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
+                <p>· 填写你认为会拿最佳射手奖的球员姓名</p>
+                <p>· 截止 <b class="text-white">6月5日</b>，一旦确认永久锁定</p>
+                <p>· 与实际最佳射手姓名完全匹配得 <b class="text-white">+10分</b></p>
             </div>
         </div>
 
@@ -1510,7 +1523,7 @@ window.submitPrediction = async function() {
 
 // ─── Tab Switching ────────────────────────────────────────
 window.switchTab = function(tab) {
-    ['champion','groups','knockout','leaderboard','myPreds'].forEach(t => {
+    ['champion','topScorer','groups','knockout','leaderboard','myPreds'].forEach(t => {
         const el = document.getElementById(`content-${t}`);
         if (el) el.classList.add('hidden');
         const btn = document.getElementById(`tab-${t}`);
@@ -1523,6 +1536,7 @@ window.switchTab = function(tab) {
 
     if (tab === 'myPreds') renderMyPreds();
     if (tab === 'champion') renderChampion();
+    if (tab === 'topScorer') renderChampSection2(champPredsData[currentUser?.id] || {}, new Date());
 };
 
 // ─── Admin ────────────────────────────────────────────────
