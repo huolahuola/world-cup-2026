@@ -494,6 +494,9 @@
                     <p id="myAvatarStatus" class="text-xs text-gray-500 mt-0.5">点击头像右下角按钮上传照片</p>
                 </div>
             </div>
+            <button onclick="generatePredCard()" class="w-full gold text-black font-black py-3.5 rounded-2xl mb-3 active:scale-95 transition-transform text-sm">
+                📸 保留我的选择 · 生成图片
+            </button>
             <div id="myPredsContainer" class="space-y-2">
                 <div class="text-center py-8 text-gray-400">暂无预测</div>
             </div>
@@ -1418,6 +1421,194 @@ function _findSimilarUsers(myUid) {
     if (!ranked.length) return null;
     return { most: ranked[0], least: ranked[ranked.length - 1] };
 }
+
+// ─── Generate Prediction Card Image ─────────────────────
+window.generatePredCard = async function() {
+    const uid = currentUser?.id;
+    if (!uid) return;
+    const name = currentUser.name || '匿名';
+    const myC  = champPredsData[uid] || {};
+    const gids = Object.keys(groupsData).sort();
+    const thirdPicks = thirdPicksData[uid]?.picks || [];
+
+    const W = 640, P = 24;
+    const ff = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif';
+    const f = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px ${ff}`;
+
+    const pickRows = [
+        myC.champion    && ['🏆', '冠军预测',   myC.champion],
+        myC.midway      && ['🎯', '半程冠军',   myC.midway],
+        myC.topScorer   && ['⚽', '小组赛射手', myC.topScorer],
+        myC.goldenBoot  && ['👟', '金靴奖',     myC.goldenBoot],
+    ].filter(Boolean);
+
+    const gpRows = gids.map(gid => {
+        const p = groupPredsData[`${uid}_${gid}`];
+        if (!p?.qualified?.length) return null;
+        return { label: groupsData[gid]?.name || gid, qualified: p.qualified, winner: p.winner };
+    }).filter(Boolean);
+
+    // Height calculation
+    let H = 68 + 12;                                                   // header + gap
+    H += 68 + 12;                                                      // user card + gap
+    if (pickRows.length)   H += 36 + pickRows.length * 38 + 8 + 12;
+    if (gpRows.length)     H += 36 + gpRows.length  * 34 + 8 + 12;
+    if (thirdPicks.length) H += 36 + Math.ceil(thirdPicks.length / 4) * 34 + 8 + 12;
+    H += 136;                                                          // footer (QR + text)
+
+    const SCALE = 2;
+    const cv = document.createElement('canvas');
+    cv.width = W * SCALE; cv.height = H * SCALE;
+    const ctx = cv.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#0d0d1a'); bg.addColorStop(1, '#1a1040');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // Rounded rect
+    const rr = (x, y, w, h, r, fill, stroke) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        if (fill)   { ctx.fillStyle   = fill;   ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+    };
+
+    // Section with rows
+    let cy = 0;
+    const drawSection = (title, rows, rowH, drawRow) => {
+        const SH = 36 + rows.length * rowH + 8;
+        rr(P, cy, W - P * 2, SH, 12, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.09)');
+        ctx.font = f(11, true); ctx.fillStyle = '#64748b'; ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(title, P + 14, cy + 18);
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(P + 14, cy + 27); ctx.lineTo(W - P - 14, cy + 27); ctx.stroke();
+        ctx.textBaseline = 'alphabetic';
+        let ry = cy + 36;
+        rows.forEach(r => { drawRow(r, ry); ry += rowH; });
+        cy += SH + 12;
+    };
+
+    // ── Header ──
+    const hg = ctx.createLinearGradient(0, 0, W, 0);
+    hg.addColorStop(0, '#581c87'); hg.addColorStop(1, '#1e3a8a');
+    ctx.fillStyle = hg; ctx.fillRect(0, 0, W, 68);
+    ctx.font = f(19, true); ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('⚽  2026 世界杯竞猜 · 我的预测存档', W / 2, 34);
+    ctx.textBaseline = 'alphabetic';
+    cy = 68 + 12;
+
+    // ── User card ──
+    rr(P, cy, W - P * 2, 68, 12, 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.12)');
+    const AR = 26, AX = P + 18, AY = cy + 8;
+    const avatarSrc = avatarsData[uid];
+    if (avatarSrc) {
+        await new Promise(res => {
+            const img = new Image();
+            img.onload = () => {
+                ctx.save();
+                ctx.beginPath(); ctx.arc(AX + AR, AY + AR, AR, 0, Math.PI * 2); ctx.clip();
+                ctx.drawImage(img, AX, AY, AR * 2, AR * 2);
+                ctx.restore(); res();
+            };
+            img.onerror = res; img.src = avatarSrc;
+        });
+    } else {
+        ctx.beginPath(); ctx.arc(AX + AR, AY + AR, AR, 0, Math.PI * 2);
+        ctx.fillStyle = '#4f46e5'; ctx.fill();
+        ctx.font = f(22, true); ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText((name[0] || '?').toUpperCase(), AX + AR, AY + AR);
+        ctx.textBaseline = 'alphabetic';
+    }
+    ctx.font = f(18, true); ctx.fillStyle = '#f1f5f9'; ctx.textAlign = 'left';
+    ctx.fillText(name, AX + AR * 2 + 14, cy + 28);
+    ctx.font = f(12); ctx.fillStyle = '#4f6177';
+    ctx.fillText('2026 FIFA World Cup 竞猜', AX + AR * 2 + 14, cy + 50);
+    cy += 68 + 12;
+
+    // ── Picks section ──
+    if (pickRows.length) {
+        drawSection('竞猜选择', pickRows, 38, ([icon, label, val], ry) => {
+            ctx.font = f(12); ctx.fillStyle = '#64748b'; ctx.textAlign = 'left';
+            ctx.fillText(icon + ' ' + label, P + 16, ry + 14);
+            ctx.font = f(15, true); ctx.fillStyle = '#f0f0f0'; ctx.textAlign = 'right';
+            ctx.fillText(val, W - P - 16, ry + 14);
+        });
+    }
+
+    // ── Groups section ──
+    if (gpRows.length) {
+        drawSection('小组出线预测', gpRows, 34, ({ label, qualified, winner }, ry) => {
+            ctx.font = f(12, true); ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'left';
+            ctx.fillText(label, P + 16, ry + 12);
+            const val = qualified.join(' · ') + (winner ? '  ★' + winner : '');
+            ctx.font = f(12); ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'right';
+            ctx.fillText(val, W - P - 16, ry + 12);
+        });
+    }
+
+    // ── Third picks section ──
+    if (thirdPicks.length) {
+        const COLS = 4, rowH = 34;
+        const tRows = Math.ceil(thirdPicks.length / COLS);
+        const SH = 36 + tRows * rowH + 8;
+        rr(P, cy, W - P * 2, SH, 12, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.09)');
+        ctx.font = f(11, true); ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText('第三名出线预测', P + 14, cy + 18);
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(P + 14, cy + 27); ctx.lineTo(W - P - 14, cy + 27); ctx.stroke();
+        ctx.textBaseline = 'alphabetic';
+        const colW = (W - P * 2) / COLS;
+        thirdPicks.forEach((t, i) => {
+            const col = i % COLS, row = Math.floor(i / COLS);
+            ctx.font = f(13); ctx.fillStyle = '#fcd34d'; ctx.textAlign = 'center';
+            ctx.fillText(t, P + colW * (col + 0.5), cy + 36 + row * rowH + 12);
+        });
+        cy += SH + 12;
+    }
+
+    // ── Footer (QR + text) ──
+    rr(P, cy, W - P * 2, 124, 12, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.09)');
+    const QR = 92, qrX = W - P - 14 - QR, qrY = cy + 16;
+    const siteUrl = 'https://huolahuola.github.io/world-cup-2026/';
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(siteUrl)}&size=${QR * 2}x${QR * 2}&bgcolor=111122&color=ffffff&margin=2`;
+    await new Promise(res => {
+        const img = new Image(); img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            rr(qrX - 4, qrY - 4, QR + 8, QR + 8, 6, 'rgba(255,255,255,0.08)');
+            ctx.drawImage(img, qrX, qrY, QR, QR);
+            res();
+        };
+        img.onerror = res; img.src = qrSrc;
+    });
+    ctx.font = f(14, true); ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'left';
+    ctx.fillText('扫码加入竞猜 →', P + 14, cy + 36);
+    ctx.font = f(11); ctx.fillStyle = '#475569';
+    ctx.fillText('huolahuola.github.io', P + 14, cy + 58);
+    ctx.fillText('/world-cup-2026', P + 14, cy + 76);
+    ctx.font = f(10); ctx.fillStyle = '#374151';
+    ctx.fillText('生成于 ' + new Date().toLocaleDateString('zh-CN'), P + 14, cy + 106);
+
+    // ── Download ──
+    cv.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `wc2026_${name}.png`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }, 'image/png');
+    toast('📸 图片已生成，即将下载！');
+};
 
 // ─── Render: My Predictions ───────────────────────────────
 function renderMyPreds() {
