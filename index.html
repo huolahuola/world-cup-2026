@@ -1017,30 +1017,38 @@ function _predSummary(uid) {
 
     // Count total items, correct, wrong, pending
     let total = 0, correct = 0, wrong = 0, pending = 0;
-    const addPred = (has, pts) => {
+    const add1 = (has, pts) => {
         if (!has) return;
         total++;
         if (pts === null || pts === undefined) pending++;
         else if (pts > 0) correct++;
         else wrong++;
     };
-    addPred(cp.champion,   cp.champPoints);
-    addPred(cp.midway,     cp.midwayPoints);
-    addPred(cp.topScorer,  cp.topScorerPoints);
-    addPred(cp.goldenBoot, cp.goldenBootPoints);
+    const addN = (n, pts) => {
+        if (!n) return;
+        total += n;
+        if (pts === null || pts === undefined) pending += n;
+        else if (pts > 0) correct += n;
+        else wrong += n;
+    };
+    add1(cp.champion,   cp.champPoints);
+    add1(cp.midway,     cp.midwayPoints);
+    add1(cp.topScorer,  cp.topScorerPoints);
+    add1(cp.goldenBoot, cp.goldenBootPoints);
     for (const gid of gids) {
         const p = groupPredsData[`${uid}_${gid}`];
-        addPred(p?.qualified?.length, p?.points);
+        if (p?.qualified?.length) addN(p.qualified.length, p.points);
     }
-    if (hasThird) addPred(true, thirdPicksData[uid]?.points ?? null);
-    Object.values(predsData).filter(p => p.userId === uid).forEach(p => addPred(true, p.points));
+    const thirdArr = thirdPicksData[uid]?.picks || [];
+    if (thirdArr.length) addN(thirdArr.length, thirdPicksData[uid]?.points ?? null);
+    Object.values(predsData).filter(p => p.userId === uid).forEach(p => add1(true, p.points));
 
-    const dot = '<span class="opacity-20"> · </span>';
-    const pct = total ? `${total}项预测` : '暂无预测';
+    const dot = '<span class="text-gray-500"> · </span>';
+    const pct = total ? `<span class="text-white font-bold">${total}</span><span class="text-gray-300">项预测</span>` : '<span class="text-gray-500">暂无预测</span>';
     const stats = total
-        ? `正确 ${correct} · 错误 ${wrong} · 待定 ${pending}`
+        ? `<span class="text-green-400 font-bold">✓${correct}</span>${dot}<span class="text-red-400 font-bold">✗${wrong}</span>${dot}<span class="text-yellow-300 font-bold">?${pending}</span>`
         : '';
-    return `<span class="opacity-70">${pct}</span>${stats ? dot + `<span class="opacity-50">${stats}</span>` : ''}`;
+    return pct + (stats ? dot + stats : '');
 }
 
 function _podiumCard(uid, s, rank, isMe, size) {
