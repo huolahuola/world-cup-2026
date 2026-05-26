@@ -994,6 +994,24 @@ function renderMatchCard(m) {
 }
 
 // ─── Render: Leaderboard ─────────────────────────────────
+function _predSummary(uid) {
+    const gids = Object.keys(groupsData);
+    const groupDone = gids.filter(gid => groupPredsData[`${uid}_${gid}`]).length;
+    const hasChamp  = !!(champPredsData[uid]?.champion);
+    const hasScorer = !!(champPredsData[uid]?.topScorer);
+    const hasThird  = (thirdPicksData[uid]?.picks?.length || 0) >= 8;
+    const matchCnt  = Object.values(predsData).filter(p => p.userId === uid).length;
+    const parts = [];
+    parts.push(hasChamp  ? '<span class="text-green-400">冠军✓</span>'  : '<span class="opacity-30">冠军</span>');
+    parts.push(hasScorer ? '<span class="text-green-400">射手✓</span>'  : '<span class="opacity-30">射手</span>');
+    if (gids.length) parts.push(groupDone === gids.length
+        ? `<span class="text-green-400">出线✓</span>`
+        : `<span class="${groupDone>0?'text-yellow-400':'opacity-30'}">出线${groupDone}/${gids.length}</span>`);
+    parts.push(hasThird  ? '<span class="text-green-400">第三✓</span>'  : '<span class="opacity-30">第三</span>');
+    if (matchCnt) parts.push(`<span class="text-blue-300">淘汰${matchCnt}场</span>`);
+    return parts.join('<span class="opacity-20"> · </span>');
+}
+
 function renderLeaderboard() {
     const container = document.getElementById('leaderboardContainer');
     const entries = Object.entries(scoresData);
@@ -1026,7 +1044,7 @@ function renderLeaderboard() {
                     <span class="truncate ${textCls}">${s.name||'未知'}</span>
                     ${isMe ? '<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>' : ''}
                 </div>
-                <div class="text-xs opacity-60">精确 ${s.exact||0} · 正确 ${s.correct||0} · 错误 ${s.wrong||0}</div>
+                <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
             </div>
             <div class="text-2xl font-black ${textCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
         </div>`;
