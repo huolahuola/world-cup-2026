@@ -316,9 +316,10 @@
                     <div class="glass-dark rounded-xl p-3 text-xs space-y-1.5 text-gray-300">
                         <p>🏆 <b class="text-yellow-400">冠军预测</b> 截止6月10日 CET 23:59，可随时修改，猜中 <b class="text-white">+20~250分（按赔率）</b></p>
                         <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月10日 CET 23:59，锁定后不可改，猜中 <b class="text-white">+10分</b></p>
-                        <p>🎯 <b class="text-blue-300">半程冠军</b> 7月4日淘汰赛起开放，7月9日截止，作为冠军积分的系数：</p>
-                        <p>· 半程 = 冠军选择 → 冠军积分 <b class="text-green-400">×1.5</b></p>
-                        <p>· 半程 ≠ 冠军选择 → 冠军积分 <b class="text-orange-400">×0.5</b></p>
+                        <p>🎯 <b class="text-blue-300">半程冠军</b> 7月4日淘汰赛起开放，7月9日截止，两部分独立计分：</p>
+                        <p>· 半程猜中冠军 → <b class="text-blue-300">+赔率×0.5分（独立奖励）</b></p>
+                        <p>· 半程 = 冠军选择 → 原始冠军积分 <b class="text-green-400">×1.5</b></p>
+                        <p>· 半程 ≠ 冠军选择 → 原始冠军积分 <b class="text-orange-400">×0.5</b></p>
                         <p>· 未填半程 → 冠军积分 <b class="text-white">×1（保持原分）</b></p>
                     </div>
                 </div>
@@ -462,7 +463,7 @@
         <div id="content-leaderboard" class="hidden">
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 积分来源</p>
-                <p>· 冠军预测 <b class="text-white">按赔率 ×1.5/1/0.5</b>（半程系数）</p>
+                <p>· 冠军预测 <b class="text-white">按赔率 ×1.5/1/0.5</b>（半程系数）；半程猜中冠军额外 <b class="text-blue-300">+赔率×0.5分</b></p>
                 <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
                 <p>· 小组赛：出线且名次正确 <b class="text-yellow-400">+2分</b>，出线但名次错误 <b class="text-green-400">+1分</b>；第三名出线每队 <b class="text-orange-400">+1分</b></p>
                 <p>· 淘汰赛精确比分 <b class="text-yellow-400">+3分</b>，猜中结果 <b class="text-green-400">+1分</b></p>
@@ -1068,6 +1069,7 @@ function _countPreds(uid) {
         else wrong += n;
     };
     add1(cp.champion,   cp.champPoints);
+    add1(cp.midway,     cp.midwayPoints);
     add1(cp.topScorer,  cp.topScorerPoints);
     add1(cp.goldenBoot, cp.goldenBootPoints);
     for (const gid of gids) {
@@ -1320,6 +1322,12 @@ function _scoreRange(uid) {
         settle(`🏆 冠军 ${cp.champion}${multLabel ? ' ' + multLabel : ''}`, cp.champPoints, champMax);
     }
 
+    // Midway independent scoring
+    if (cp.midway) {
+        const midwayMax = Math.round(getChampPts(cp.midway) * 0.5);
+        settle(`🎯 半程冠军 ${cp.midway}`, cp.midwayPoints, midwayMax);
+    }
+
     // Top scorer
     if (cp.topScorer) {
         const max = cp.topScorerMaxPts || getTopScorerPts(cp.topScorer);
@@ -1446,15 +1454,18 @@ function renderMyPreds() {
             </div>`;
         }
         if (myChamp.midway) {
+            const _mb = Math.round(getChampPts(myChamp.midway) * 0.5);
             let b = myChamp.midwayPoints !== null && myChamp.midwayPoints !== undefined
-                ? `<span class="${myChamp.midwayPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.midwayPoints}分</span>`
+                ? `<span class="${myChamp.midwayPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.midwayPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
             const mHint = myChamp.champion
-                ? (myChamp.midway===myChamp.champion ? `<p class="text-xs text-green-400">与冠军相同 → ×1.5</p>` : `<p class="text-xs text-orange-400">与冠军不同 → ×0.5</p>`)
-                : '';
+                ? (myChamp.midway===myChamp.champion
+                    ? `<p class="text-xs text-green-400">与冠军相同 → 冠军×1.5 + 半程独立+${_mb}分</p>`
+                    : `<p class="text-xs text-orange-400">与冠军不同 → 冠军×0.5；猜中冠军+${_mb}分</p>`)
+                : `<p class="text-xs text-blue-300">猜中冠军 +${_mb}分（独立）</p>`;
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
                 <span class="text-3xl">${getTeamFlag(myChamp.midway)}</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">半程冠军（冠军积分系数）</p>
+                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">半程冠军（独立计分 · 猜中+${_mb}分）</p>
                 <p class="font-black text-white">${myChamp.midway}</p>${mHint}</div>${b}
             </div>`;
         }
@@ -1936,11 +1947,12 @@ function renderChampSection3(myPred, now) {
             ? `<span class="${myPred.midwayPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.midwayPoints}分</span>`
             : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓</span>`;
         const _base = myPred.champMaxPts || getChampPts(myPred.champion || '');
+        const _midBase = Math.round(getChampPts(myPred.midway) * 0.5);
         const mHint = myPred.champion
             ? (myPred.midway === myPred.champion
-                ? `<p class="text-xs text-green-400 mt-0.5">与冠军预测相同 → 冠军积分 ×1.5（最高+${Math.round(_base*1.5)}分）</p>`
-                : `<p class="text-xs text-orange-400 mt-0.5">与冠军预测不同 → 冠军积分 ×0.5（+${Math.round(_base*0.5)}分）</p>`)
-            : '';
+                ? `<p class="text-xs text-green-400 mt-0.5">与冠军相同 → 冠军×1.5 + 半程+${_midBase}分</p>`
+                : `<p class="text-xs text-orange-400 mt-0.5">与冠军不同 → 冠军×0.5；若猜中冠军 +${_midBase}分（独立）</p>`)
+            : `<p class="text-xs text-blue-300 mt-0.5">若猜中冠军 +${_midBase}分（独立）</p>`;
         el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
             <span class="text-4xl">${getTeamFlag(myPred.midway)}</span>
             <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
@@ -1993,9 +2005,12 @@ function renderChampSection3(myPred, now) {
     if (midwayPendingPick) {
         const sameAsChamp = myPred.champion && midwayPendingPick === myPred.champion;
         const _b = myPred.champMaxPts || getChampPts(myPred.champion || '');
+        const _mb = Math.round(getChampPts(midwayPendingPick) * 0.5);
         const mHint = sameAsChamp
-            ? `<p class="text-xs text-green-400">与冠军预测相同 → 冠军积分 ×1.5（最高+${Math.round(_b*1.5)}分）</p>`
-            : (myPred.champion ? `<p class="text-xs text-orange-400">与冠军预测不同 → 冠军积分 ×0.5（+${Math.round(_b*0.5)}分）</p>` : '');
+            ? `<p class="text-xs text-green-400">与冠军相同 → 冠军×1.5 + 半程+${_mb}分（独立）</p>`
+            : (myPred.champion
+                ? `<p class="text-xs text-orange-400">与冠军不同 → 冠军×0.5；若猜中冠军 +${_mb}分（独立）</p>`
+                : `<p class="text-xs text-blue-300">若猜中冠军 +${_mb}分（独立）</p>`);
         html += `<div class="glass-dark rounded-2xl p-3 flex items-center gap-3 border ${sameAsChamp?'border-green-400/40':'border-orange-400/40'}">
             <span class="text-3xl">${getTeamFlag(midwayPendingPick)}</span>
             <div class="flex-1"><p class="font-black text-white">${midwayPendingPick}</p>
@@ -2269,6 +2284,13 @@ window.submitChampResult = async function() {
             }
             updates[`rooms/${currentRoom}/champPreds/${uid}/champPoints`] = pts;
             delta += pts;
+        }
+
+        // Midway independent points (half base if midway == champion, regardless of original pick)
+        if (p.midway && (p.midwayPoints === null || p.midwayPoints === undefined)) {
+            const midwayPts = p.midway === champion ? Math.round(getChampPts(p.midway) * 0.5) : 0;
+            updates[`rooms/${currentRoom}/champPreds/${uid}/midwayPoints`] = midwayPts;
+            delta += midwayPts;
         }
 
         // Top scorer points (dynamic based on odds at prediction time)
