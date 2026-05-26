@@ -347,7 +347,7 @@
                     <p class="font-black text-base" style="color:#60a5fa">🎯 半程冠军</p>
                     <span class="text-xs bg-blue-400/10 text-blue-300 px-2 py-0.5 rounded-full font-bold">10分+系数</span>
                 </div>
-                <p class="text-xs text-gray-400 mb-1">🔓 7月4日淘汰赛开始后开放 · 截止7月9日 · 确认后永久锁定</p>
+                <p class="text-xs text-gray-400 mb-1">🔓 7月4日淘汰赛开始后开放 · 截止7月9日 · 截止前可随时修改</p>
                 <p class="text-xs text-orange-400 mb-3">与冠军选相同 → 冠军×1.5 · 不同 → 冠军×0.5</p>
                 <div id="champSection3"><div class="shimmer rounded-xl h-16"></div></div>
             </div>
@@ -366,14 +366,14 @@
                 </div>
                 <div class="flex items-center gap-2 mb-3">
                     <span id="scorerDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
-                    <span class="text-xs text-red-400 font-bold">确认后永久锁定</span>
+                    <span class="text-xs text-red-400 font-bold">截止前可随时修改</span>
                 </div>
                 <div id="champSection2"><div class="shimmer rounded-xl h-12"></div></div>
             </div>
             <div class="glass-dark rounded-2xl p-4 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
                 <p>· 填写你认为会拿最佳射手奖的球员姓名</p>
-                <p>· 截止 <b class="text-white">6月10日 23:59 CET</b>，一旦确认永久锁定</p>
+                <p>· 截止 <b class="text-white">6月10日 23:59 CET</b>，截止前可随时修改</p>
                 <p>· 与实际最佳射手姓名完全匹配得 <b class="text-white">+10分</b></p>
             </div>
         </div>
@@ -1523,30 +1523,30 @@ function renderChampSection2(myPred, now) {
     const el = document.getElementById('champSection2');
     if (!el) return;
 
-    if (myPred.topScorer) {
-        const scorerMaxPts = myPred.topScorerMaxPts || getTopScorerPts(myPred.topScorer);
-        let badge = myPred.topScorerPoints !== null && myPred.topScorerPoints !== undefined
-            ? `<span class="${myPred.topScorerPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.topScorerPoints}分</span>`
-            : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓 (最高+${scorerMaxPts}分)</span>`;
-        el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
-            <span class="text-4xl">⚽</span>
-            <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
-                <span class="font-black text-white text-lg">${myPred.topScorer}</span>${badge}
-            </div><p class="text-xs text-gray-500 mt-0.5">🔒 永久锁定，无法更改</p></div>
-        </div>`;
-        return;
-    }
-
     if (now >= TOP_SCORER_DEADLINE) {
-        el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
+        if (myPred.topScorer) {
+            const scorerMaxPts = myPred.topScorerMaxPts || getTopScorerPts(myPred.topScorer);
+            let badge = myPred.topScorerPoints !== null && myPred.topScorerPoints !== undefined
+                ? `<span class="${myPred.topScorerPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.topScorerPoints}分</span>`
+                : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓 (最高+${scorerMaxPts}分)</span>`;
+            el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
+                <span class="text-4xl">⚽</span>
+                <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
+                    <span class="font-black text-white text-lg">${myPred.topScorer}</span>${badge}
+                </div><p class="text-xs text-gray-500 mt-0.5">🔒 竞猜已截止</p></div>
+            </div>`;
+        } else {
+            el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
+        }
         return;
     }
 
-    el.innerHTML = `<p class="text-xs text-gray-500 mb-3">🎲 越冷门赔率越高 · 热门球员猜中10分 · 其他+50分</p>
+    const _curScorer = myPred.topScorer || '';
+    el.innerHTML = `<p class="text-xs text-gray-500 mb-3">🎲 越冷门赔率越高 · 热门球员猜中10分 · 其他+50分${_curScorer ? ' · <span class="text-green-400">截止前可随时修改</span>' : ''}</p>
     <select id="topScorerSelect" onchange="onScorerSelectChange(this.value)"
         style="background:rgba(0,0,0,0.4)"
         class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-2">
-        <option value="">— 选择球员 —</option>${_scorerSelectOpts('')}
+        <option value="">— 选择球员 —</option>${_scorerSelectOpts(_curScorer)}
     </select>
     <div id="scorerOtherWrap" class="hidden mb-2">
         <input type="text" id="topScorerOtherInput" placeholder="填写球员姓名（中文或英文）" maxlength="30"
@@ -1554,8 +1554,8 @@ function renderChampSection2(myPred, now) {
             oninput="updateScorerPreview(this.value)">
     </div>
     <div id="scorerPreview" class="text-xs text-gray-500 mb-2"></div>
-    <button onclick="submitTopScorer()" class="w-full gold text-black font-black py-3 rounded-xl text-sm active:scale-95">确认锁定 🔒</button>
-    <p class="text-xs text-red-400 mt-2 text-center">⚠️ 确认后永久锁定，无法更改！</p>`;
+    <button onclick="submitTopScorer()" class="w-full gold text-black font-black py-3 rounded-xl text-sm active:scale-95">确认预测 ✓</button>
+    <p class="text-xs text-gray-500 mt-2 text-center">截止 6月10日 CET 23:59 前可随时修改</p>`;
 }
 
 function renderChampSection3(myPred, now) {
@@ -1630,7 +1630,7 @@ function renderChampSection3(myPred, now) {
         html += `<div class="glass-dark rounded-2xl p-3 flex items-center gap-3 border ${sameAsChamp?'border-green-400/40':'border-orange-400/40'}">
             <span class="text-3xl">${getTeamFlag(midwayPendingPick)}</span>
             <div class="flex-1"><p class="font-black text-white">${midwayPendingPick}</p>
-                ${mHint}<p class="text-xs text-red-400">⚠️ 确认后永久锁定！</p></div>
+                ${mHint}<p class="text-xs text-red-400">⚠️ 截止前可随时修改！</p></div>
             <div class="flex gap-2">
                 <button onclick="cancelMidwayPick()"
                     class="glass border border-white/20 text-gray-400 text-sm font-bold px-3 py-2 rounded-xl active:scale-95">取消</button>
@@ -1699,7 +1699,6 @@ window.updateScorerPreview = function(val) {
 };
 
 window.submitTopScorer = async function() {
-    if (champPredsData[currentUser.id]?.topScorer) { toast('最佳射手已锁定', 'error'); return; }
     if (new Date() >= TOP_SCORER_DEADLINE) { toast('竞猜已截止', 'error'); return; }
     const sel = document.getElementById('topScorerSelect');
     const selVal = sel?.value;
@@ -1712,14 +1711,13 @@ window.submitTopScorer = async function() {
         if (!name) { toast('请选择球员', 'error'); return; }
     }
     const maxPts = getTopScorerPts(name);
-    if (!confirm(`确认将 "${name}" 锁定为最佳射手预测？\n猜中可得 +${maxPts}分 · 锁定后无法更改！`)) return;
     const existing = champPredsData[currentUser.id] || {};
     const pred = { ...existing, userId: currentUser.id, topScorer: name, topScorerAt: Date.now(),
         topScorerMaxPts: maxPts,
         champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null, midwayPoints: existing.midwayPoints ?? null };
     if (demoMode) { champPredsData[currentUser.id] = pred; renderChampion(); }
     else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
-    toast(`⚽ "${name}" 已永久锁定！猜中得+${maxPts}分`);
+    toast(`⚽ 最佳射手已更新为 "${name}"！猜中得+${maxPts}分`);
 };
 
 window.selectMidwayTeam = function(teamName) {
@@ -2772,7 +2770,7 @@ function _renderWizScorer() {
     return `<div class="glass rounded-2xl p-4">
         <p class="text-sm text-gray-300 mb-1">预测 2026 世界杯最佳射手</p>
         <p class="text-xs text-gray-500 mb-1">越冷门赔率越高 · 其他球员+50分</p>
-        <p class="text-xs text-red-400 mb-4">⚠️ 确认后永久锁定，无法更改</p>
+        <p class="text-xs text-red-400 mb-4">⚠️ 截止前可随时修改，无法更改</p>
         <select id="wizScorerSelect" onchange="onWizScorerSelectChange(this.value)"
             style="background:rgba(0,0,0,0.4)"
             class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-2">
@@ -3015,7 +3013,7 @@ window.wizardNext = async function() {
             ? document.getElementById('wizScorerOtherInput')?.value?.trim()
             : selVal;
         if (name) {
-            if (!confirm(`确认将 "${name}" 永久锁定为最佳射手预测？`)) return;
+            if (!confirm(`确认将 "${name}" 设为最佳射手预测？`)) return;
             const maxPts = getTopScorerPts(name);
             const existing = champPredsData[currentUser.id] || {};
             const pred = { ...existing, userId: currentUser.id, topScorer: name, topScorerAt: Date.now(),
@@ -3023,7 +3021,7 @@ window.wizardNext = async function() {
                 topScorerPoints: existing.topScorerPoints??null, midwayPoints: existing.midwayPoints??null };
             if (demoMode) champPredsData[currentUser.id] = pred;
             else await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred);
-            toast(`⚽ "${name}" 已锁定！猜中+${maxPts}分`);
+            toast(`⚽ "${name}" 已保存！猜中+${maxPts}分`);
         }
     } else if (step?.type === 'groupsAll') {
         const toSave = step.groupIds.filter(gid => (_wizGpStates[gid]?.selected||[]).length >= 2);
