@@ -164,16 +164,8 @@
             <img src="https://upload.wikimedia.org/wikipedia/commons/e/e3/Lamine_Yamal_in_2025.jpg"
                 style="flex:1; object-fit:cover; object-position:top center" loading="lazy" alt="">
         </div>
-        <!-- Dark gradient overlay: top fade + bottom solid -->
-        <div class="absolute inset-0" style="background:linear-gradient(to bottom, rgba(1,8,16,0.55) 0%, rgba(1,8,16,0.72) 45%, rgba(1,8,16,0.92) 72%, #010810 100%)"></div>
-        <!-- Player name labels at bottom of photo strips -->
-        <div class="absolute bottom-0 left-0 right-0 flex" style="height:36px; background:rgba(0,0,0,0.4)">
-            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇫🇷 姆巴佩</span>
-            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇦🇷 梅西</span>
-            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇵🇹 C罗</span>
-            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇳🇴 哈兰德</span>
-            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇪🇸 亚马尔</span>
-        </div>
+        <!-- Dark gradient overlay -->
+        <div class="absolute inset-0" style="background:linear-gradient(to bottom, rgba(1,8,16,0.5) 0%, rgba(1,8,16,0.7) 45%, rgba(1,8,16,0.92) 72%, #010810 100%)"></div>
     </div>
 
     <!-- Scrollable content on top of background -->
@@ -2566,7 +2558,7 @@ function defaultGroups() {
 
 // ─── Onboarding Wizard ────────────────────────────────────
 let _wizSteps = [], _wizIdx = 0, _wizShown = false;
-let _wizGpStates = {}, _wizChampPick = null;
+let _wizGpStates = {}, _wizChampPick = null, _wizThirdPicks = [];
 
 function wizardShowLogin() {
     document.getElementById('wizardOverlay').classList.remove('hidden');
@@ -2619,11 +2611,13 @@ function _buildWizSteps() {
     const steps = [];
     if (!myPred.champion && now < CHAMPION_DEADLINE) steps.push({ type:'champion' });
     if (!myPred.topScorer && now < TOP_SCORER_DEADLINE) steps.push({ type:'topScorer' });
-    if (now < GROUP_DEADLINE) {
+    if (now < GROUP_DEADLINE && Object.keys(groupsData).length > 0) {
         const gids = Object.keys(groupsData).sort();
         const unfilled = gids.filter(gid => !groupPredsData[`${uid}_${gid}`]);
-        for (let i = 0; i < unfilled.length; i += 3)
-            steps.push({ type:'groups', groupIds: unfilled.slice(i, i+3) });
+        if (unfilled.length > 0) {
+            steps.push({ type:'groupsAll', groupIds: gids });
+            steps.push({ type:'thirdPlace', groupIds: gids });
+        }
     }
     return steps;
 }
@@ -2637,6 +2631,7 @@ function tryShowWizard() {
     _wizIdx = 0;
     _wizGpStates = {};
     _wizChampPick = null;
+    _wizThirdPicks = [];
     document.getElementById('wizardOverlay').classList.remove('hidden');
     document.getElementById('wizHeader').classList.remove('hidden');
     document.getElementById('wizSkipBtn').textContent = '跳过/稍后再选';
@@ -2657,15 +2652,88 @@ function _renderWizStep() {
     } else if (step.type === 'topScorer') {
         document.getElementById('wizTitle').textContent = '⚽ 最佳射手';
         document.getElementById('wizContent').innerHTML = _renderWizScorer();
-    } else {
-        const names = step.groupIds.map(g => groupsData[g]?.name||g+'组').join(' · ');
-        document.getElementById('wizTitle').textContent = `🏅 ${names}`;
+    } else if (step.type === 'groupsAll') {
+        document.getElementById('wizTitle').textContent = '🏅 各组出线预测';
+        // Pre-populate from existing predictions
         step.groupIds.forEach(gid => {
-            if (!_wizGpStates[gid]) _wizGpStates[gid] = { selected:[], winner:null, thirdBet:null };
+            if (!_wizGpStates[gid]) {
+                const ex = groupPredsData[`${currentUser.id}_${gid}`];
+                _wizGpStates[gid] = { selected: ex?.qualified ? [...ex.qualified] : [], winner: ex?.winner||null };
+            }
         });
-        document.getElementById('wizContent').innerHTML = step.groupIds.map(gid => _renderWizGroupCard(gid)).join('');
+        document.getElementById('wizContent').innerHTML = _renderWizGroupsAll(step.groupIds);
+    } else if (step.type === 'thirdPlace') {
+        document.getElementById('wizTitle').textContent = '🎲 最佳第三名晋级';
+        document.getElementById('wizContent').innerHTML = _renderWizThirdPlace(step.groupIds);
     }
     document.getElementById('wizContent').scrollTop = 0;
+}
+
+function _renderWizGroupsAll(groupIds) {
+    const filled = groupIds.filter(gid => (_wizGpStates[gid]?.selected||[]).length >= 2).length;
+    const cards = groupIds.map(gid => {
+        const g = groupsData[gid];
+        const s = _wizGpStates[gid] || { selected:[], winner:null };
+        const twoFull = s.selected.length >= 2;
+        const rows = (g?.teams||[]).map(t => {
+            const isOut = s.selected.includes(t.name);
+            const isWinner = s.winner === t.name;
+            const dim = twoFull && !isOut;
+            const cls = isOut ? 'border-yellow-400/80 bg-yellow-400/10' : dim ? 'border-white/5 opacity-40' : 'border-white/15 glass';
+            return `<div onclick="wizToggleTeamAll('${gid}','${t.name}')"
+                class="flex items-center gap-1.5 px-2 py-1.5 rounded-xl border-2 ${cls} cursor-pointer active:opacity-60">
+                <span class="text-base">${t.flag||'🏳️'}</span>
+                <span class="text-xs font-bold flex-1 leading-tight">${t.name}</span>
+                ${isOut ? `<button onclick="event.stopPropagation();wizToggleWinnerAll('${gid}','${t.name}')"
+                    class="text-[10px] px-1.5 py-0.5 rounded-lg shrink-0 ${isWinner?'gold text-black font-black':'glass border border-white/20 text-gray-500'}">
+                    ${isWinner?'👑':'第一?'}</button>` : ''}
+            </div>`;
+        }).join('');
+        return `<div class="glass rounded-2xl p-3 mb-2">
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="font-black text-sm">${g?.name||gid+'组'}</span>
+                <span class="text-xs font-bold ${s.selected.length>=2?'text-green-400':'text-gray-500'}">${s.selected.length>=2?'✓ 已选':'选2支'}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">${rows}</div>
+        </div>`;
+    }).join('');
+    return `<div class="glass-dark rounded-xl px-3 py-2 mb-3 flex items-center justify-between text-xs">
+        <span>每组选 <b class="text-yellow-400">2支</b> 出线球队，可标记小组第一</span>
+        <span class="font-bold shrink-0 ml-2 ${filled===groupIds.length?'text-green-400':'text-yellow-400'}">${filled}/${groupIds.length} 组 ✓</span>
+    </div>${cards}`;
+}
+
+function _renderWizThirdPlace(groupIds) {
+    const pool = [];
+    groupIds.forEach(gid => {
+        const g = groupsData[gid];
+        const sel = _wizGpStates[gid]?.selected || [];
+        (g?.teams||[]).forEach(t => { if (!sel.includes(t.name)) pool.push({ ...t, groupName: g?.name||gid+'组' }); });
+    });
+    const cnt = _wizThirdPicks.length;
+    const items = pool.map(t => {
+        const isPicked = _wizThirdPicks.includes(t.name);
+        const full = cnt >= 8 && !isPicked;
+        const cls = isPicked ? 'border-orange-400 bg-orange-400/10' : full ? 'border-white/5 glass opacity-30 pointer-events-none' : 'border-white/10 glass';
+        return `<div onclick="wizToggleThird('${t.name}')"
+            class="flex items-center gap-2 px-2.5 py-2 rounded-xl border-2 ${cls} cursor-pointer active:opacity-70">
+            <span class="text-lg">${t.flag||'🏳️'}</span>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold truncate">${t.name}</p>
+                <p class="text-[10px] text-gray-500">${t.groupName}</p>
+            </div>
+            ${isPicked ? '<span class="text-orange-400 font-black text-sm shrink-0">✓</span>' : ''}
+        </div>`;
+    }).join('');
+    return `<div class="glass-dark rounded-xl p-3 mb-3">
+        <p class="text-sm font-bold">选出 <b class="text-orange-400">8支</b> 最佳第三名晋级球队</p>
+        <p class="text-xs text-gray-400 mt-0.5">每组第三、第四名共 ${pool.length} 队，其中 8 队将晋级淘汰赛</p>
+    </div>
+    <div class="flex items-center justify-between mb-2 px-0.5">
+        <span class="text-xs text-gray-400">点击选择·再点取消</span>
+        <span class="text-sm font-black ${cnt>=8?'text-green-400':'text-orange-400'}">${cnt} / 8 已选</span>
+    </div>
+    <div class="grid grid-cols-2 gap-1.5">${items}</div>`;
 }
 
 function _renderWizChamp() {
@@ -2813,6 +2881,28 @@ window.wizToggleWinner = function(gid, name) {
     _rerenderWizGroup(gid);
 };
 
+window.wizToggleTeamAll = function(gid, name) {
+    const s = _wizGpStates[gid] = _wizGpStates[gid] || { selected:[], winner:null };
+    if (s.selected.includes(name)) { s.selected = s.selected.filter(n=>n!==name); if(s.winner===name) s.winner=null; }
+    else if (s.selected.length < 2) s.selected.push(name);
+    const step = _wizSteps[_wizIdx];
+    document.getElementById('wizContent').innerHTML = _renderWizGroupsAll(step.groupIds);
+};
+
+window.wizToggleWinnerAll = function(gid, name) {
+    const s = _wizGpStates[gid]; if(!s) return;
+    s.winner = s.winner===name ? null : name;
+    const step = _wizSteps[_wizIdx];
+    document.getElementById('wizContent').innerHTML = _renderWizGroupsAll(step.groupIds);
+};
+
+window.wizToggleThird = function(name) {
+    if (_wizThirdPicks.includes(name)) _wizThirdPicks = _wizThirdPicks.filter(n=>n!==name);
+    else if (_wizThirdPicks.length < 8) _wizThirdPicks.push(name);
+    const step = _wizSteps[_wizIdx];
+    document.getElementById('wizContent').innerHTML = _renderWizThirdPlace(step.groupIds);
+};
+
 window.wizardSkip = function() {
     if (!currentUser) { _wizEnterDemoMode(); return; }
     _wizAdvance();
@@ -2925,18 +3015,25 @@ window.wizardNext = async function() {
             else await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred);
             toast(`⚽ "${name}" 已锁定！猜中+${maxPts}分`);
         }
-    } else if (step?.type === 'groups') {
+    } else if (step?.type === 'groupsAll') {
         const toSave = step.groupIds.filter(gid => (_wizGpStates[gid]?.selected||[]).length >= 2);
         if (toSave.length > 0) {
             await Promise.all(toSave.map(gid => {
                 const s = _wizGpStates[gid];
                 const pred = { userId: currentUser.id, groupId: gid, qualified: s.selected,
-                    winner: s.winner||null, thirdBet: s.thirdBet||null, submittedAt: Date.now(), points: null };
+                    winner: s.winner||null, thirdBet: null, submittedAt: Date.now(), points: null };
                 const key = `${currentUser.id}_${gid}`;
                 if (demoMode) { groupPredsData[key]=pred; return Promise.resolve(); }
                 return set(ref(db, `rooms/${currentRoom}/groupPreds/${key}`), pred);
             }));
-            toast(`🎯 ${toSave.length} 组预测已保存！`);
+            toast(`🎯 ${toSave.length} 组出线预测已保存！`);
+        }
+    } else if (step?.type === 'thirdPlace') {
+        if (_wizThirdPicks.length > 0) {
+            const pred = { userId: currentUser.id, picks: [..._wizThirdPicks], submittedAt: Date.now(), points: null };
+            if (demoMode) { /* stored in memory only */ }
+            else await set(ref(db, `rooms/${currentRoom}/thirdPicks/${currentUser.id}`), pred);
+            toast(`🎲 已选 ${_wizThirdPicks.length} 支最佳第三名！`);
         }
     }
     _wizAdvance();
@@ -2951,7 +3048,9 @@ function _wizAdvance() {
         renderChampion(); renderGroups();
         return;
     }
-    _wizGpStates = {}; _wizChampPick = null;
+    const nextStep = _wizSteps[_wizIdx];
+    if (nextStep?.type !== 'thirdPlace') _wizGpStates = {};
+    _wizChampPick = null;
     _renderWizStep();
 }
 
