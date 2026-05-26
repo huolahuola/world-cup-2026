@@ -1547,13 +1547,28 @@ window.generatePredCard = async function() {
 
     // ── Groups section ──
     if (gpRows.length) {
-        drawSection('小组出线预测', gpRows, 34, ({ label, qualified, winner }, ry) => {
+        const SH = 36 + gpRows.length * 34 + 8;
+        rr(P, cy, W - P * 2, SH, 12, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.09)');
+        // Title + legend on the same line
+        ctx.font = f(11, true); ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText('小组出线预测', P + 14, cy + 18);
+        ctx.font = f(10); ctx.fillStyle = '#fcd34d'; ctx.textAlign = 'right';
+        ctx.fillText('★ = 小组第一', W - P - 14, cy + 18);
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(P + 14, cy + 27); ctx.lineTo(W - P - 14, cy + 27); ctx.stroke();
+        ctx.textBaseline = 'alphabetic';
+        let gy = cy + 36;
+        gpRows.forEach(({ label, qualified, winner }) => {
             ctx.font = f(12, true); ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'left';
-            ctx.fillText(label, P + 16, ry + 12);
-            const val = qualified.join(' · ') + (winner ? '  ★' + winner : '');
+            ctx.fillText(label, P + 16, gy + 12);
+            // Star placed after winner's name within the list
+            const val = qualified.map(t => t === winner ? t + ' ★' : t).join('  ·  ');
             ctx.font = f(12); ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'right';
-            ctx.fillText(val, W - P - 16, ry + 12);
+            ctx.fillText(val, W - P - 16, gy + 12);
+            gy += 34;
         });
+        cy += SH + 12;
     }
 
     // ── Third picks section ──
