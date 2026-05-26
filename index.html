@@ -141,7 +141,7 @@
         </div>
         <div id="wizContent" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
         <div class="p-4 flex gap-3 border-t border-white/10 shrink-0">
-            <button onclick="wizardSkip()" id="wizSkipBtn" class="flex-1 glass border border-white/20 text-gray-300 font-bold py-3.5 rounded-2xl text-sm active:scale-95">跳过</button>
+            <button onclick="wizardSkip()" id="wizSkipBtn" class="flex-1 glass border border-white/20 text-gray-300 font-bold py-3.5 rounded-2xl text-sm active:scale-95">跳过/稍后再选</button>
             <button onclick="wizardNext()" id="wizNextBtn" class="flex-[2] gold text-black font-black py-3.5 rounded-2xl text-sm active:scale-95">下一步 →</button>
         </div>
     </div>
@@ -153,16 +153,16 @@
     <!-- Player photo background (fixed, non-scrolling) -->
     <div class="absolute inset-0 overflow-hidden">
         <div style="display:flex; height:100%">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Kylian_Mbapp%C3%A9_World_Cup_Trophy.jpg/300px-Kylian_Mbapp%C3%A9_World_Cup_Trophy.jpg"
-                style="flex:1; object-fit:cover; object-position:top center" alt="">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Lionel_Messi_WC2022.jpg/300px-Lionel_Messi_WC2022.jpg"
-                style="flex:1; object-fit:cover; object-position:top center" alt="">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Cristiano_Ronaldo_2018.jpg/300px-Cristiano_Ronaldo_2018.jpg"
-                style="flex:1; object-fit:cover; object-position:top center" alt="">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Erling_Haaland_June_2025.jpg/300px-Erling_Haaland_June_2025.jpg"
-                style="flex:1; object-fit:cover; object-position:top center" alt="">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Lamine_Yamal_in_2025.jpg/300px-Lamine_Yamal_in_2025.jpg"
-                style="flex:1; object-fit:cover; object-position:top center" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/6/61/Kylian_Mbapp%C3%A9_World_Cup_Trophy.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" loading="lazy" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c8/Lionel_Messi_WC2022.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" loading="lazy" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/8/8c/Cristiano_Ronaldo_2018.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" loading="lazy" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/7/71/Erling_Haaland_June_2025.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" loading="lazy" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e3/Lamine_Yamal_in_2025.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" loading="lazy" alt="">
         </div>
         <!-- Dark gradient overlay: top fade + bottom solid -->
         <div class="absolute inset-0" style="background:linear-gradient(to bottom, rgba(1,8,16,0.55) 0%, rgba(1,8,16,0.72) 45%, rgba(1,8,16,0.92) 72%, #010810 100%)"></div>
@@ -182,10 +182,11 @@
 
             <!-- Hero -->
             <div id="lpHero" class="w-full flex flex-col items-center text-center">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/2026_FIFA_World_Cup_emblem.svg/400px-2026_FIFA_World_Cup_emblem.svg.png"
+                <img src="https://upload.wikimedia.org/wikipedia/commons/1/17/2026_FIFA_World_Cup_emblem.svg"
                      alt="2026 FIFA World Cup"
                      class="w-44 h-44 object-contain mb-4 drop-shadow-2xl"
-                     style="filter:drop-shadow(0 0 24px rgba(247,201,72,0.35))">
+                     style="filter:drop-shadow(0 0 24px rgba(247,201,72,0.35))"
+                     onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/c/c3/FIFA_logo_without_slogan.svg'">
                 <h1 class="text-2xl font-black leading-snug mb-0.5">2026 美加墨世界杯</h1>
                 <p class="text-lg font-bold gold-text mb-1">懂球弟妹决战紫禁之巅</p>
                 <p class="text-xs text-gray-400 mb-8">和朋友一起预测 · 看谁最懂球</p>
@@ -1271,6 +1272,28 @@ function getTopScorerPts(name) {
   return key ? DEFAULT_SCORER_ODDS[key] : 150;
 }
 
+// Top 10 players shown in scorer dropdown (by odds tier)
+const SCORER_LIST = [
+  { name:'姆巴佩',  flag:'🇫🇷', pts:10  },
+  { name:'凯恩',    flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', pts:10  },
+  { name:'梅西',    flag:'🇦🇷', pts:20  },
+  { name:'哈兰德',  flag:'🇳🇴', pts:20  },
+  { name:'亚马尔',  flag:'🇪🇸', pts:25  },
+  { name:'C罗',     flag:'🇵🇹', pts:30  },
+  { name:'维尼修斯',flag:'🇧🇷', pts:30  },
+  { name:'劳塔罗',  flag:'🇦🇷', pts:35  },
+  { name:'登贝莱',  flag:'🇫🇷', pts:35  },
+  { name:'贝林厄姆',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', pts:60  },
+];
+
+function _scorerSelectOpts(selectedName) {
+  const opts = SCORER_LIST.map(p =>
+    `<option value="${p.name}" ${selectedName===p.name?'selected':''}>${p.flag} ${p.name}  ·  猜中+${p.pts}分</option>`
+  ).join('');
+  const otherSel = selectedName && !SCORER_LIST.find(p=>p.name===selectedName) ? 'selected' : '';
+  return opts + `<option value="__other__" ${otherSel}>🌍 其他球员  ·  最高+150分</option>`;
+}
+
 function loadChampPreds() {
     if (demoMode) { renderChampion(); tryShowWizard(); return; }
     onValue(ref(db, `rooms/${currentRoom}/champPreds`), snap => {
@@ -1517,16 +1540,20 @@ function renderChampSection2(myPred, now) {
         return;
     }
 
-    el.innerHTML = `<p class="text-xs text-gray-500 mb-2">🎲 热门球员赔率低（10分起）· 冷门球员赔率高（最高150分）</p>
-    <div class="flex gap-2 mb-2">
-        <input type="text" id="topScorerInput" placeholder="球员名字，如：姆巴佩 / 内马尔" maxlength="30"
-            class="flex-1 glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-gray-600"
-            oninput="updateScorerPreview(this.value)"
-            onkeypress="if(event.key==='Enter') submitTopScorer()">
-        <button onclick="submitTopScorer()" class="gold text-black font-black px-4 py-3 rounded-xl text-sm active:scale-95">确认</button>
+    el.innerHTML = `<p class="text-xs text-gray-500 mb-3">🎲 越冷门赔率越高 · 热门球员猜中10分 · 其他最高150分</p>
+    <select id="topScorerSelect" onchange="onScorerSelectChange(this.value)"
+        style="background:rgba(0,0,0,0.4)"
+        class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-2">
+        <option value="">— 选择球员 —</option>${_scorerSelectOpts('')}
+    </select>
+    <div id="scorerOtherWrap" class="hidden mb-2">
+        <input type="text" id="topScorerOtherInput" placeholder="填写球员姓名（中文或英文）" maxlength="30"
+            class="w-full glass-dark rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-gray-600"
+            oninput="updateScorerPreview(this.value)">
     </div>
-    <div id="scorerPreview" class="text-xs text-gray-500"></div>
-    <p class="text-xs text-red-400 mt-2">⚠️ 确认后永久锁定，无法更改！</p>`;
+    <div id="scorerPreview" class="text-xs text-gray-500 mb-2"></div>
+    <button onclick="submitTopScorer()" class="w-full gold text-black font-black py-3 rounded-xl text-sm active:scale-95">确认锁定 🔒</button>
+    <p class="text-xs text-red-400 mt-2 text-center">⚠️ 确认后永久锁定，无法更改！</p>`;
 }
 
 function renderChampSection3(myPred, now) {
@@ -1641,14 +1668,30 @@ window.confirmChampPick = async function() {
     toast(isChange ? `🏆 冠军预测已改为 ${teamName}（猜中+${maxPts}分）！` : `🏆 ${teamName} 已选为冠军预测！猜中可得+${maxPts}分`);
 };
 
+window.onScorerSelectChange = function(val) {
+    const wrap = document.getElementById('scorerOtherWrap');
+    const preview = document.getElementById('scorerPreview');
+    if (val === '__other__') {
+        if (wrap) wrap.classList.remove('hidden');
+        if (preview) preview.textContent = '';
+    } else {
+        if (wrap) wrap.classList.add('hidden');
+        if (val && preview) {
+            const pts = getTopScorerPts(val);
+            preview.innerHTML = `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`;
+        } else if (preview) {
+            preview.textContent = '';
+        }
+    }
+};
+
 window.updateScorerPreview = function(val) {
     const el = document.getElementById('scorerPreview');
     if (!el) return;
     const name = val?.trim();
     if (!name) { el.textContent = ''; return; }
     const pts = getTopScorerPts(name);
-    const isKnown = pts < 150;
-    el.innerHTML = isKnown
+    el.innerHTML = pts < 150
         ? `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`
         : `<span class="text-gray-400">未知球员 · 若猜中得 <span class="text-yellow-400 font-bold">+${pts}分</span></span>`;
 };
@@ -1656,9 +1699,16 @@ window.updateScorerPreview = function(val) {
 window.submitTopScorer = async function() {
     if (champPredsData[currentUser.id]?.topScorer) { toast('最佳射手已锁定', 'error'); return; }
     if (new Date() >= TOP_SCORER_DEADLINE) { toast('竞猜已截止', 'error'); return; }
-    const input = document.getElementById('topScorerInput');
-    const name = input?.value?.trim();
-    if (!name) { toast('请输入球员姓名', 'error'); return; }
+    const sel = document.getElementById('topScorerSelect');
+    const selVal = sel?.value;
+    let name;
+    if (selVal === '__other__') {
+        name = document.getElementById('topScorerOtherInput')?.value?.trim();
+        if (!name) { toast('请填写球员姓名', 'error'); return; }
+    } else {
+        name = selVal;
+        if (!name) { toast('请选择球员', 'error'); return; }
+    }
     const maxPts = getTopScorerPts(name);
     if (!confirm(`确认将 "${name}" 锁定为最佳射手预测？\n猜中可得 +${maxPts}分 · 锁定后无法更改！`)) return;
     const existing = champPredsData[currentUser.id] || {};
@@ -2589,7 +2639,7 @@ function tryShowWizard() {
     _wizChampPick = null;
     document.getElementById('wizardOverlay').classList.remove('hidden');
     document.getElementById('wizHeader').classList.remove('hidden');
-    document.getElementById('wizSkipBtn').textContent = '跳过';
+    document.getElementById('wizSkipBtn').textContent = '跳过/稍后再选';
     _renderWizStep();
 }
 
@@ -2599,7 +2649,7 @@ function _renderWizStep() {
     document.getElementById('wizStep').textContent = `第 ${_wizIdx+1} 步 / ${total}`;
     document.getElementById('wizBar').style.width = `${(_wizIdx/total)*100}%`;
     document.getElementById('wizNextBtn').textContent = _wizIdx === total-1 ? '完成 ✓' : '下一步 →';
-    document.getElementById('wizSkipBtn').textContent = '跳过';
+    document.getElementById('wizSkipBtn').textContent = '跳过/稍后再选';
 
     if (step.type === 'champion') {
         document.getElementById('wizTitle').textContent = '🏆 冠军预测';
@@ -2642,15 +2692,39 @@ function _renderWizChamp() {
 
 function _renderWizScorer() {
     return `<div class="glass rounded-2xl p-4">
-        <p class="text-sm text-gray-300 mb-1">填写你认为会拿最佳射手奖的球员</p>
-        <p class="text-xs text-gray-500 mb-1">热门球员赔率低（姆巴佩10分）· 冷门球员最高150分</p>
+        <p class="text-sm text-gray-300 mb-1">预测 2026 世界杯最佳射手</p>
+        <p class="text-xs text-gray-500 mb-1">越冷门赔率越高 · 最高150分</p>
         <p class="text-xs text-red-400 mb-4">⚠️ 确认后永久锁定，无法更改</p>
-        <input type="text" id="wizScorerInput" placeholder="球员名字，如：姆巴佩 / 内马尔" maxlength="30"
-            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-gray-600"
-            oninput="wizScorerPreview(this.value)">
-        <div id="wizScorerPreview" class="text-xs text-gray-500 mt-2"></div>
+        <select id="wizScorerSelect" onchange="onWizScorerSelectChange(this.value)"
+            style="background:rgba(0,0,0,0.4)"
+            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-2">
+            <option value="">— 选择球员 —</option>${_scorerSelectOpts('')}
+        </select>
+        <div id="wizScorerOtherWrap" class="hidden mb-2">
+            <input type="text" id="wizScorerOtherInput" placeholder="填写球员姓名（中文或英文）" maxlength="30"
+                class="w-full glass-dark rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 placeholder-gray-600"
+                oninput="wizScorerPreview(this.value)">
+        </div>
+        <div id="wizScorerPreview" class="text-xs text-gray-500"></div>
     </div>`;
 }
+
+window.onWizScorerSelectChange = function(val) {
+    const wrap = document.getElementById('wizScorerOtherWrap');
+    const preview = document.getElementById('wizScorerPreview');
+    if (val === '__other__') {
+        if (wrap) wrap.classList.remove('hidden');
+        if (preview) preview.textContent = '';
+    } else {
+        if (wrap) wrap.classList.add('hidden');
+        if (val && preview) {
+            const pts = getTopScorerPts(val);
+            preview.innerHTML = `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`;
+        } else if (preview) {
+            preview.textContent = '';
+        }
+    }
+};
 
 window.wizScorerPreview = function(val) {
     const el = document.getElementById('wizScorerPreview');
@@ -2817,7 +2891,7 @@ window.wizardNext = async function() {
 
         // Start app data loading, then switch wizard to prediction steps
         document.getElementById('wizHeader').classList.remove('hidden');
-        document.getElementById('wizSkipBtn').textContent = '跳过';
+        document.getElementById('wizSkipBtn').textContent = '跳过/稍后再选';
         startApp();
         // Wizard will be re-triggered by tryShowWizard once data loads
         document.getElementById('wizardOverlay').classList.add('hidden');
@@ -2836,7 +2910,10 @@ window.wizardNext = async function() {
         else await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred);
         toast(`🏆 ${_wizChampPick} 已保存！猜中+${maxPts}分`);
     } else if (step?.type === 'topScorer') {
-        const name = document.getElementById('wizScorerInput')?.value?.trim();
+        const selVal = document.getElementById('wizScorerSelect')?.value;
+        let name = selVal === '__other__'
+            ? document.getElementById('wizScorerOtherInput')?.value?.trim()
+            : selVal;
         if (name) {
             if (!confirm(`确认将 "${name}" 永久锁定为最佳射手预测？`)) return;
             const maxPts = getTopScorerPts(name);
