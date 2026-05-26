@@ -317,13 +317,10 @@
                     <div class="glass-dark rounded-xl p-3 text-xs space-y-1.5 text-gray-300">
                         <p>🏆 <b class="text-yellow-400">冠军预测</b> 截止6月10日 CET 23:59，可随时修改，猜中 <b class="text-white">+20~250分（按赔率）</b></p>
                         <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月10日 CET 23:59，锁定后不可改，猜中 <b class="text-white">+10分</b></p>
-                        <p>🎯 <b class="text-blue-300">半程冠军</b> 7月4日淘汰赛起开放，7月9日截止，猜中 <b class="text-white">+10分</b></p>
-                        <div class="mt-2 pt-2 border-t border-white/10">
-                            <p class="font-bold text-green-400 mb-1">半程冠军系数（影响冠军积分）：</p>
-                            <p>· 半程 = 冠军选择 → 冠军积分 <b class="text-green-400">×1.5（最高30分）</b></p>
-                            <p>· 半程 ≠ 冠军选择 → 冠军积分 <b class="text-orange-400">×0.5（降至10分）</b></p>
-                            <p>· 未填半程 → 冠军积分保持 <b class="text-white">20分</b></p>
-                        </div>
+                        <p>🎯 <b class="text-blue-300">半程冠军</b> 7月4日淘汰赛起开放，7月9日截止，作为冠军积分的系数：</p>
+                        <p>· 半程 = 冠军选择 → 冠军积分 <b class="text-green-400">×1.5</b></p>
+                        <p>· 半程 ≠ 冠军选择 → 冠军积分 <b class="text-orange-400">×0.5</b></p>
+                        <p>· 未填半程 → 冠军积分 <b class="text-white">×1（保持原分）</b></p>
                     </div>
                 </div>
             </div>
@@ -1052,7 +1049,6 @@ function _countPreds(uid) {
         else wrong += n;
     };
     add1(cp.champion,   cp.champPoints);
-    add1(cp.midway,     cp.midwayPoints);
     add1(cp.topScorer,  cp.topScorerPoints);
     add1(cp.goldenBoot, cp.goldenBootPoints);
     for (const gid of gids) {
@@ -1321,7 +1317,7 @@ function renderMyPreds() {
                 : '';
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
                 <span class="text-3xl">${getTeamFlag(myChamp.midway)}</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">半程冠军 · 10分</p>
+                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">半程冠军（冠军积分系数）</p>
                 <p class="font-black text-white">${myChamp.midway}</p>${mHint}</div>${b}
             </div>`;
         }
@@ -2135,13 +2131,6 @@ window.submitChampResult = async function() {
                 else pts = base;
             }
             updates[`rooms/${currentRoom}/champPreds/${uid}/champPoints`] = pts;
-            delta += pts;
-        }
-
-        // Midway points (separate 10pts)
-        if (p.midwayPoints === null || p.midwayPoints === undefined) {
-            const pts = (p.midway && p.midway === champion) ? 10 : 0;
-            updates[`rooms/${currentRoom}/champPreds/${uid}/midwayPoints`] = pts;
             delta += pts;
         }
 
