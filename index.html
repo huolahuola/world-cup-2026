@@ -199,17 +199,13 @@
                         class="w-full glass rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                         onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
                     <div class="glass-dark rounded-2xl px-4 py-3">
-                        <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
-                        <div class="flex gap-2 mb-2">
+                        <p class="text-sm font-bold mb-0.5">🎁 是否参加瓜分大奖游戏？</p>
+                        <p class="text-xs text-gray-500 mb-2">参加需联系拉筋确认报名，不参加直接玩公共榜</p>
+                        <div class="flex gap-2">
                             <button type="button" id="lpPrizeYes" onclick="lpTogglePrize(true)"
                                 class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
                             <button type="button" id="lpPrizeNo" onclick="lpTogglePrize(false)"
                                 class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
-                        </div>
-                        <div id="lpRoomWrap" class="mt-2">
-                            <input id="lp-room" type="text" placeholder="联系拉筋获取专属房间号" maxlength="16"
-                                class="w-full glass rounded-xl px-4 py-2.5 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
                         </div>
                     </div>
                     <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
@@ -482,10 +478,6 @@
                 <p class="font-black text-xl gold-text">积分排行榜</p>
                 <p class="text-xs text-gray-400 mt-0.5">实时更新 · 结果公布后自动计算</p>
             </div>
-            <div class="flex gap-2 mb-3">
-                <button id="lbModeRoom" onclick="setLbMode('room')" class="flex-1 gold text-black font-black py-2.5 rounded-xl text-sm active:scale-95 transition-transform">🏠 本房间</button>
-                <button id="lbModeGlobal" onclick="setLbMode('global')" class="flex-1 glass border border-white/20 text-gray-300 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">🌍 全服总榜</button>
-            </div>
             <div id="leaderboardContainer" class="space-y-2">
                 <div class="text-center py-8 text-gray-400">加载中...</div>
             </div>
@@ -742,14 +734,20 @@ import { getDatabase, ref, set, get, onValue, update, remove, push } from 'https
 
 // ─── State ───────────────────────────────────────────────
 let db = null;
+const PRIZE_ROOM = 'dqdm';
+const FREE_ROOM  = 'public';
+
 let demoMode = false;
 let currentUser = null;
-let currentRoom = 'public';
+let currentRoom = FREE_ROOM;
 let matchesData = {};
 let predsData = {};
 let scoresData = {};
-let _lbMode = 'room';
-let _globalScores = null; // [{uid, name, total, exact, correct, wrong, roomId, prizePool}]
+// Cross-room data (the other room, loaded alongside current room)
+let crossScoresData     = {};
+let crossChampPredsData = {};
+let crossGroupPredsData = {};
+let crossThirdPicksData = {};
 let avatarsData = {};
 let wantsPrize = true;
 const ADMIN_DEFAULT_PWD = 'admin2026';
@@ -920,7 +918,8 @@ window.logout = function() {
 function startApp() {
     show('app');
     document.getElementById('headerName').textContent = currentUser.name;
-    document.getElementById('headerRoom').textContent = `房间: ${currentRoom}${demoMode ? ' (演示)' : ''}`;
+    const roomLabel = currentRoom === PRIZE_ROOM ? '大奖房间' : currentRoom === FREE_ROOM ? '公共房间' : currentRoom;
+    document.getElementById('headerRoom').textContent = `${roomLabel}${demoMode ? ' (演示)' : ''}`;
     _refreshHeaderAvatar();
 
     loadGroups();
@@ -957,6 +956,22 @@ function startApp() {
             renderLeaderboard();
             _refreshHeaderAvatar();
             if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
+        });
+
+        // ── Cross-room listeners (the other room, for merged leaderboard + similarity) ──
+        const otherRoom = currentRoom === PRIZE_ROOM ? FREE_ROOM : PRIZE_ROOM;
+        onValue(ref(db, `rooms/${otherRoom}/scores`), snap => {
+            crossScoresData = snap.exists() ? snap.val() : {};
+            renderLeaderboard();
+        });
+        onValue(ref(db, `rooms/${otherRoom}/champPreds`), snap => {
+            crossChampPredsData = snap.exists() ? snap.val() : {};
+        });
+        onValue(ref(db, `rooms/${otherRoom}/groupPreds`), snap => {
+            crossGroupPredsData = snap.exists() ? snap.val() : {};
+        });
+        onValue(ref(db, `rooms/${otherRoom}/thirdPicks`), snap => {
+            crossThirdPicksData = snap.exists() ? snap.val() : {};
         });
     }
 }
@@ -1144,73 +1159,36 @@ function _podiumCard(uid, s, rank, isMe, size) {
 function renderLeaderboard() {
     const container = document.getElementById('leaderboardContainer');
 
-    // ── Global mode ──
-    if (_lbMode === 'global') {
-        if (!_globalScores) {
-            container.innerHTML = `<div class="text-center py-12 text-gray-500">加载中...</div>`;
-            return;
-        }
-        if (!_globalScores.length) {
-            container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">🌍</p><p>暂无数据</p></div>`;
-            return;
-        }
-        const sorted = [..._globalScores].sort((a,b) => (b.total||0)-(a.total||0));
-        let html = `<p class="text-xs text-gray-500 font-bold mb-2">🌍 全服总榜 · 共 ${sorted.length} 名参与者</p>`;
-        sorted.forEach((s, i) => {
-            const rank = i+1;
-            const isMe = s.name === currentUser.name;
-            let rankCls = 'glass', rankIcon = `<span class="font-black text-base w-7 text-center text-gray-400">${rank}</span>`;
-            if (rank===1){rankCls='rank-gold';rankIcon='<span class="text-2xl w-7 text-center">🏆</span>';}
-            else if(rank===2){rankCls='rank-silver';rankIcon='<span class="text-2xl w-7 text-center">🥈</span>';}
-            else if(rank===3){rankCls='rank-bronze';rankIcon='<span class="text-2xl w-7 text-center">🥉</span>';}
-            const textCls = rank<=3?'text-current':'text-white';
-            const roomTag = s.roomId !== currentRoom
-                ? `<span class="text-[10px] bg-white/10 text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">${s.roomName||s.roomId}</span>`
-                : `<span class="text-[10px] bg-blue-400/20 text-blue-300 px-1.5 py-0.5 rounded-full flex-shrink-0">本房间</span>`;
-            html += `<div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
-                ${rankIcon}
-                ${_avatarHtml(s._gid, s.name, 'w-9 h-9', 'text-lg')}
-                <div class="flex-1 min-w-0">
-                    <div class="font-bold text-sm flex items-center gap-1.5 flex-wrap">
-                        <span class="truncate ${textCls}">${s.name||'未知'}</span>
-                        ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">我</span>':''}
-                        ${roomTag}
-                    </div>
-                </div>
-                <div class="text-2xl font-black ${textCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
-            </div>`;
-        });
-        container.innerHTML = html;
-        return;
-    }
+    // ─ Prize pool section: always dqdm room only ─
+    const prizeRoomScores = currentRoom === PRIZE_ROOM ? scoresData : crossScoresData;
+    const prizeEntries = Object.entries(prizeRoomScores);
 
-    // ── Room mode ──
-    const entries = Object.entries(scoresData);
-    if (!entries.length) {
+    // ─ Total section: merge both rooms ─
+    const allScores = _allScoreEntries();
+    const allEntries = Object.entries(allScores);
+    if (!allEntries.length) {
         container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">🏅</p><p>暂无参与者</p></div>`;
         return;
     }
+    const allSorted = [...allEntries].sort(_lbSort);
 
-    const sorted = [...entries].sort(_lbSort);
     let html = '';
 
-    // ─ Prize pool podium (shown first if has prize members)
-    const prizeEntries = entries.filter(([,s]) => s.prizePool === true);
+    // ── 大奖游戏排行榜 (dqdm room only) ──
     if (prizeEntries.length > 0) {
         const prizeSorted = [...prizeEntries].sort(_lbSort);
         html += `<div class="glass rounded-2xl p-4 mb-4 border border-yellow-400/20">
             <p class="font-black text-center gold-text mb-0.5">🎁 大奖游戏排名</p>
-            <p class="text-xs text-center text-gray-400 mb-3">仅统计已报名参与者 · 前三名赢取奖品</p>`;
+            <p class="text-xs text-center text-gray-400 mb-3">仅统计参与大奖游戏的玩家 · 前三名赢取奖品</p>`;
         if (prizeSorted.length >= 3) {
             const [p1uid,p1s] = prizeSorted[0], [p2uid,p2s] = prizeSorted[1], [p3uid,p3s] = prizeSorted[2];
             html += `<div class="grid grid-cols-3 gap-2 mb-3">
-                ${_podiumCard(p2uid, p2s, 2, p2uid===currentUser.id||p2s.name===currentUser.name, 'small')}
-                ${_podiumCard(p1uid, p1s, 1, p1uid===currentUser.id||p1s.name===currentUser.name, 'big')}
-                ${_podiumCard(p3uid, p3s, 3, p3uid===currentUser.id||p3s.name===currentUser.name, 'small')}
+                ${_podiumCard(p2uid, p2s, 2, p2s.name===currentUser.name, 'small')}
+                ${_podiumCard(p1uid, p1s, 1, p1s.name===currentUser.name, 'big')}
+                ${_podiumCard(p3uid, p3s, 3, p3s.name===currentUser.name, 'small')}
             </div>`;
             prizeSorted.slice(3).forEach(([uid, s], i) => {
-                const rank = i + 4;
-                const isMe = uid===currentUser.id||s.name===currentUser.name;
+                const rank = i + 4, isMe = s.name === currentUser.name;
                 html += `<div class="glass rounded-xl p-2.5 flex items-center gap-2 mb-1.5 ${isMe?'ring-1 ring-yellow-400':''}">
                     <span class="font-black text-base w-6 text-center text-gray-400">${rank}</span>
                     ${_avatarHtml(uid, s.name, 'w-7 h-7', 'text-sm')}
@@ -1220,12 +1198,12 @@ function renderLeaderboard() {
             });
         } else {
             prizeSorted.forEach(([uid, s], i) => {
-                const rank = i+1, isMe = uid===currentUser.id||s.name===currentUser.name;
+                const rank = i+1, isMe = s.name === currentUser.name;
                 let rCls='glass', rIcon=`<span class="font-black text-xl w-8 text-center">${rank}</span>`;
                 if(rank===1){rCls='rank-gold';rIcon='<span class="text-2xl w-8 text-center">🥇</span>';}
                 else if(rank===2){rCls='rank-silver';rIcon='<span class="text-2xl w-8 text-center">🥈</span>';}
                 else if(rank===3){rCls='rank-bronze';rIcon='<span class="text-2xl w-8 text-center">🥉</span>';}
-                const tc=rank<=3?'text-current':'text-white';
+                const tc = rank<=3?'text-current':'text-white';
                 html += `<div class="${rCls} rounded-xl p-3 flex items-center gap-3 mb-1.5 ${isMe?'ring-2 ring-yellow-400':''}">
                     ${rIcon}
                     ${_avatarHtml(uid, s.name, 'w-8 h-8', 'text-base')}
@@ -1237,26 +1215,31 @@ function renderLeaderboard() {
         html += `</div>`;
     }
 
-    // ─ Full leaderboard
-    html += `<p class="text-xs text-gray-500 font-bold mb-2">📊 总排行</p>`;
-    sorted.forEach(([uid, s], i) => {
+    // ── 总排行 (all rooms merged) ──
+    const crossIds = new Set(Object.keys(crossScoresData));
+    html += `<p class="text-xs text-gray-500 font-bold mb-2">📊 总排行 · 共 ${allSorted.length} 人</p>`;
+    allSorted.forEach(([uid, s], i) => {
         const rank = i + 1;
-        const isMe = uid === currentUser.id || s.name === currentUser.name;
+        const isMe = s.name === currentUser.name;
         let rankCls = 'glass';
         let rankIcon = `<span class="font-black text-base w-7 text-center text-gray-400">${rank}</span>`;
-        if (rank === 1) { rankCls = 'rank-gold'; rankIcon = '<span class="text-2xl w-7 text-center">🏆</span>'; }
-        else if (rank === 2) { rankCls = 'rank-silver'; rankIcon = '<span class="text-2xl w-7 text-center">🥈</span>'; }
-        else if (rank === 3) { rankCls = 'rank-bronze'; rankIcon = '<span class="text-2xl w-7 text-center">🥉</span>'; }
-
-        const textCls = (rank <= 3) ? 'text-current' : 'text-white';
-
-        html += `<div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe ? 'ring-2 ring-yellow-400' : ''}">
+        if (rank===1){rankCls='rank-gold'; rankIcon='<span class="text-2xl w-7 text-center">🏆</span>';}
+        else if(rank===2){rankCls='rank-silver'; rankIcon='<span class="text-2xl w-7 text-center">🥈</span>';}
+        else if(rank===3){rankCls='rank-bronze'; rankIcon='<span class="text-2xl w-7 text-center">🥉</span>';}
+        const textCls = rank<=3 ? 'text-current' : 'text-white';
+        // Room tag: show which room they're from
+        const inCross = crossIds.has(uid);
+        const roomTag = inCross
+            ? `<span class="text-[10px] bg-yellow-400/15 text-yellow-400 px-1.5 py-0.5 rounded-full flex-shrink-0">大奖</span>`
+            : `<span class="text-[10px] bg-white/8 text-gray-500 px-1.5 py-0.5 rounded-full flex-shrink-0">公共</span>`;
+        html += `<div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
             ${rankIcon}
             ${_avatarHtml(uid, s.name, 'w-9 h-9', 'text-lg')}
             <div class="flex-1 min-w-0">
                 <div class="font-bold text-sm flex items-center gap-1.5">
                     <span class="truncate ${textCls}">${s.name||'未知'}</span>
-                    ${isMe ? '<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>' : ''}
+                    ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>':''}
+                    ${roomTag}
                 </div>
                 <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
             </div>
@@ -1264,49 +1247,12 @@ function renderLeaderboard() {
         </div>`;
     });
 
-    document.getElementById('leaderboardContainer').innerHTML = html;
+    container.innerHTML = html;
 }
 
 function updateHeaderPoints() {
     const my = Object.values(scoresData).find(s => s.name === currentUser.name);
     if (my) document.getElementById('headerPoints').innerHTML = `${my.total||0} <span class="text-xs font-normal text-gray-400">分</span>`;
-}
-
-// ─── Global Leaderboard ───────────────────────────────────
-window.setLbMode = async function(mode) {
-    _lbMode = mode;
-    const roomBtn   = document.getElementById('lbModeRoom');
-    const globalBtn = document.getElementById('lbModeGlobal');
-    if (roomBtn && globalBtn) {
-        roomBtn.className   = `flex-1 ${mode==='room'?'gold text-black':'glass border border-white/20 text-gray-300'} font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform`;
-        globalBtn.className = `flex-1 ${mode==='global'?'gold text-black':'glass border border-white/20 text-gray-300'} font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform`;
-        if (mode==='global') globalBtn.textContent = '⏳ 加载中…';
-    }
-    if (mode === 'global' && !_globalScores) await _loadGlobalScores();
-    if (globalBtn && mode==='global') globalBtn.textContent = '🌍 全服总榜';
-    renderLeaderboard();
-};
-
-async function _loadGlobalScores() {
-    if (demoMode || !db) { _globalScores = []; return; }
-    try {
-        const { get: fbGet, ref: fbRef } = await Promise.resolve({ get, ref });
-        const snap = await fbGet(fbRef(db, 'rooms'));
-        if (!snap.exists()) { _globalScores = []; return; }
-        const list = [];
-        snap.forEach(roomSnap => {
-            const roomId = roomSnap.key;
-            const roomName = roomId === 'public' ? '公共房间' : `房间 ${roomId}`;
-            const scores = roomSnap.child('scores').val() || {};
-            Object.entries(scores).forEach(([uid, s]) => {
-                list.push({ _gid: `${roomId}__${uid}`, ...s, roomId, roomName });
-            });
-        });
-        _globalScores = list;
-    } catch(e) {
-        console.error('Global scores load failed:', e);
-        _globalScores = [];
-    }
 }
 
 // ─── Avatar helpers ───────────────────────────────────────
@@ -1517,25 +1463,35 @@ function _genComment(sentence, picks) {
 }
 
 // ─── Similarity ──────────────────────────────────────────
+// Helpers that resolve prediction data across both rooms
+function _xChampPred(uid) { return champPredsData[uid] || crossChampPredsData[uid] || {}; }
+function _xGroupPred(uid, gid) { return groupPredsData[`${uid}_${gid}`] || crossGroupPredsData[`${uid}_${gid}`] || null; }
+function _xThirdPicks(uid) { return (thirdPicksData[uid] || crossThirdPicksData[uid])?.picks || []; }
+function _allScoreEntries() {
+    const merged = { ...crossScoresData };
+    Object.entries(scoresData).forEach(([uid, s]) => { merged[uid] = s; });
+    return merged;
+}
+
 function _calcSimilarity(myUid, otherUid) {
     let same = 0, total = 0;
-    const myC = champPredsData[myUid] || {};
-    const oC  = champPredsData[otherUid] || {};
+    const myC = _xChampPred(myUid);
+    const oC  = _xChampPred(otherUid);
 
-    if (myC.champion  && oC.champion)  { total++; if (myC.champion  === oC.champion)  same++; }
-    if (myC.midway    && oC.midway)    { total++; if (myC.midway    === oC.midway)    same++; }
-    if (myC.topScorer && oC.topScorer) { total++; if (myC.topScorer === oC.topScorer) same++; }
+    if (myC.champion   && oC.champion)   { total++; if (myC.champion   === oC.champion)   same++; }
+    if (myC.midway     && oC.midway)     { total++; if (myC.midway     === oC.midway)     same++; }
+    if (myC.topScorer  && oC.topScorer)  { total++; if (myC.topScorer  === oC.topScorer)  same++; }
     if (myC.goldenBoot && oC.goldenBoot) { total++; if (myC.goldenBoot === oC.goldenBoot) same++; }
 
     for (const gid of Object.keys(groupsData)) {
-        const myG = groupPredsData[`${myUid}_${gid}`];
-        const oG  = groupPredsData[`${otherUid}_${gid}`];
+        const myG = _xGroupPred(myUid, gid);
+        const oG  = _xGroupPred(otherUid, gid);
         if (!myG?.qualified?.length || !oG?.qualified?.length) continue;
         myG.qualified.forEach(t => { total++; if (oG.qualified.includes(t)) same++; });
     }
 
-    const myT = thirdPicksData[myUid]?.picks  || [];
-    const oT  = thirdPicksData[otherUid]?.picks || [];
+    const myT = _xThirdPicks(myUid);
+    const oT  = _xThirdPicks(otherUid);
     if (myT.length && oT.length) {
         myT.forEach(t => { total++; if (oT.includes(t)) same++; });
     }
@@ -1544,10 +1500,11 @@ function _calcSimilarity(myUid, otherUid) {
 }
 
 function _findSimilarUsers(myUid) {
-    const others = Object.keys(scoresData).filter(uid => uid !== myUid && scoresData[uid]?.name);
+    const all = _allScoreEntries();
+    const others = Object.keys(all).filter(uid => uid !== myUid && all[uid]?.name);
     if (!others.length) return null;
     const ranked = others
-        .map(uid => ({ uid, name: scoresData[uid].name, ..._calcSimilarity(myUid, uid) }))
+        .map(uid => ({ uid, name: all[uid].name, ..._calcSimilarity(myUid, uid) }))
         .filter(r => r.total > 0)
         .sort((a, b) => b.same - a.same);
     if (!ranked.length) return null;
@@ -3726,15 +3683,9 @@ function _renderWizLogin() {
     <div class="glass rounded-2xl p-4 space-y-3">
         <input id="wiz-name" type="text" placeholder="输入你的昵称" maxlength="16"
             class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-        <input id="wiz-room" type="text" placeholder="房间号（参加大奖游戏请联系拉筋获取）" maxlength="16"
-            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-        <input id="wiz-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
-            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
-            oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4)">
-        <p class="text-xs text-gray-500 text-center">首次登录自定义PIN；换设备时输入相同昵称+房间号+PIN找回账号</p>
         <div class="glass-dark rounded-2xl px-4 py-3">
-            <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
-            <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span> 获得专属房间号</p>
+            <p class="text-sm font-bold mb-0.5">🎁 是否参加瓜分大奖游戏？</p>
+            <p class="text-xs text-gray-500 mb-2">参加需联系拉筋确认报名；不参加直接玩公共榜</p>
             <div class="flex gap-2">
                 <button type="button" id="wizPrizeYes" onclick="wizTogglePrize(true)"
                     class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
@@ -3742,6 +3693,10 @@ function _renderWizLogin() {
                     class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
             </div>
         </div>
+        <input id="wiz-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
+            class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
+            oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4)">
+        <p class="text-xs text-gray-500 text-center">换设备时输入相同昵称+PIN即可找回账号</p>
     </div>`;
 }
 
@@ -4108,8 +4063,8 @@ function _wizEnterDemoMode() {
     currentUser = { id: 'demo_' + name, name };
     demo.scores[currentUser.id] = { name, total:0, exact:0, correct:0, wrong:0 };
     localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
-    localStorage.setItem('wc2026_room', 'public');
-    currentRoom = 'public';
+    localStorage.setItem('wc2026_room', FREE_ROOM);
+    currentRoom = FREE_ROOM;
     document.getElementById('wizardOverlay').classList.add('hidden');
     startApp();
 }
@@ -4120,14 +4075,13 @@ window.wizardNext = async function() {
     // Login step (no currentUser yet)
     if (!currentUser) {
         const name = document.getElementById('wiz-name')?.value?.trim();
-        const room = document.getElementById('wiz-room')?.value?.trim() || 'public';
         const pin  = document.getElementById('wiz-pin')?.value?.trim();
         if (!name) { toast('请输入昵称', 'error'); return; }
         if (!pin || pin.length < 4) { toast('请设置4位数字PIN码', 'error'); return; }
 
         nextBtn.textContent = '加入中...';
         nextBtn.disabled = true;
-        currentRoom = room;
+        currentRoom = _wizPrize ? PRIZE_ROOM : FREE_ROOM;
         wantsPrize = _wizPrize;
 
         try {
@@ -4270,18 +4224,13 @@ window.lpTogglePrize = function(val) {
     _lpPrize = val;
     document.getElementById('lpPrizeYes').className = `flex-1 border-2 ${val ? 'border-yellow-400/40 bg-yellow-400/10 text-yellow-300' : 'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
     document.getElementById('lpPrizeNo').className  = `flex-1 border-2 ${!val ? 'border-yellow-400/40 bg-yellow-400/10 text-yellow-300' : 'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
-    const roomWrap = document.getElementById('lpRoomWrap');
-    if (roomWrap) roomWrap.style.display = val ? '' : 'none';
-    if (!val) { const ri = document.getElementById('lp-room'); if(ri) ri.value = ''; }
 };
 
 window.lpLogin = async function() {
     const name = document.getElementById('lp-name').value.trim();
-    const roomRaw = document.getElementById('lp-room').value.trim();
-    const room = _lpPrize && roomRaw ? roomRaw : 'public';
+    const room = _lpPrize ? PRIZE_ROOM : FREE_ROOM;
     const pin  = document.getElementById('lp-pin').value.trim();
     if (!name) { toast('请输入昵称', 'error'); return; }
-    if (_lpPrize && !roomRaw) { toast('参加大奖游戏需要输入房间号', 'error'); return; }
     if (!pin || pin.length < 4) { toast('请设置4位数字PIN码', 'error'); return; }
 
     const btn = document.getElementById('lpLoginBtn');
