@@ -1257,11 +1257,11 @@ const DEFAULT_SCORER_ODDS = {
 };
 
 function getTopScorerPts(name) {
-  if (!name) return 150;
+  if (!name) return 50;
   if (DEFAULT_SCORER_ODDS[name] !== undefined) return DEFAULT_SCORER_ODDS[name];
   const lower = name.toLowerCase().trim();
   const key = Object.keys(DEFAULT_SCORER_ODDS).find(k => k.toLowerCase() === lower);
-  return key ? DEFAULT_SCORER_ODDS[key] : 150;
+  return key ? DEFAULT_SCORER_ODDS[key] : 50;
 }
 
 // Top 20 players shown in scorer dropdown (by odds tier)
@@ -1293,7 +1293,7 @@ function _scorerSelectOpts(selectedName) {
     `<option value="${p.name}" ${selectedName===p.name?'selected':''}>${p.flag} ${p.name}  ·  猜中+${p.pts}分</option>`
   ).join('');
   const otherSel = selectedName && !SCORER_LIST.find(p=>p.name===selectedName) ? 'selected' : '';
-  return opts + `<option value="__other__" ${otherSel}>🌍 其他球员  ·  最高+150分</option>`;
+  return opts + `<option value="__other__" ${otherSel}>🌍 其他球员  ·  +50分</option>`;
 }
 
 function loadChampPreds() {
@@ -1542,7 +1542,7 @@ function renderChampSection2(myPred, now) {
         return;
     }
 
-    el.innerHTML = `<p class="text-xs text-gray-500 mb-3">🎲 越冷门赔率越高 · 热门球员猜中10分 · 其他最高150分</p>
+    el.innerHTML = `<p class="text-xs text-gray-500 mb-3">🎲 越冷门赔率越高 · 热门球员猜中10分 · 其他+50分</p>
     <select id="topScorerSelect" onchange="onScorerSelectChange(this.value)"
         style="background:rgba(0,0,0,0.4)"
         class="w-full glass-dark rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-2">
@@ -1693,7 +1693,7 @@ window.updateScorerPreview = function(val) {
     const name = val?.trim();
     if (!name) { el.textContent = ''; return; }
     const pts = getTopScorerPts(name);
-    el.innerHTML = pts < 150
+    el.innerHTML = pts < 50
         ? `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`
         : `<span class="text-gray-400">未知球员 · 若猜中得 <span class="text-yellow-400 font-bold">+${pts}分</span></span>`;
 };
@@ -2771,7 +2771,7 @@ function _renderWizChamp() {
 function _renderWizScorer() {
     return `<div class="glass rounded-2xl p-4">
         <p class="text-sm text-gray-300 mb-1">预测 2026 世界杯最佳射手</p>
-        <p class="text-xs text-gray-500 mb-1">越冷门赔率越高 · 最高150分</p>
+        <p class="text-xs text-gray-500 mb-1">越冷门赔率越高 · 其他球员+50分</p>
         <p class="text-xs text-red-400 mb-4">⚠️ 确认后永久锁定，无法更改</p>
         <select id="wizScorerSelect" onchange="onWizScorerSelectChange(this.value)"
             style="background:rgba(0,0,0,0.4)"
@@ -2810,7 +2810,7 @@ window.wizScorerPreview = function(val) {
     const name = val?.trim();
     if (!name) { el.textContent=''; return; }
     const pts = getTopScorerPts(name);
-    el.innerHTML = pts < 150
+    el.innerHTML = pts < 50
         ? `<span class="text-yellow-400 font-bold">猜中可得 +${pts}分</span>`
         : `<span class="text-gray-400">未知球员 · 若猜中得 <span class="text-yellow-400 font-bold">+${pts}分</span></span>`;
 };
