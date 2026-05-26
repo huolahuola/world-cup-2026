@@ -148,62 +148,91 @@
 </div>
 
 <!-- ══════════ LANDING PAGE ══════════ -->
-<div id="landingPage" class="fixed inset-0 hidden overflow-y-auto" style="z-index:60; background:linear-gradient(160deg,#020a14 0%,#071220 40%,#0d0a1e 100%)">
-    <div class="min-h-full flex flex-col items-center justify-center px-5 py-10 max-w-sm mx-auto">
+<div id="landingPage" class="fixed inset-0 hidden" style="z-index:60; background:#010810">
 
-        <!-- Hero -->
-        <div id="lpHero" class="w-full flex flex-col items-center text-center">
-            <img src="https://upload.wikimedia.org/wikipedia/en/thumb/3/37/2026_FIFA_World_Cup_emblem.svg/400px-2026_FIFA_World_Cup_emblem.svg.png"
-                 alt="2026 FIFA World Cup"
-                 class="w-48 h-48 object-contain mb-5 drop-shadow-2xl"
-                 onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-            <div style="display:none" class="text-8xl mb-5">🏆</div>
-            <h1 class="text-2xl font-black leading-snug mb-1">2026 美加墨世界杯</h1>
-            <p class="text-base font-bold gold-text mb-2">懂球弟妹决战紫禁之巅</p>
-            <p class="text-xs text-gray-500 mb-8">和朋友们一起预测，看谁最懂球！</p>
-            <button onclick="lpShowLogin()"
-                class="w-full gold text-black font-black py-4 rounded-2xl text-xl active:scale-95 transition-transform shadow-lg">
-                开始预测 →
-            </button>
+    <!-- Player photo background (fixed, non-scrolling) -->
+    <div class="absolute inset-0 overflow-hidden">
+        <div style="display:flex; height:100%">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Kylian_Mbapp%C3%A9_World_Cup_Trophy.jpg/300px-Kylian_Mbapp%C3%A9_World_Cup_Trophy.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Lionel_Messi_WC2022.jpg/300px-Lionel_Messi_WC2022.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Cristiano_Ronaldo_2018.jpg/300px-Cristiano_Ronaldo_2018.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Erling_Haaland_June_2025.jpg/300px-Erling_Haaland_June_2025.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" alt="">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Lamine_Yamal_in_2025.jpg/300px-Lamine_Yamal_in_2025.jpg"
+                style="flex:1; object-fit:cover; object-position:top center" alt="">
         </div>
+        <!-- Dark gradient overlay: top fade + bottom solid -->
+        <div class="absolute inset-0" style="background:linear-gradient(to bottom, rgba(1,8,16,0.55) 0%, rgba(1,8,16,0.72) 45%, rgba(1,8,16,0.92) 72%, #010810 100%)"></div>
+        <!-- Player name labels at bottom of photo strips -->
+        <div class="absolute bottom-0 left-0 right-0 flex" style="height:36px; background:rgba(0,0,0,0.4)">
+            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇫🇷 姆巴佩</span>
+            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇦🇷 梅西</span>
+            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇵🇹 C罗</span>
+            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇳🇴 哈兰德</span>
+            <span style="flex:1" class="flex items-center justify-center text-white/50 text-xs font-bold">🇪🇸 亚马尔</span>
+        </div>
+    </div>
 
-        <!-- Login form -->
-        <div id="lpLogin" class="hidden w-full">
-            <button onclick="lpShowHero()" class="flex items-center gap-1 text-sm text-gray-400 mb-5 active:text-white">
-                ← 返回
-            </button>
-            <h2 class="text-2xl font-black text-center mb-1">加入竞猜</h2>
-            <p class="text-center text-sm text-gray-400 mb-6">填写信息，开始预测之旅</p>
-            <div class="space-y-3">
-                <input id="lp-name" type="text" placeholder="输入你的昵称" maxlength="16"
-                    class="w-full glass rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                    onkeypress="if(event.key==='Enter')document.getElementById('lp-room').focus()">
-                <input id="lp-room" type="text" placeholder="房间号（联系拉筋获取）" maxlength="16"
-                    class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                    onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
-                <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
-                    class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
-                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-                    onkeypress="if(event.key==='Enter')lpLogin()">
-                <p class="text-xs text-gray-500 text-center">换设备时输入相同昵称+房间号+PIN即可找回账号</p>
-                <div class="glass-dark rounded-2xl px-4 py-3">
-                    <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
-                    <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span> 获得专属房间号</p>
-                    <div class="flex gap-2">
-                        <button type="button" id="lpPrizeYes" onclick="lpTogglePrize(true)"
-                            class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
-                        <button type="button" id="lpPrizeNo" onclick="lpTogglePrize(false)"
-                            class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
-                    </div>
-                </div>
-                <button id="lpLoginBtn" onclick="lpLogin()"
-                    class="w-full gold text-black font-black py-4 rounded-2xl text-lg active:scale-95 transition-transform">
-                    加入游戏 →
+    <!-- Scrollable content on top of background -->
+    <div class="absolute inset-0 overflow-y-auto">
+        <div class="min-h-full flex flex-col items-center justify-center px-5 py-10 max-w-sm mx-auto" style="padding-bottom:50px">
+
+            <!-- Hero -->
+            <div id="lpHero" class="w-full flex flex-col items-center text-center">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/2026_FIFA_World_Cup_emblem.svg/400px-2026_FIFA_World_Cup_emblem.svg.png"
+                     alt="2026 FIFA World Cup"
+                     class="w-44 h-44 object-contain mb-4 drop-shadow-2xl"
+                     style="filter:drop-shadow(0 0 24px rgba(247,201,72,0.35))">
+                <h1 class="text-2xl font-black leading-snug mb-0.5">2026 美加墨世界杯</h1>
+                <p class="text-lg font-bold gold-text mb-1">懂球弟妹决战紫禁之巅</p>
+                <p class="text-xs text-gray-400 mb-8">和朋友一起预测 · 看谁最懂球</p>
+                <button onclick="lpShowLogin()"
+                    class="w-full gold text-black font-black py-4 rounded-2xl text-xl active:scale-95 transition-transform shadow-2xl">
+                    开始预测 →
                 </button>
-                <p class="text-center text-xs text-gray-500">同一房间号的朋友共享排行榜</p>
             </div>
-        </div>
 
+            <!-- Login form (slides in) -->
+            <div id="lpLogin" class="hidden w-full">
+                <button onclick="lpShowHero()" class="flex items-center gap-1 text-sm text-gray-400 mb-5 active:text-white">
+                    ← 返回
+                </button>
+                <h2 class="text-2xl font-black text-center mb-1">加入竞猜</h2>
+                <p class="text-center text-sm text-gray-400 mb-6">填写信息，开始预测之旅</p>
+                <div class="space-y-3">
+                    <input id="lp-name" type="text" placeholder="输入你的昵称" maxlength="16"
+                        class="w-full glass rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        onkeypress="if(event.key==='Enter')document.getElementById('lp-room').focus()">
+                    <input id="lp-room" type="text" placeholder="房间号（联系拉筋获取）" maxlength="16"
+                        class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
+                    <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
+                        class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
+                        oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+                        onkeypress="if(event.key==='Enter')lpLogin()">
+                    <p class="text-xs text-gray-500 text-center">换设备时输入相同昵称+房间号+PIN即可找回账号</p>
+                    <div class="glass-dark rounded-2xl px-4 py-3">
+                        <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
+                        <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span> 获得专属房间号</p>
+                        <div class="flex gap-2">
+                            <button type="button" id="lpPrizeYes" onclick="lpTogglePrize(true)"
+                                class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
+                            <button type="button" id="lpPrizeNo" onclick="lpTogglePrize(false)"
+                                class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
+                        </div>
+                    </div>
+                    <button id="lpLoginBtn" onclick="lpLogin()"
+                        class="w-full gold text-black font-black py-4 rounded-2xl text-lg active:scale-95 transition-transform">
+                        加入游戏 →
+                    </button>
+                    <p class="text-center text-xs text-gray-500">同一房间号的朋友共享排行榜</p>
+                </div>
+            </div>
+
+        </div>
     </div>
 </div>
 
