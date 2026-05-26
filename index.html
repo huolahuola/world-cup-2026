@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏆 2026 世界杯竞猜</title>
+    <title>2026 美加墨世界杯竞猜</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { box-sizing: border-box; }
@@ -147,47 +147,63 @@
     </div>
 </div>
 
-<!-- ══════════ LOGIN MODAL ══════════ -->
-<div id="loginModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-40 hidden p-4">
-    <div class="glass rounded-3xl p-8 max-w-sm w-full text-center slide-up">
-        <div class="text-6xl mb-3">🏆</div>
-        <h1 class="text-3xl font-black mb-1">2026 世界杯</h1>
-        <p class="font-bold text-lg gold-text mb-6">竞猜挑战赛</p>
+<!-- ══════════ LANDING PAGE ══════════ -->
+<div id="landingPage" class="fixed inset-0 hidden overflow-y-auto" style="z-index:60; background:linear-gradient(160deg,#020a14 0%,#071220 40%,#0d0a1e 100%)">
+    <div class="min-h-full flex flex-col items-center justify-center px-5 py-10 max-w-sm mx-auto">
 
-        <div class="space-y-3 mb-6">
-            <input id="loginName" type="text" placeholder="输入你的昵称" maxlength="16"
-                class="w-full glass border-0 rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                onkeypress="if(event.key==='Enter') login()">
-            <div class="flex items-center gap-2">
-                <input id="loginRoom" type="text" placeholder="房间号（可选，默认公共房间）" maxlength="16"
-                    class="flex-1 glass border-0 rounded-2xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                    onkeypress="if(event.key==='Enter') login()">
-            </div>
-            <input id="loginPin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
-                class="w-full glass border-0 rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
-                oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-                onkeypress="if(event.key==='Enter') login()">
-            <p class="text-xs text-gray-500 text-center -mt-1">首次登录自定义PIN码；换设备时输入相同昵称+房间号+PIN即可找回账号</p>
-            <div class="glass-dark rounded-2xl px-4 py-3 text-left">
-                <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
-                <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span>（微信同名）支付 15€ / 120人民币<br>前三名奖品：<span class="text-yellow-300">🥇 夺冠球队真品球衣</span> · 二三名待定</p>
-                <div class="flex gap-2">
-                    <button type="button" id="prizeYesBtn" onclick="togglePrize(true)"
-                        class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm transition-all">
-                        ✅ 参加
-                    </button>
-                    <button type="button" id="prizeNoBtn" onclick="togglePrize(false)"
-                        class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm transition-all">
-                        ❌ 不参加
-                    </button>
+        <!-- Hero -->
+        <div id="lpHero" class="w-full flex flex-col items-center text-center">
+            <img src="https://upload.wikimedia.org/wikipedia/en/thumb/3/37/2026_FIFA_World_Cup_emblem.svg/400px-2026_FIFA_World_Cup_emblem.svg.png"
+                 alt="2026 FIFA World Cup"
+                 class="w-48 h-48 object-contain mb-5 drop-shadow-2xl"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+            <div style="display:none" class="text-8xl mb-5">🏆</div>
+            <h1 class="text-2xl font-black leading-snug mb-1">2026 美加墨世界杯</h1>
+            <p class="text-base font-bold gold-text mb-2">懂球弟妹决战紫禁之巅</p>
+            <p class="text-xs text-gray-500 mb-8">和朋友们一起预测，看谁最懂球！</p>
+            <button onclick="lpShowLogin()"
+                class="w-full gold text-black font-black py-4 rounded-2xl text-xl active:scale-95 transition-transform shadow-lg">
+                开始预测 →
+            </button>
+        </div>
+
+        <!-- Login form -->
+        <div id="lpLogin" class="hidden w-full">
+            <button onclick="lpShowHero()" class="flex items-center gap-1 text-sm text-gray-400 mb-5 active:text-white">
+                ← 返回
+            </button>
+            <h2 class="text-2xl font-black text-center mb-1">加入竞猜</h2>
+            <p class="text-center text-sm text-gray-400 mb-6">填写信息，开始预测之旅</p>
+            <div class="space-y-3">
+                <input id="lp-name" type="text" placeholder="输入你的昵称" maxlength="16"
+                    class="w-full glass rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    onkeypress="if(event.key==='Enter')document.getElementById('lp-room').focus()">
+                <input id="lp-room" type="text" placeholder="房间号（联系拉筋获取）" maxlength="16"
+                    class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
+                <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
+                    class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
+                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+                    onkeypress="if(event.key==='Enter')lpLogin()">
+                <p class="text-xs text-gray-500 text-center">换设备时输入相同昵称+房间号+PIN即可找回账号</p>
+                <div class="glass-dark rounded-2xl px-4 py-3">
+                    <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
+                    <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span> 获得专属房间号</p>
+                    <div class="flex gap-2">
+                        <button type="button" id="lpPrizeYes" onclick="lpTogglePrize(true)"
+                            class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
+                        <button type="button" id="lpPrizeNo" onclick="lpTogglePrize(false)"
+                            class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
+                    </div>
                 </div>
+                <button id="lpLoginBtn" onclick="lpLogin()"
+                    class="w-full gold text-black font-black py-4 rounded-2xl text-lg active:scale-95 transition-transform">
+                    加入游戏 →
+                </button>
+                <p class="text-center text-xs text-gray-500">同一房间号的朋友共享排行榜</p>
             </div>
         </div>
 
-        <button onclick="login()" class="w-full gold text-black font-black py-4 rounded-2xl text-lg active:scale-95 transition-transform">
-            加入游戏 →
-        </button>
-        <p class="text-xs text-gray-500 mt-4">同一房间号的朋友共享排行榜 · 昵称+房间号+PIN = 你的专属账号</p>
     </div>
 </div>
 
@@ -238,7 +254,7 @@
     <header class="sticky top-0 z-30 glass-dark border-b border-white/8 px-4 py-3">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="font-black text-lg leading-tight">🏆 2026 世界杯竞猜</h1>
+                <h1 class="font-black text-base leading-tight">🏆 2026 美加墨世界杯</h1>
                 <p class="text-xs text-gray-400" id="headerRoom"></p>
             </div>
             <div class="flex items-center gap-3">
@@ -727,8 +743,7 @@ async function bootstrap() {
         currentRoom = savedRoom;
         startApp();
     } else {
-        // New user → show wizard with login step
-        wizardShowLogin();
+        show('landingPage');
     }
 }
 
@@ -2500,7 +2515,7 @@ function _renderWizLogin() {
         <p class="text-xs text-gray-500 text-center">首次登录自定义PIN；换设备时输入相同昵称+房间号+PIN找回账号</p>
         <div class="glass-dark rounded-2xl px-4 py-3">
             <p class="text-sm font-bold mb-1.5">🎁 是否参加瓜分大奖游戏？</p>
-            <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span>（微信同名）支付 15€ / 120人民币<br>前三名：<span class="text-yellow-300">🥇 夺冠球队真品球衣</span> · 二三名待定</p>
+            <p class="text-xs text-gray-400 mb-3">参与者需联系 <span class="text-yellow-400 font-bold">拉筋</span> 获得专属房间号</p>
             <div class="flex gap-2">
                 <button type="button" id="wizPrizeYes" onclick="wizTogglePrize(true)"
                     class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
@@ -2833,6 +2848,91 @@ function _wizAdvance() {
     _wizGpStates = {}; _wizChampPick = null;
     _renderWizStep();
 }
+
+// ─── Landing Page ─────────────────────────────────────────
+let _lpPrize = true;
+
+window.lpShowLogin = function() {
+    document.getElementById('lpHero').classList.add('hidden');
+    const lf = document.getElementById('lpLogin');
+    lf.classList.remove('hidden');
+    setTimeout(() => document.getElementById('lp-name').focus(), 100);
+};
+
+window.lpShowHero = function() {
+    document.getElementById('lpLogin').classList.add('hidden');
+    document.getElementById('lpHero').classList.remove('hidden');
+};
+
+window.lpTogglePrize = function(val) {
+    _lpPrize = val;
+    document.getElementById('lpPrizeYes').className = `flex-1 border-2 ${val ? 'border-yellow-400/40 bg-yellow-400/10 text-yellow-300' : 'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
+    document.getElementById('lpPrizeNo').className  = `flex-1 border-2 ${!val ? 'border-yellow-400/40 bg-yellow-400/10 text-yellow-300' : 'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
+};
+
+window.lpLogin = async function() {
+    const name = document.getElementById('lp-name').value.trim();
+    const room = document.getElementById('lp-room').value.trim() || 'public';
+    const pin  = document.getElementById('lp-pin').value.trim();
+    if (!name) { toast('请输入昵称', 'error'); return; }
+    if (!pin || pin.length < 4) { toast('请设置4位数字PIN码', 'error'); return; }
+
+    const btn = document.getElementById('lpLoginBtn');
+    btn.textContent = '加入中...';
+    btn.disabled = true;
+    wantsPrize = _lpPrize;
+    currentRoom = room;
+
+    try {
+        if (demoMode || !db) {
+            demoMode = true;
+            currentUser = { id: 'demo_' + name, name };
+            if (!demo.scores[currentUser.id]) demo.scores[currentUser.id] = { name, total:0, exact:0, correct:0, wrong:0 };
+        } else {
+            const usersSnap = await get(ref(db, `rooms/${room}/users`));
+            let uid = null, isExisting = false;
+            if (usersSnap.exists()) {
+                const users = usersSnap.val();
+                const match = Object.entries(users).find(([,u]) => u.name === name);
+                if (match) { uid = match[0]; isExisting = true; }
+            }
+            if (isExisting) {
+                const userSnap = await get(ref(db, `rooms/${room}/users/${uid}`));
+                const savedPin = userSnap.val()?.pin;
+                if (savedPin && pin && savedPin !== pin) toast('PIN码不匹配，已用昵称+房间号找回账号 ⚠️');
+                await update(ref(db, `rooms/${room}/users/${uid}`), { prizePool: wantsPrize, pin });
+                await update(ref(db, `rooms/${room}/scores/${uid}`), { prizePool: wantsPrize });
+            } else {
+                uid = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+                await set(ref(db, `rooms/${room}/users/${uid}`), { name, joinedAt:Date.now(), prizePool:wantsPrize, pin });
+                await set(ref(db, `rooms/${room}/scores/${uid}`), { name, total:0, exact:0, correct:0, wrong:0, prizePool:wantsPrize });
+                const mSnap = await get(ref(db, `rooms/${room}/matches`));
+                if (!mSnap.exists()) {
+                    await set(ref(db, `rooms/${room}/matches`), defaultMatches());
+                    await set(ref(db, `rooms/${room}/settings`), { adminPassword: ADMIN_DEFAULT_PWD });
+                }
+            }
+            currentUser = { id: uid, name };
+        }
+        localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
+        localStorage.setItem('wc2026_room', currentRoom);
+        hide('landingPage');
+        startApp();
+    } catch(e) {
+        console.error('登录错误:', e);
+        toast('连接失败，以演示模式加入', 'error');
+        demoMode = true;
+        currentUser = { id: 'demo_' + name, name };
+        demo.scores[currentUser.id] = { name, total:0, exact:0, correct:0, wrong:0 };
+        localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
+        localStorage.setItem('wc2026_room', room);
+        hide('landingPage');
+        startApp();
+    } finally {
+        btn.textContent = '加入游戏 →';
+        btn.disabled = false;
+    }
+};
 
 // ─── Start ────────────────────────────────────────────────
 bootstrap();
