@@ -1965,7 +1965,7 @@ function renderMyPreds() {
 
     // Similarity card
     const sim = _findSimilarUsers(uid);
-    if (sim && Object.keys(scoresData).length > 1) {
+    if (sim && Object.keys(_allScoreEntries()).length > 1) {
         const mostPct  = sim.most.total  ? Math.round(sim.most.same  / sim.most.total  * 100) : 0;
         const leastPct = sim.least.total ? Math.round(sim.least.same / sim.least.total * 100) : 0;
         const sameRow = sim.most.uid === sim.least.uid ? true : false;
