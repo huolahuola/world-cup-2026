@@ -207,6 +207,10 @@
                             <button type="button" id="lpPrizeNo" onclick="lpTogglePrize(false)"
                                 class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
                         </div>
+                        <div id="lpRoomRow" class="mt-2">
+                            <input id="lp-room" type="text" placeholder="输入专属房间号（联系拉筋获取）" maxlength="20"
+                                class="w-full glass rounded-xl px-4 py-2.5 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                        </div>
                     </div>
                     <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
                         class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
@@ -4300,11 +4304,18 @@ window.lpTogglePrize = function(val) {
     _lpPrize = val;
     document.getElementById('lpPrizeYes').className = `flex-1 border-2 ${val ? 'border-yellow-400/40 bg-yellow-400/10 text-yellow-300' : 'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
     document.getElementById('lpPrizeNo').className  = `flex-1 border-2 ${!val ? 'border-yellow-400/40 bg-yellow-400/10 text-yellow-300' : 'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
+    document.getElementById('lpRoomRow').style.display = val ? '' : 'none';
 };
 
 window.lpLogin = async function() {
     const name = document.getElementById('lp-name').value.trim();
-    const room = _lpPrize ? PRIZE_ROOM : FREE_ROOM;
+    let room;
+    if (_lpPrize) {
+        room = (document.getElementById('lp-room')?.value || '').trim();
+        if (!room) { toast('请输入专属房间号', 'error'); return; }
+    } else {
+        room = FREE_ROOM;
+    }
     const pin  = document.getElementById('lp-pin').value.trim();
     if (!name) { toast('请输入昵称', 'error'); return; }
     if (!pin || pin.length < 4) { toast('请设置4位数字PIN码', 'error'); return; }
