@@ -501,8 +501,8 @@
                 </div>
             </div>
             <div class="flex gap-2 mb-3">
-                <button onclick="generatePredCard('full')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">📋 完整存档</button>
-                <button onclick="generatePredCard('share')" class="flex-1 glass border border-white/20 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
+                <button onclick="generatePredCard('full')" class="flex-1 glass border border-white/20 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">📋 完整存档</button>
+                <button onclick="generatePredCard('share')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
             </div>
             <div id="myPredsContainer" class="space-y-2">
                 <div class="text-center py-8 text-gray-400">暂无预测</div>
@@ -743,7 +743,10 @@ let currentRoom = FREE_ROOM;
 let matchesData = {};
 let predsData = {};
 let scoresData = {};
-// Cross-room data (the other room, loaded alongside current room)
+// Cross-room data: always load both PRIZE_ROOM and FREE_ROOM regardless of currentRoom
+let prizeRoomScoresData = {};   // dqdm
+let freeRoomScoresData  = {};   // public
+// Aliases kept for similarity helpers (always = the non-current room's preds)
 let crossScoresData     = {};
 let crossChampPredsData = {};
 let crossGroupPredsData = {};
@@ -958,12 +961,18 @@ function startApp() {
             if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
 
-        // ── Cross-room listeners (the other room, for merged leaderboard + similarity) ──
-        const otherRoom = currentRoom === PRIZE_ROOM ? FREE_ROOM : PRIZE_ROOM;
-        onValue(ref(db, `rooms/${otherRoom}/scores`), snap => {
-            crossScoresData = snap.exists() ? snap.val() : {};
+        // ── Cross-room listeners: always load both fixed rooms for merged leaderboard ──
+        onValue(ref(db, `rooms/${PRIZE_ROOM}/scores`), snap => {
+            prizeRoomScoresData = snap.exists() ? snap.val() : {};
+            if (currentRoom !== PRIZE_ROOM) crossScoresData = prizeRoomScoresData;
             renderLeaderboard();
         });
+        onValue(ref(db, `rooms/${FREE_ROOM}/scores`), snap => {
+            freeRoomScoresData = snap.exists() ? snap.val() : {};
+            if (currentRoom !== FREE_ROOM) crossScoresData = freeRoomScoresData;
+            renderLeaderboard();
+        });
+        const otherRoom = currentRoom === PRIZE_ROOM ? FREE_ROOM : PRIZE_ROOM;
         onValue(ref(db, `rooms/${otherRoom}/champPreds`), snap => {
             crossChampPredsData = snap.exists() ? snap.val() : {};
         });
@@ -1160,7 +1169,8 @@ function renderLeaderboard() {
     const container = document.getElementById('leaderboardContainer');
 
     // ─ Prize pool section: always dqdm room only ─
-    const prizeRoomScores = currentRoom === PRIZE_ROOM ? scoresData : crossScoresData;
+    const prizeRoomScores = Object.keys(prizeRoomScoresData).length ? prizeRoomScoresData
+        : (currentRoom === PRIZE_ROOM ? scoresData : {});
     const prizeEntries = Object.entries(prizeRoomScores);
 
     // ─ Total section: merge both rooms ─
@@ -1216,7 +1226,7 @@ function renderLeaderboard() {
     }
 
     // ── 总排行 (all rooms merged) ──
-    const crossIds = new Set(Object.keys(crossScoresData));
+    const prizeIds = new Set(Object.keys(prizeRoomScoresData));
     html += `<p class="text-xs text-gray-500 font-bold mb-2">📊 总排行 · 共 ${allSorted.length} 人</p>`;
     allSorted.forEach(([uid, s], i) => {
         const rank = i + 1;
@@ -1227,9 +1237,9 @@ function renderLeaderboard() {
         else if(rank===2){rankCls='rank-silver'; rankIcon='<span class="text-2xl w-7 text-center">🥈</span>';}
         else if(rank===3){rankCls='rank-bronze'; rankIcon='<span class="text-2xl w-7 text-center">🥉</span>';}
         const textCls = rank<=3 ? 'text-current' : 'text-white';
-        // Room tag: show which room they're from
-        const inCross = crossIds.has(uid);
-        const roomTag = inCross
+        // Room tag: based on actual room membership
+        const isPrize = prizeIds.has(uid);
+        const roomTag = isPrize
             ? `<span class="text-[10px] bg-yellow-400/15 text-yellow-400 px-1.5 py-0.5 rounded-full flex-shrink-0">大奖</span>`
             : `<span class="text-[10px] bg-white/8 text-gray-500 px-1.5 py-0.5 rounded-full flex-shrink-0">公共</span>`;
         html += `<div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
@@ -1427,39 +1437,70 @@ function _scoreRange(uid) {
 }
 
 // ─── Claude Card Commentary ──────────────────────────────
-function _genComment(sentence, picks) {
-    const _pick = (arr, seed) => arr[seed % arr.length];
+function _genComment(sentence, picks, gpRows, thirdPicksArr) {
+    const _pick = (arr, seed) => arr[((seed % arr.length) + arr.length) % arr.length];
     const _hash = s => s.split('').reduce((a,c) => ((a<<5)-a+c.charCodeAt(0))|0, 0) >>> 0;
+    // Build a seed from the prediction profile itself (not the sentence)
+    const profileStr = [picks?.champion, picks?.midway, picks?.topScorer, picks?.goldenBoot,
+        (gpRows||[]).map(r=>r.winner).join(','), (thirdPicksArr||[]).join(',')].join('|');
+    const h = _hash(profileStr || 'empty');
 
-    if (!sentence) {
-        const nulls = ['此人缄默，深不可测。', '无言以对，猜测空间无限大。', '留白也是一种战略。', '预言家从不轻易开口。'];
-        return _pick(nulls, _hash(picks?.champion||'x'));
+    const champOdds   = getChampPts(picks?.champion);
+    const midwayOdds  = getChampPts(picks?.midway);
+    const hasChamp    = !!picks?.champion;
+    const hasMidway   = !!picks?.midway;
+    const changedMind = hasChamp && hasMidway && picks.champion !== picks.midway;
+    const consistent  = hasChamp && hasMidway && picks.champion === picks.midway;
+    const totalGroups = Object.keys(groupsData).length;
+    const filledGroups= (gpRows||[]).length;
+    const thirdCnt    = (thirdPicksArr||[]).length;
+    const hasTopScorer= !!picks?.topScorer;
+    const hasGolden   = !!picks?.goldenBoot;
+    const detailScore = (hasTopScorer?1:0) + (hasGolden?1:0) + (thirdCnt>0?1:0);
+    const isLazy      = filledGroups < Math.ceil(totalGroups * 0.4) && !hasChamp;
+    const isThough    = filledGroups >= totalGroups && detailScore >= 2;
+    const isBold      = champOdds >= 80;
+    const isSafe      = hasChamp && champOdds <= 35;
+
+    const pools = [];
+
+    if (!hasChamp && filledGroups === 0 && thirdCnt === 0 && !hasTopScorer) {
+        return _pick(['表单几乎空白，要么是战略性弃赛，要么还没睡醒。', '预测全靠缘分，Claude不做评价。', '啥都没填……胆子挺大的。', '这份预测的信息量等于零，但勇气满分。'], h);
     }
-    const h = _hash(sentence);
-    const rules = [
-        [/阿根廷|梅西|messi/i,    ['小组赛就哭了怎么办？', '梅西已退役但信仰不退。', '双冠王梦想，胆子不小。', '阿根廷球迷的倔强令Claude折服。']],
-        [/法国|姆巴佩|mbappe/i,   ['法国人连国歌都唱不齐，但能夺冠。', '姆巴佩单骑救主模式开启。', '法国：实力碾压，运气看脸。', '高卢雄鸡鸣得响啊。']],
-        [/巴西|内马尔|桑巴/i,     ['五年一届的心碎传统要延续？', '桑巴军团永远有看头。', '内马尔又伤了——Claude预言。', '巴西每届都是热门，奇怪。']],
-        [/英格兰|英格|coming home/i,['It\'s coming home第N+1次。', '南门泡茶中，请勿打扰。', '英格兰球迷的永恒执念。', '这次真的回家了！——Claude不确信']],
-        [/西班牙|传控|tiki/i,     ['传控足球的复仇之旅。', '90分钟横传，赛后夺冠。', '哲学足球无懈可击——除非落后。', '西班牙看得我睡着了，但冠军了。']],
-        [/葡萄牙|C罗|我罗|siuuu/i,['SIUUUU！！！', 'C罗的执念，Claude也叹服。', '球王之战开幕！Claude买票了。', '我罗老当益壮，令人动容。']],
-        [/德国|德意志|日耳曼/i,   ['日耳曼战车寻找修复包。', '4-2成为历史教训。', '德国机器的轰鸣声回来了？', '严谨的预测，严谨的球队。']],
-        [/美国|主场|东道主|休斯/i, ['主场光环+1，确实存在。', '美国队：我们有万亿GDP。', '东道主效应，历史证明有用。', '休斯顿，我们有问题——没有，夺冠了。']],
-        [/中国|国足/i,            ['国足出线，Claude已记入历史。', '这句话需要勇气，Claude鼓掌。', '国足球迷的执念感天动地。', '中国足球的春天要来了吗？']],
-        [/日本|武士|蓝武士/i,     ['亚洲之光继续发光。', '日本足球已经进化完毕。', '武士精神无惧强敌，Claude认可。', '亚洲荣耀由日本来扛？']],
-        [/爆冷|黑马|upset/i,      ['爆冷猎手上线，高风险高回报。', '你的预测收益率感人。', 'Claude表示这个概率……很有意思。', '黑马爱好者，另类英雄。']],
-        [/复仇|报仇|revenge/i,    ['复仇的火焰烧得很旺。', '世界杯版"君子报仇"。', '输球不忘复仇，Claude记下了。', '恩怨情仇全在球场上了断。']],
-        [/再次|蝉联|again/i,      ['连冠难，但梦想可以有。', '历史总是惊人地相似？', '二次夺冠的奇迹，Claude拭目以待。']],
-    ];
-    for (const [pat, pool] of rules) {
-        if (pat.test(sentence)) return _pick(pool, h);
+
+    if (isLazy) {
+        pools.push(...['小组赛都懒得填，冠军随缘，Claude替你捏把汗。', '预测界的佛系选手，随便猜猜，反正也没人在意对吧。', '填表速度感人，Claude建议下次开猜前先存草稿。', '敷衍程度令人叹为观止，必定是高人。']);
     }
-    if (picks?.champion) {
-        const fb = [`${picks.champion}的铁粉已就位，Claude已标记。`, `押注${picks.champion}，魄力十足。`, `全押${picks.champion}，不留后路。`];
-        return _pick(fb, h);
+    if (isThough) {
+        pools.push(...['小组全填、细节全押、精力可嘉，就是不知道猜对了没。', '事无巨细全部选满，Claude怀疑你是某球探数据库的化身。', '填表认真度满分，但世界杯不按剧本走的。', '把预测当数学题来做，Claude很欣慰，也很担心你的心理承受能力。']);
     }
-    const generic = ['文字背后深藏功与名。', '言简意赅，境界极高。', '短短一句，信息量巨大。', '预测风格独树一帜，Claude佩服。'];
-    return _pick(generic, h);
+    if (isBold) {
+        pools.push(...['押注赔率极高的球队，不是天才就是赌徒，Claude尚未判断清楚。', '冲高赔率！勇气可嘉，口袋要空了可别哭。', '爆冷预测者出没，世界杯历史因此而精彩。', '冠军押的是黑马，要么封神要么沉默，没有中间态。']);
+    }
+    if (isSafe) {
+        pools.push(...['冠军押的是大热门，稳健派一枚，输了别说没预感。', '押注收益率偏低，但至少不会尴尬——除非爆冷。', '大众预测，安全感拉满，缺点是奖分不多。', '稳中求胜的选手，Claude打了个呵欠，但内心认可。']);
+    }
+    if (changedMind) {
+        pools.push(...['半程换冠军了？心里有鬼还是战术性变节？Claude已记录。', '中途改口，出卖了原来的判断，人心果然善变。', '冠军和半程冠军不同，前后打架，逻辑自洽全靠脸。', '前后矛盾，说明你在深度动摇，Claude建议买份定心丸。']);
+    }
+    if (consistent) {
+        pools.push(...['冠军和半程预测一致，自信心让人窒息，结果好说。', '始终如一，真正的信徒，赢了是预言家，输了也问心无愧。', '前后一致，Claude认定你是有备而来，而非随手一填。', '毫不动摇，好的赌徒从不犹豫——这是夸你。']);
+    }
+    if (filledGroups > 0 && filledGroups < Math.ceil(totalGroups * 0.5)) {
+        pools.push(...['小组填了一半就打住，选择性勤奋，Claude见过很多这种人。', '半途而废的小组预测，是时间不够还是信心不足？', '填了一半小组就放弃，留白的那些组是战略性弃权吗。']);
+    }
+    if (thirdCnt >= 4) {
+        pools.push(...['第三名押了一堆队，广撒网式策略，稳是稳，就是不够帅。', '第三名押注数量可观，量大管饱，Claude替你数了数。']);
+    }
+    if (!hasTopScorer && !hasGolden && filledGroups > 0) {
+        pools.push(...['射手榜一个没押，视角独特，只关心晋级不关心谁进球。', '金靴射手全部空白，Claude感受到你对个人荣誉的淡漠。']);
+    }
+
+    if (!pools.length) {
+        pools.push(...['预测风格中规中矩，看不出破绽，也看不出亮点。', '中庸之道的预测，赢了不算意外，输了情有可原。', '没有极端，没有闪光点，稳稳当当，Claude给个及格分。', '预测数据均衡，像一份不功不过的期中考答卷。']);
+    }
+
+    return _pick(pools, h);
 }
 
 // ─── Similarity ──────────────────────────────────────────
@@ -1468,7 +1509,8 @@ function _xChampPred(uid) { return champPredsData[uid] || crossChampPredsData[ui
 function _xGroupPred(uid, gid) { return groupPredsData[`${uid}_${gid}`] || crossGroupPredsData[`${uid}_${gid}`] || null; }
 function _xThirdPicks(uid) { return (thirdPicksData[uid] || crossThirdPicksData[uid])?.picks || []; }
 function _allScoreEntries() {
-    const merged = { ...crossScoresData };
+    // Always merge both fixed rooms + current room (handles custom rooms too)
+    const merged = { ...freeRoomScoresData, ...prizeRoomScoresData };
     Object.entries(scoresData).forEach(([uid, s]) => { merged[uid] = s; });
     return merged;
 }
@@ -1550,7 +1592,8 @@ window.generatePredCard = async function(mode = 'full') {
     const GAP = 10;
     let H = HDR_H + GAP;
     H += USER_H + GAP;
-    if (sentence)  H += 88 + GAP;
+    if (sentence)  H += 68 + GAP;
+    H += 60 + GAP; // Claude 锐评 always shown
     if (isShare) {
         // share: summary stats block
         H += 64 + GAP;
@@ -1673,23 +1716,43 @@ window.generatePredCard = async function(mode = 'full') {
     cy += USER_H + GAP;
 
     // ── Sentence card ──
-    const comment = _genComment(sentence, myC);
+    const comment = _genComment(sentence, myC, gpRows, thirdPicks);
     if (sentence) {
-        rr(P, cy, W-P*2, 88, 10, C.bgCard, C.borderG);
-        ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 10, 3, 68);
+        rr(P, cy, W-P*2, 68, 10, C.bgCard, C.borderG);
+        ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 8, 3, 52);
         ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
         ctx.font = f(9, true); ctx.fillStyle = C.gold;
-        ctx.fillText('一句话说出我的预感', P + 16, cy + 19);
+        ctx.fillText('一句话描述本届世界杯走向', P + 16, cy + 18);
         ctx.font = f(15, true); ctx.fillStyle = C.white;
-        ctx.fillText(sentence, P + 16, cy + 40);
-        divider(cy + 54);
-        ctx.font = f(9, true); ctx.fillStyle = C.gray2;
-        ctx.fillText('🤖 Claude 锐评', P + 16, cy + 68);
-        ctx.font = f(10); ctx.fillStyle = C.gray1;
-        ctx.fillText(comment, P + 94, cy + 68);
+        ctx.fillText(sentence, P + 16, cy + 44);
         ctx.textBaseline = 'alphabetic';
-        cy += 88 + GAP;
+        cy += 68 + GAP;
     }
+
+    // ── Claude 锐评 (always shown, based on full prediction profile) ──
+    rr(P, cy, W-P*2, 60, 10, C.bgCard, C.border);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = f(9, true); ctx.fillStyle = C.gray2;
+    ctx.fillText('🤖 Claude 锐评', P + 16, cy + 18);
+    ctx.font = f(10); ctx.fillStyle = C.gray1;
+    // wrap comment if too long
+    const maxW = W - P*2 - 32;
+    ctx.textBaseline = 'middle';
+    if (ctx.measureText(comment).width <= maxW) {
+        ctx.fillText(comment, P + 16, cy + 42);
+    } else {
+        const words = comment.split('');
+        let line = '', ly = cy + 34;
+        for (const ch of words) {
+            const test = line + ch;
+            if (ctx.measureText(test).width > maxW && line) {
+                ctx.fillText(line, P + 16, ly); ly += 16; line = ch;
+            } else { line = test; }
+        }
+        if (line) ctx.fillText(line, P + 16, ly);
+    }
+    ctx.textBaseline = 'alphabetic';
+    cy += 60 + GAP;
 
     // ── Share: summary stats ──
     if (isShare) {
@@ -3696,6 +3759,10 @@ function _renderWizLogin() {
                 <button type="button" id="wizPrizeNo" onclick="wizTogglePrize(false)"
                     class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
             </div>
+            <div id="wizRoomRow" class="mt-2">
+                <input id="wiz-room" type="text" placeholder="输入专属房间号（联系拉筋获取）" maxlength="20"
+                    class="w-full glass rounded-xl px-4 py-2.5 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+            </div>
         </div>
         <input id="wiz-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
             class="w-full glass-dark rounded-xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
@@ -3709,6 +3776,7 @@ window.wizTogglePrize = function(val) {
     _wizPrize = val;
     document.getElementById('wizPrizeYes').className = `flex-1 border-2 ${val?'border-yellow-400/40 bg-yellow-400/10 text-yellow-300':'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
     document.getElementById('wizPrizeNo').className = `flex-1 border-2 ${!val?'border-yellow-400/40 bg-yellow-400/10 text-yellow-300':'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
+    document.getElementById('wizRoomRow').style.display = val ? '' : 'none';
 };
 
 function _buildWizSteps() {
@@ -3730,6 +3798,7 @@ function _buildWizSteps() {
 
 function tryShowWizard() {
     if (_wizShown || !currentUser || !Object.keys(groupsData).length) return;
+    if (localStorage.getItem('wc2026_wizDone_' + currentUser.id)) return;
     const steps = _buildWizSteps();
     if (!steps.length) return;
     _wizShown = true;
@@ -4052,6 +4121,7 @@ window.wizardSkip = function() {
 
 window.wizardClose = function() {
     if (!currentUser) { _wizEnterDemoMode(); return; }
+    localStorage.setItem('wc2026_wizDone_' + currentUser.id, '1');
     document.getElementById('wizardOverlay').classList.add('hidden');
 };
 
@@ -4080,7 +4150,13 @@ window.wizardNext = async function() {
 
         nextBtn.textContent = '加入中...';
         nextBtn.disabled = true;
-        currentRoom = _wizPrize ? PRIZE_ROOM : FREE_ROOM;
+        if (_wizPrize) {
+            const roomInput = (document.getElementById('wiz-room')?.value || '').trim();
+            if (!roomInput) { toast('请输入专属房间号', 'error'); nextBtn.textContent = '加入游戏 →'; nextBtn.disabled = false; return; }
+            currentRoom = roomInput;
+        } else {
+            currentRoom = FREE_ROOM;
+        }
         wantsPrize = _wizPrize;
 
         try {
@@ -4194,6 +4270,7 @@ function _wizAdvance() {
     if (_wizIdx >= _wizSteps.length) {
         document.getElementById('wizardOverlay').classList.add('hidden');
         document.getElementById('wizBar').style.width = '100%';
+        if (currentUser) localStorage.setItem('wc2026_wizDone_' + currentUser.id, '1');
         toast('🎉 填题完成！');
         renderChampion(); renderGroups();
         return;
