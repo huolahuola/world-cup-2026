@@ -541,28 +541,20 @@
 
         <div id="adminContent" class="hidden space-y-4">
 
-            <!-- Group Results -->
+            <!-- Group Results - Batch Entry -->
             <div class="glass rounded-2xl p-6">
-                <h3 class="font-bold text-yellow-400 mb-4">🏆 录入小组出线结果</h3>
-                <select id="resGroupSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
-                    <option value="">— 选择小组 —</option>
-                </select>
-                <p class="text-xs text-gray-400 mb-2" id="resGroupTeamHint">选择小组后，勾选出线的 2 支球队</p>
-                <div id="resGroupTeamList" class="space-y-2 mb-3"></div>
-                <div id="resGroupWinnerWrap" class="hidden mb-3">
-                    <p class="text-xs text-gray-400 mb-2">小组第一（必选）：</p>
-                    <div id="resGroupWinnerList" class="flex gap-2 flex-wrap"></div>
+                <h3 class="font-bold text-yellow-400 mb-2">🏆 录入小组出线结果</h3>
+                <p class="text-xs text-gray-400 mb-3">每组勾选 2 支出线球队并点选小组第一，最后一次性提交</p>
+                <div id="batchGroupGrid" class="grid grid-cols-2 gap-2 mb-4"></div>
+                <div id="batchThirdSection" class="mb-4">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <p class="text-sm font-bold text-orange-400">🎲 第三名晋级</p>
+                        <span id="batchThirdCount" class="text-xs font-bold text-white bg-orange-500/30 rounded-full px-2 py-0.5">0/8</span>
+                        <span class="text-xs text-gray-500">每组限 1 支，共选 8 支</span>
+                    </div>
+                    <div id="batchThirdGrid" class="space-y-1.5"></div>
                 </div>
-                <div id="resGroupThirdWrap" class="hidden mb-3">
-                    <p class="text-xs text-orange-400 mb-1 font-bold">🎲 该组第三名是否跻身最佳 8 强？</p>
-                    <p class="text-xs text-gray-500 mb-2">若该组第三名成功晋级，选择是哪支</p>
-                    <div id="resGroupThirdList" class="flex gap-2 flex-wrap"></div>
-                    <label class="flex items-center gap-2 glass rounded-xl px-3 py-1.5 cursor-pointer mt-1">
-                        <input type="radio" name="resGroupThird" value="" class="accent-yellow-400" checked>
-                        <span class="text-sm text-gray-400">该组第三未晋级</span>
-                    </label>
-                </div>
-                <button onclick="submitGroupResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认出线并计算积分</button>
+                <button onclick="submitBatchGroupResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认全部出线结果并计算积分</button>
             </div>
 
             <!-- Edit Groups -->
@@ -594,15 +586,6 @@
                 <input type="text" id="goldenBootResultInput" placeholder="填写金靴奖得主姓名" maxlength="30"
                     class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400 placeholder-gray-600">
                 <button onclick="submitChampResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认并结算所有积分</button>
-            </div>
-
-            <!-- Third Place Settlement -->
-            <div class="glass rounded-2xl p-6">
-                <h3 class="font-bold text-yellow-400 mb-3">🎲 结算第三名出线</h3>
-                <p class="text-xs text-gray-400 mb-3">小组赛结束后，输入 8 支第三名出线球队（用逗号或换行分隔），系统自动结算每人的第三名预测积分（猜中1队得1分）。</p>
-                <textarea id="thirdResultInput" rows="4" placeholder="例如：巴西,阿根廷,法国,德国,西班牙,荷兰,英格兰,葡萄牙"
-                    class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-green-400 font-mono focus:outline-none focus:ring-1 focus:ring-yellow-400 resize-none mb-3"></textarea>
-                <button onclick="submitThirdResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认并结算第三名积分</button>
             </div>
 
             <!-- Enter Results -->
@@ -3546,104 +3529,208 @@ window.submitGroupPrediction = async function() {
 function refreshAdminGroupSelects() {
     const gids = Object.keys(groupsData).sort();
     const opts = gids.map(gid => `<option value="${gid}">${groupsData[gid]?.name||gid+'组'}</option>`).join('');
-    const base = '<option value="">— 选择小组 —</option>';
-    const resEl = document.getElementById('resGroupSel');
     const editEl = document.getElementById('editGroupSel');
-    if (resEl) resEl.innerHTML = base + opts;
-    if (editEl) editEl.innerHTML = base + opts;
-
-    if (resEl) resEl.onchange = function() {
-        const gid = this.value;
-        const container = document.getElementById('resGroupTeamList');
-        const winnerWrap = document.getElementById('resGroupWinnerWrap');
-        if (!gid) { container.innerHTML = ''; winnerWrap.classList.add('hidden'); return; }
-        const g = groupsData[gid] || {};
-        const teams = g.teams || [];
-        container.innerHTML = teams.map(t => `
-            <label class="flex items-center gap-3 glass rounded-xl px-3 py-2 cursor-pointer">
-                <input type="checkbox" class="res-group-team w-4 h-4 accent-yellow-400" value="${t.name}">
-                <span class="text-xl">${t.flag||'🏳️'}</span>
-                <span class="font-bold">${t.name}</span>
-            </label>`).join('');
-        winnerWrap.classList.add('hidden');
-        container.querySelectorAll('.res-group-team').forEach(cb => {
-            cb.addEventListener('change', updateResGroupWinner);
-        });
-    };
+    if (editEl) editEl.innerHTML = '<option value="">— 选择要编辑的小组 —</option>' + opts;
+    initBatchGroupAdmin();
 }
 
-function updateResGroupWinner() {
-    const checked = [...document.querySelectorAll('.res-group-team:checked')].map(cb => cb.value);
-    const wrap = document.getElementById('resGroupWinnerWrap');
-    const winnerList = document.getElementById('resGroupWinnerList');
-    const thirdWrap = document.getElementById('resGroupThirdWrap');
-    const thirdList = document.getElementById('resGroupThirdList');
-    const gid = document.getElementById('resGroupSel').value;
-    const g = groupsData[gid] || {};
+// ─── Batch Group Results Admin ────────────────────────────
+let _batchGroupState = {}; // { gid: { qualified: string[], winner: string|null } }
+let _batchThirdPicks = {}; // { gid: teamName }
 
-    if (checked.length >= 2) {
-        wrap.classList.remove('hidden');
-        winnerList.innerHTML = checked.map(name => {
-            const t = (g.teams||[]).find(x => x.name === name) || {};
-            return `<label class="flex items-center gap-2 glass rounded-xl px-3 py-1.5 cursor-pointer">
-                <input type="radio" name="resGroupWinner" class="accent-yellow-400" value="${name}">
+function initBatchGroupAdmin() {
+    _batchThirdPicks = {};
+    Object.entries(groupsData).forEach(([gid, g]) => {
+        if (g.qualified && g.qualified.length >= 2) {
+            _batchGroupState[gid] = { qualified: [...g.qualified], winner: g.winner || null };
+        } else if (!_batchGroupState[gid]) {
+            _batchGroupState[gid] = { qualified: [], winner: null };
+        }
+    });
+    renderBatchGroupAdmin();
+}
+
+function renderBatchGroupAdmin() {
+    const grid = document.getElementById('batchGroupGrid');
+    const thirdGrid = document.getElementById('batchThirdGrid');
+    const thirdCount = document.getElementById('batchThirdCount');
+    if (!grid) return;
+
+    const gids = Object.keys(groupsData).sort();
+
+    grid.innerHTML = gids.map(gid => {
+        const g = groupsData[gid] || {};
+        const st = _batchGroupState[gid] || { qualified: [], winner: null };
+        const teams = g.teams || [];
+        const name = g.name || (gid + '组');
+        const isDone = st.qualified.length >= 2 && !!st.winner;
+
+        const teamRows = teams.map(t => {
+            const isQ = st.qualified.includes(t.name);
+            const safe = t.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            return `<label class="flex items-center gap-1.5 cursor-pointer select-none">
+                <input type="checkbox" class="w-3.5 h-3.5 accent-yellow-400" ${isQ ? 'checked' : ''}
+                    onchange="batchToggleQualify('${gid}','${safe}')">
                 <span>${t.flag||'🏳️'}</span>
-                <span class="font-bold text-sm">${name}</span>
+                <span class="text-xs">${t.name}</span>
             </label>`;
         }).join('');
 
-        // Show third-place section with remaining teams
-        const remaining = (g.teams||[]).filter(t => !checked.includes(t.name));
-        thirdList.innerHTML = remaining.map(t => `
-            <label class="flex items-center gap-2 glass rounded-xl px-3 py-1.5 cursor-pointer">
-                <input type="radio" name="resGroupThird" class="accent-orange-400" value="${t.name}">
-                <span>${t.flag||'🏳️'}</span>
-                <span class="font-bold text-sm">${t.name}</span>
-            </label>`).join('');
-        thirdWrap.classList.remove('hidden');
-    } else {
-        wrap.classList.add('hidden');
-        thirdWrap.classList.add('hidden');
+        let winnerHtml = '';
+        if (st.qualified.length >= 2) {
+            const btns = st.qualified.map(qn => {
+                const t = teams.find(x => x.name === qn) || {};
+                const isW = st.winner === qn;
+                const safe = qn.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                return `<button onclick="batchSetWinner('${gid}','${safe}')"
+                    class="text-xs px-1.5 py-0.5 rounded border transition-all ${isW
+                        ? 'border-yellow-400 bg-yellow-400/20 text-yellow-300 font-bold'
+                        : 'border-white/20 text-gray-400'}">
+                    ${t.flag||''} ${qn}
+                </button>`;
+            }).join('');
+            winnerHtml = `<div class="mt-1.5 pt-1.5 border-t border-white/10">
+                <p class="text-xs text-gray-500 mb-1">第一：</p>
+                <div class="flex gap-1 flex-wrap">${btns}</div>
+            </div>`;
+        }
+
+        return `<div class="glass-dark rounded-xl p-2.5 ${isDone ? 'ring-1 ring-green-500/50' : ''}">
+            <p class="text-xs font-bold text-yellow-400 mb-1.5">${name}${isDone ? ' ✓' : ''}</p>
+            <div class="space-y-1">${teamRows}</div>
+            ${winnerHtml}
+        </div>`;
+    }).join('');
+
+    // Third-place section
+    const totalPicks = Object.keys(_batchThirdPicks).length;
+    if (thirdCount) thirdCount.textContent = `${totalPicks}/8`;
+
+    if (thirdGrid) {
+        let thirdHtml = '';
+        gids.forEach(gid => {
+            const g = groupsData[gid] || {};
+            const st = _batchGroupState[gid] || { qualified: [], winner: null };
+            if (st.qualified.length < 2) return;
+            const candidates = (g.teams||[]).filter(t => !st.qualified.includes(t.name));
+            if (!candidates.length) return;
+            const groupName = g.name || (gid + '组');
+            const pickedName = _batchThirdPicks[gid];
+            const btns = candidates.map(t => {
+                const isPicked = pickedName === t.name;
+                const isDisabled = !isPicked && totalPicks >= 8;
+                const safe = t.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                return `<button onclick="batchToggleThird('${gid}','${safe}')"
+                    class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg border transition-all ${
+                        isPicked ? 'border-orange-400 bg-orange-400/20 text-orange-300 font-bold'
+                        : isDisabled ? 'border-white/5 text-gray-600 opacity-40 cursor-not-allowed'
+                        : 'border-white/20 text-gray-300'}"
+                    ${isDisabled ? 'disabled' : ''}>
+                    ${t.flag||'🏳️'} ${t.name}
+                </button>`;
+            }).join('');
+            thirdHtml += `<div class="flex items-start gap-2">
+                <span class="text-xs text-gray-500 w-8 mt-0.5 shrink-0 font-bold">${groupName}</span>
+                <div class="flex gap-1.5 flex-wrap">${btns}</div>
+            </div>`;
+        });
+        thirdGrid.innerHTML = thirdHtml || '<p class="text-xs text-gray-600">请先为各组勾选出线球队</p>';
     }
 }
 
-window.submitGroupResult = async function() {
-    const gid = document.getElementById('resGroupSel').value;
-    if (!gid) { toast('请选择小组', 'error'); return; }
-    const checked = [...document.querySelectorAll('.res-group-team:checked')].map(cb => cb.value);
-    if (checked.length < 2) { toast('请勾选 2 支出线球队', 'error'); return; }
-    const winner = document.querySelector('input[name="resGroupWinner"]:checked')?.value || null;
-    const thirdAdvanced = document.querySelector('input[name="resGroupThird"]:checked')?.value || null;
+window.batchToggleQualify = function(gid, name) {
+    if (!_batchGroupState[gid]) _batchGroupState[gid] = { qualified: [], winner: null };
+    const st = _batchGroupState[gid];
+    const idx = st.qualified.indexOf(name);
+    if (idx >= 0) {
+        st.qualified.splice(idx, 1);
+        if (st.winner === name) st.winner = null;
+    } else if (st.qualified.length < 2) {
+        st.qualified.push(name);
+    }
+    renderBatchGroupAdmin();
+};
 
-    const updates = {};
-    updates[`rooms/${currentRoom}/groups/${gid}/qualified`] = checked;
-    updates[`rooms/${currentRoom}/groups/${gid}/winner`] = winner;
-    updates[`rooms/${currentRoom}/groups/${gid}/thirdAdvanced`] = thirdAdvanced;
+window.batchSetWinner = function(gid, name) {
+    if (!_batchGroupState[gid]) _batchGroupState[gid] = { qualified: [], winner: null };
+    _batchGroupState[gid].winner = name;
+    renderBatchGroupAdmin();
+};
 
-    const [gPredsSnap, scoresSnap] = await Promise.all([
+window.batchToggleThird = function(gid, name) {
+    if (_batchThirdPicks[gid] === name) {
+        delete _batchThirdPicks[gid];
+    } else {
+        _batchThirdPicks[gid] = name;
+    }
+    renderBatchGroupAdmin();
+};
+
+window.submitBatchGroupResult = async function() {
+    const gids = Object.keys(groupsData).sort();
+
+    const ready = gids.filter(gid => (_batchGroupState[gid]?.qualified||[]).length >= 2);
+    if (!ready.length) { toast('请至少填写一组的出线结果', 'error'); return; }
+
+    const missingWinner = ready.filter(gid => !_batchGroupState[gid]?.winner);
+    if (missingWinner.length) {
+        const names = missingWinner.map(gid => groupsData[gid]?.name || gid+'组').join('、');
+        toast(`请选择小组第一：${names}`, 'error'); return;
+    }
+
+    const thirdTeams = Object.values(_batchThirdPicks);
+
+    const [gPredsSnap, thirdPicksSnap, scoresSnap] = await Promise.all([
         get(ref(db, `rooms/${currentRoom}/groupPreds`)),
+        get(ref(db, `rooms/${currentRoom}/thirdPicks`)),
         get(ref(db, `rooms/${currentRoom}/scores`))
     ]);
-    const allGPreds = gPredsSnap.exists() ? gPredsSnap.val() : {};
-    const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+    const allGPreds     = gPredsSnap.exists()     ? gPredsSnap.val()     : {};
+    const allThirdPicks = thirdPicksSnap.exists() ? thirdPicksSnap.val() : {};
+    const allScores     = scoresSnap.exists()     ? scoresSnap.val()     : {};
 
-    Object.entries(allGPreds)
-        .filter(([,p]) => p.groupId === gid && p.points === null)
-        .forEach(([key, p]) => {
-            const pts = calcGroupPts(p.qualified, checked, p.winner, winner);
-            updates[`rooms/${currentRoom}/groupPreds/${key}/points`] = pts;
-            const uid = p.userId;
-            const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
-            s.total = (s.total||0) + pts;
-            if (pts >= 4) s.exact = (s.exact||0) + 1;
-            else if (pts >= 1) s.correct = (s.correct||0) + 1;
-            else s.wrong = (s.wrong||0) + 1;
-            updates[`rooms/${currentRoom}/scores/${uid}`] = s;
-        });
+    const updates = {};
+
+    for (const gid of ready) {
+        const st = _batchGroupState[gid];
+        updates[`rooms/${currentRoom}/groups/${gid}/qualified`] = st.qualified;
+        updates[`rooms/${currentRoom}/groups/${gid}/winner`]    = st.winner;
+
+        Object.entries(allGPreds)
+            .filter(([, p]) => p.groupId === gid && p.points === null)
+            .forEach(([key, p]) => {
+                const pts = calcGroupPts(p.qualified, st.qualified, p.winner, st.winner);
+                updates[`rooms/${currentRoom}/groupPreds/${key}/points`] = pts;
+                const uid = p.userId;
+                if (!allScores[uid]) allScores[uid] = { name:'', total:0, exact:0, correct:0, wrong:0 };
+                allScores[uid].total   = (allScores[uid].total||0)   + pts;
+                if (pts >= 4)      allScores[uid].exact   = (allScores[uid].exact||0)   + 1;
+                else if (pts >= 1) allScores[uid].correct = (allScores[uid].correct||0) + 1;
+                else               allScores[uid].wrong   = (allScores[uid].wrong||0)   + 1;
+                updates[`rooms/${currentRoom}/scores/${uid}`] = allScores[uid];
+            });
+    }
+
+    if (thirdTeams.length === 8) {
+        updates[`rooms/${currentRoom}/settings/thirdAdvanced`] = thirdTeams;
+        Object.entries(allThirdPicks)
+            .filter(([, tp]) => tp.points === null || tp.points === undefined)
+            .forEach(([uid, tp]) => {
+                const pts = (tp.picks||[]).filter(t => thirdTeams.includes(t)).length;
+                updates[`rooms/${currentRoom}/thirdPicks/${uid}/points`] = pts;
+                if (!allScores[uid]) allScores[uid] = { name:'', total:0, exact:0, correct:0, wrong:0 };
+                allScores[uid].total = (allScores[uid].total||0) + pts;
+                updates[`rooms/${currentRoom}/scores/${uid}`] = allScores[uid];
+            });
+    }
 
     await update(ref(db, '/'), updates);
-    toast('✅ 出线结果已录入，积分已更新！');
-    refreshAdminGroupSelects();
+
+    const thirdMsg = thirdTeams.length === 8
+        ? `，第三名出线（${thirdTeams.join('、')}）已结算`
+        : thirdTeams.length > 0 ? `（第三名选了 ${thirdTeams.length}/8 支，未结算）` : '';
+    toast(`✅ ${ready.length} 组出线结果已录入，积分已更新${thirdMsg}！`);
+    initBatchGroupAdmin();
 };
 
 window.submitThirdResult = async function() {
