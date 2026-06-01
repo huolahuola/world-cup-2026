@@ -3890,7 +3890,7 @@ function _buildWizThirdPool(groupIds) {
     groupIds.forEach(gid => {
         const g = groupsData[gid];
         const sel = _wizGpStates[gid]?.selected || [];
-        (g?.teams||[]).forEach(t => { if (!sel.includes(t.name)) pool.push({ ...t, groupName: g?.name||gid+'组' }); });
+        (g?.teams||[]).forEach(t => { if (!sel.includes(t.name)) pool.push({ ...t, groupName: g?.name||gid+'组', groupId: gid }); });
     });
     return pool;
 }
@@ -3898,10 +3898,19 @@ function _buildWizThirdPool(groupIds) {
 function _buildWizThirdItems(groupIds) {
     const pool = _buildWizThirdPool(groupIds);
     const cnt = _wizThirdPicks.length;
+    // Build set of groups that already have a pick
+    const pickedGroups = new Set(
+        pool.filter(t => _wizThirdPicks.includes(t.name)).map(t => t.groupId)
+    );
     return pool.map(t => {
         const isPicked = _wizThirdPicks.includes(t.name);
         const full = cnt >= 8 && !isPicked;
-        const cls = isPicked ? 'border-orange-400 bg-orange-400/10' : full ? 'border-white/5 glass opacity-30 pointer-events-none' : 'border-white/10 glass';
+        const groupTaken = !isPicked && pickedGroups.has(t.groupId);
+        const cls = isPicked
+            ? 'border-orange-400 bg-orange-400/10'
+            : full || groupTaken
+                ? 'border-white/5 glass opacity-30 pointer-events-none'
+                : 'border-white/10 glass';
         return `<div onclick="wizToggleThird('${t.name}')"
             class="flex items-center gap-2 px-2.5 py-2 rounded-xl border-2 ${cls} cursor-pointer active:opacity-70">
             <span class="text-lg">${t.flag||'🏳️'}</span>
@@ -4105,8 +4114,19 @@ window.wizToggleWinnerAll = function(gid, name) {
 };
 
 window.wizToggleThird = function(name) {
-    if (_wizThirdPicks.includes(name)) _wizThirdPicks = _wizThirdPicks.filter(n=>n!==name);
-    else if (_wizThirdPicks.length < 8) _wizThirdPicks.push(name);
+    const step = _wizSteps[_wizIdx];
+    const pool = _buildWizThirdPool(step.groupIds);
+    const team = pool.find(t => t.name === name);
+    if (_wizThirdPicks.includes(name)) {
+        _wizThirdPicks = _wizThirdPicks.filter(n => n !== name);
+    } else if (_wizThirdPicks.length < 8) {
+        // Each group can only contribute one third-place pick — remove same-group pick if exists
+        if (team) {
+            const sameGroup = pool.filter(t => t.groupId === team.groupId).map(t => t.name);
+            _wizThirdPicks = _wizThirdPicks.filter(n => !sameGroup.includes(n));
+        }
+        _wizThirdPicks.push(name);
+    }
     const cnt = _wizThirdPicks.length;
     const countEl = document.getElementById('wiz-third-count');
     if (countEl) {
