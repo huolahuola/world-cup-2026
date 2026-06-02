@@ -3559,8 +3559,25 @@ function refreshAdminGroupSelects() {
 let _batchGroupState = {}; // { gid: { qualified: string[], winner: string|null } }
 let _batchThirdPicks = {}; // { gid: teamName }
 
-function initBatchGroupAdmin() {
+async function initBatchGroupAdmin() {
+    // Restore previously saved third-place picks from Firebase
     _batchThirdPicks = {};
+    if (!demoMode && db) {
+        try {
+            const snap = await get(ref(db, `rooms/${currentRoom}/settings/thirdAdvanced`));
+            if (snap.exists()) {
+                const savedTeams = snap.val() || [];
+                savedTeams.forEach(teamName => {
+                    for (const [gid, g] of Object.entries(groupsData)) {
+                        if ((g.teams||[]).some(t => t.name === teamName)) {
+                            _batchThirdPicks[gid] = teamName;
+                            break;
+                        }
+                    }
+                });
+            }
+        } catch(e) {}
+    }
     Object.entries(groupsData).forEach(([gid, g]) => {
         if (g.qualified && g.qualified.length >= 2) {
             _batchGroupState[gid] = { qualified: [...g.qualified], winner: g.winner || null };
@@ -3701,55 +3718,67 @@ window.submitBatchGroupResult = async function() {
 
     const thirdTeams = Object.values(_batchThirdPicks);
 
-    const [gPredsSnap, thirdPicksSnap, scoresSnap] = await Promise.all([
-        get(ref(db, `rooms/${currentRoom}/groupPreds`)),
-        get(ref(db, `rooms/${currentRoom}/thirdPicks`)),
-        get(ref(db, `rooms/${currentRoom}/scores`))
+    const roomsToScore = [PRIZE_ROOM, FREE_ROOM];
+    const [
+        gPreds0, third0, scores0,
+        gPreds1, third1, scores1
+    ] = await Promise.all([
+        get(ref(db, `rooms/${roomsToScore[0]}/groupPreds`)),
+        get(ref(db, `rooms/${roomsToScore[0]}/thirdPicks`)),
+        get(ref(db, `rooms/${roomsToScore[0]}/scores`)),
+        get(ref(db, `rooms/${roomsToScore[1]}/groupPreds`)),
+        get(ref(db, `rooms/${roomsToScore[1]}/thirdPicks`)),
+        get(ref(db, `rooms/${roomsToScore[1]}/scores`)),
     ]);
-    const allGPreds     = gPredsSnap.exists()     ? gPredsSnap.val()     : {};
-    const allThirdPicks = thirdPicksSnap.exists() ? thirdPicksSnap.val() : {};
-    const allScores     = scoresSnap.exists()     ? scoresSnap.val()     : {};
+    const roomData = [
+        { room: roomsToScore[0], allGPreds: gPreds0.exists() ? gPreds0.val() : {}, allThirdPicks: third0.exists() ? third0.val() : {}, allScores: scores0.exists() ? scores0.val() : {} },
+        { room: roomsToScore[1], allGPreds: gPreds1.exists() ? gPreds1.val() : {}, allThirdPicks: third1.exists() ? third1.val() : {}, allScores: scores1.exists() ? scores1.val() : {} },
+    ];
 
     const updates = {};
     let predCount = 0;
 
-    for (const gid of ready) {
-        const st = _batchGroupState[gid];
-        updates[`rooms/${currentRoom}/groups/${gid}/qualified`] = st.qualified;
-        updates[`rooms/${currentRoom}/groups/${gid}/winner`]    = st.winner;
+    for (const { room, allGPreds, allThirdPicks, allScores } of roomData) {
+        for (const gid of ready) {
+            const st = _batchGroupState[gid];
+            updates[`rooms/${room}/groups/${gid}/qualified`] = st.qualified;
+            updates[`rooms/${room}/groups/${gid}/winner`]    = st.winner;
 
-        Object.entries(allGPreds)
-            .filter(([, p]) => p.groupId === gid && p.points == null)
-            .forEach(([key, p]) => {
-                predCount++;
-                const pts = calcGroupPts(p.qualified, st.qualified, p.winner, st.winner);
-                updates[`rooms/${currentRoom}/groupPreds/${key}/points`] = pts;
-                const uid = p.userId;
-                if (!allScores[uid]) allScores[uid] = { name:'', total:0, exact:0, correct:0, wrong:0 };
-                allScores[uid].total   = (allScores[uid].total||0)   + pts;
-                if (pts >= 4)      allScores[uid].exact   = (allScores[uid].exact||0)   + 1;
-                else if (pts >= 1) allScores[uid].correct = (allScores[uid].correct||0) + 1;
-                else               allScores[uid].wrong   = (allScores[uid].wrong||0)   + 1;
-                updates[`rooms/${currentRoom}/scores/${uid}`] = allScores[uid];
-            });
+            Object.entries(allGPreds)
+                .filter(([, p]) => p.groupId === gid && p.points == null)
+                .forEach(([key, p]) => {
+                    predCount++;
+                    const pts = calcGroupPts(p.qualified, st.qualified, p.winner, st.winner);
+                    updates[`rooms/${room}/groupPreds/${key}/points`] = pts;
+                    const uid = p.userId;
+                    if (!allScores[uid]) allScores[uid] = { name:'', total:0, exact:0, correct:0, wrong:0 };
+                    allScores[uid].total   = (allScores[uid].total||0)   + pts;
+                    if (pts >= 4)      allScores[uid].exact   = (allScores[uid].exact||0)   + 1;
+                    else if (pts >= 1) allScores[uid].correct = (allScores[uid].correct||0) + 1;
+                    else               allScores[uid].wrong   = (allScores[uid].wrong||0)   + 1;
+                    updates[`rooms/${room}/scores/${uid}`] = allScores[uid];
+                });
+        }
+
+        if (thirdTeams.length === 8) {
+            updates[`rooms/${room}/settings/thirdAdvanced`] = thirdTeams;
+            Object.entries(allThirdPicks)
+                .filter(([, tp]) => tp.points == null)
+                .forEach(([uid, tp]) => {
+                    const pts = (tp.picks||[]).filter(t => thirdTeams.includes(t)).length;
+                    updates[`rooms/${room}/thirdPicks/${uid}/points`] = pts;
+                    if (!allScores[uid]) allScores[uid] = { name:'', total:0, exact:0, correct:0, wrong:0 };
+                    allScores[uid].total = (allScores[uid].total||0) + pts;
+                    updates[`rooms/${room}/scores/${uid}`] = allScores[uid];
+                });
+        }
     }
 
     if (predCount === 0) {
-        toast(`⚠️ 在房间「${currentRoom}」找不到待结算的小组预测（共扫描 ${Object.keys(allGPreds).length} 条记录）`, 'error');
+        const total0 = Object.keys(roomData[0].allGPreds).length;
+        const total1 = Object.keys(roomData[1].allGPreds).length;
+        toast(`⚠️ 两个房间均无待结算预测（${roomsToScore[0]}:${total0}条，${roomsToScore[1]}:${total1}条）`, 'error');
         return;
-    }
-
-    if (thirdTeams.length === 8) {
-        updates[`rooms/${currentRoom}/settings/thirdAdvanced`] = thirdTeams;
-        Object.entries(allThirdPicks)
-            .filter(([, tp]) => tp.points == null)
-            .forEach(([uid, tp]) => {
-                const pts = (tp.picks||[]).filter(t => thirdTeams.includes(t)).length;
-                updates[`rooms/${currentRoom}/thirdPicks/${uid}/points`] = pts;
-                if (!allScores[uid]) allScores[uid] = { name:'', total:0, exact:0, correct:0, wrong:0 };
-                allScores[uid].total = (allScores[uid].total||0) + pts;
-                updates[`rooms/${currentRoom}/scores/${uid}`] = allScores[uid];
-            });
     }
 
     try {
