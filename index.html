@@ -2077,11 +2077,23 @@ function renderMyPreds() {
             } else {
                 ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
             }
+            const realQ = g?.qualified || [];
+            const realW = g?.winner || null;
+            const hasResult = realQ.length >= 2;
+            const realLine = hasResult ? (() => {
+                const teams = realQ.map(t => {
+                    const correct = (p.qualified||[]).includes(t);
+                    const flag = (g?.teams||[]).find(x=>x.name===t)?.flag || '🏳️';
+                    return `<span class="${correct?'text-green-400':'text-red-400'} font-bold">${flag}${t}</span>`;
+                }).join('<span class="text-gray-600"> · </span>');
+                const winnerPart = realW ? ` <span class="text-yellow-400">👑${realW}</span>` : '';
+                return `<p class="text-xs mt-0.5">实际: ${teams}${winnerPart}</p>`;
+            })() : '';
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
                 <div class="flex-1 min-w-0">
                     <p class="text-xs text-gray-400">${g?.name || p.groupId+'组'}</p>
-                    <p class="text-sm font-bold leading-tight">${(p.qualified||[]).join(' · ')}</p>
-                    ${p.winner ? `<p class="text-xs text-yellow-400">👑 第一: ${p.winner}</p>` : ''}
+                    <p class="text-sm font-bold leading-tight text-gray-200">我的: ${(p.qualified||[]).join(' · ')}${p.winner ? ` 👑${p.winner}` : ''}</p>
+                    ${realLine}
                     ${p.thirdBet ? `<p class="text-xs text-orange-400">🎲 押第三: ${p.thirdBet}</p>` : ''}
                 </div>
                 ${ptsBadge}
@@ -2100,12 +2112,22 @@ function renderMyPreds() {
             const team = Object.values(groupsData).flatMap(g => g.teams||[]).find(t => t.name === name);
             return `<span class="inline-flex items-center gap-1 bg-orange-900/30 border border-orange-500/30 rounded-lg px-2 py-1 text-xs font-bold">${team?.flag||'🏳️'} ${name}</span>`;
         }).join('');
+        const realThird = roomSettingsData?.thirdAdvanced || [];
+        const realThirdLine = realThird.length === 8 ? (() => {
+            const realFlags = realThird.map(name => {
+                const correct = myThirdPicks.includes(name);
+                const team = Object.values(groupsData).flatMap(g => g.teams||[]).find(t => t.name === name);
+                return `<span class="inline-flex items-center gap-0.5 ${correct?'bg-green-900/40 border-green-500/40':'bg-gray-800/60 border-gray-600/30'} border rounded-lg px-1.5 py-0.5 text-xs font-bold">${team?.flag||'🏳️'}${name}</span>`;
+            }).join('');
+            return `<div class="mt-2 pt-2 border-t border-white/8"><p class="text-xs text-gray-400 mb-1">实际晋级:</p><div class="flex flex-wrap gap-1">${realFlags}</div></div>`;
+        })() : '';
         html += `<p class="text-xs text-gray-500 font-bold pt-2 pb-1">最佳第三名出线（8队）</p>
         <div class="glass rounded-xl p-3 mb-1">
             <div class="flex justify-between items-start gap-2">
                 <div class="flex flex-wrap gap-1.5 flex-1">${flags}</div>
                 ${tpBadge}
             </div>
+            ${realThirdLine}
         </div>`;
     }
 
@@ -3315,6 +3337,7 @@ function defaultMatches() {
 let groupsData = {};
 let groupPredsData = {};
 let thirdPicksData = {};
+let roomSettingsData = {};
 let gpState = { groupId: null, selected: [], winner: null, thirdBet: null };
 
 // Debounce wizard trigger so all Firebase listeners settle before checking
@@ -3344,6 +3367,10 @@ async function loadGroups() {
         renderChampion();
         updateTabDots();
         _scheduleWizard();
+    });
+    onValue(ref(db, `rooms/${currentRoom}/settings`), snap => {
+        roomSettingsData = snap.exists() ? snap.val() : {};
+        if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
     });
     onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
         groupPredsData = snap.exists() ? snap.val() : {};
