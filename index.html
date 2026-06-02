@@ -4241,7 +4241,6 @@ window.wizToggleThird = function(name) {
         countEl.textContent = `${cnt} / 8 已选`;
         countEl.className = `text-sm font-black ${cnt>=8?'text-green-400':'text-orange-400'}`;
     }
-    const step = _wizSteps[_wizIdx];
     const gridEl = document.getElementById('wiz-third-grid');
     if (gridEl) gridEl.innerHTML = _buildWizThirdItems(step.groupIds);
 };
