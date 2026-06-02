@@ -215,21 +215,10 @@ setTimeout(function() {
                 <div class="space-y-3">
                     <input id="lp-name" type="text" placeholder="输入你的昵称" maxlength="16"
                         class="w-full glass rounded-2xl px-4 py-3.5 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        onkeypress="if(event.key==='Enter')document.getElementById('lp-room').focus()">
+                    <input id="lp-room" type="text" placeholder="房间号（联系拉筋获取）" maxlength="20"
+                        class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                         onkeypress="if(event.key==='Enter')document.getElementById('lp-pin').focus()">
-                    <div class="glass-dark rounded-2xl px-4 py-3">
-                        <p class="text-sm font-bold mb-0.5">🎁 是否参加瓜分大奖游戏？</p>
-                        <p class="text-xs text-gray-500 mb-2">参加需联系拉筋确认报名，不参加直接玩公共榜</p>
-                        <div class="flex gap-2">
-                            <button type="button" id="lpPrizeYes" onclick="lpTogglePrize(true)"
-                                class="flex-1 border-2 border-yellow-400/40 bg-yellow-400/10 text-yellow-300 font-bold py-2 rounded-xl text-sm">✅ 参加</button>
-                            <button type="button" id="lpPrizeNo" onclick="lpTogglePrize(false)"
-                                class="flex-1 glass border-2 border-white/10 text-gray-400 font-bold py-2 rounded-xl text-sm">❌ 不参加</button>
-                        </div>
-                        <div id="lpRoomRow" class="mt-2">
-                            <input id="lp-room" type="text" placeholder="输入专属房间号（联系拉筋获取）" maxlength="20"
-                                class="w-full glass rounded-xl px-4 py-2.5 text-white text-center text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                        </div>
-                    </div>
                     <input id="lp-pin" type="tel" placeholder="设置PIN码（4位数字）" maxlength="4"
                         class="w-full glass rounded-2xl px-4 py-3 text-white text-center text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 tracking-widest"
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
@@ -468,21 +457,31 @@ setTimeout(function() {
                 <div class="shimmer rounded-2xl h-40 mb-3"></div>
                 <div class="shimmer rounded-2xl h-40 mb-3"></div>
             </div>
+            <!-- Third-place picks section -->
+            <div id="thirdPicksContainer"></div>
         </div>
 
         <!-- Knockout Matches -->
         <div id="content-knockout" class="hidden">
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
-                <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
-                <p>· 每场淘汰赛比赛均可预测比分</p>
-                <p>· 猜中<b class="text-white">精确比分</b> → <b class="text-yellow-400">+3分</b></p>
-                <p>· 猜中<b class="text-white">胜负平结果</b>（比分不同）→ <b class="text-green-400">+1分</b></p>
-                <p>· 比赛开始前可修改预测，开始后锁定</p>
+                <p class="font-bold text-yellow-400 mb-1">📋 淘汰赛规则</p>
+                <p>· 猜中<b class="text-white">精确比分</b>（90分钟内） → <b class="text-yellow-400">+5分</b></p>
+                <p>· 猜中<b class="text-white">胜平负结果</b>（比分不同） → <b class="text-green-400">+2分</b></p>
+                <p>· 猜中<b class="text-white">首个进球者</b> → <b class="text-orange-400">+8分</b>（独立计分）</p>
+                <p>· 每场开球前可随时修改，开球后锁定</p>
             </div>
-            <div id="matchesContainer">
-                <div class="shimmer rounded-2xl h-24 mb-3"></div>
-                <div class="shimmer rounded-2xl h-24 mb-3"></div>
-                <div class="shimmer rounded-2xl h-24"></div>
+            <!-- Round tabs -->
+            <div class="flex gap-1 mb-3 bg-white/5 rounded-2xl p-1">
+                <button onclick="switchKoRound('r32')"   id="ko-tab-r32"   class="ko-round-tab flex-1 py-2 rounded-xl text-[11px] font-bold text-gray-400">32进16</button>
+                <button onclick="switchKoRound('r16')"   id="ko-tab-r16"   class="ko-round-tab flex-1 py-2 rounded-xl text-[11px] font-bold text-gray-400">16进8</button>
+                <button onclick="switchKoRound('qf')"    id="ko-tab-qf"    class="ko-round-tab flex-1 py-2 rounded-xl text-[11px] font-bold text-gray-400">8进4</button>
+                <button onclick="switchKoRound('sf')"    id="ko-tab-sf"    class="ko-round-tab flex-1 py-2 rounded-xl text-[11px] font-bold text-gray-400">半决赛</button>
+                <button onclick="switchKoRound('final')" id="ko-tab-final" class="ko-round-tab flex-1 py-2 rounded-xl text-[11px] font-bold text-gray-400">决赛</button>
+            </div>
+            <!-- KO matches container -->
+            <div id="koContainer">
+                <div class="shimmer rounded-2xl h-32 mb-3"></div>
+                <div class="shimmer rounded-2xl h-32 mb-3"></div>
             </div>
         </div>
 
@@ -493,7 +492,7 @@ setTimeout(function() {
                 <p>· 冠军 <b class="text-yellow-400">按赔率</b>；半程猜对 <b class="text-blue-300">+赔率×0.5</b>；两次选同队 <b class="text-green-400">+25%奖励</b></p>
                 <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
                 <p>· 小组赛：出线且名次正确 <b class="text-yellow-400">+2分</b>，出线但名次错误 <b class="text-green-400">+1分</b>；第三名出线每队 <b class="text-orange-400">+1分</b></p>
-                <p>· 淘汰赛精确比分 <b class="text-yellow-400">+3分</b>，猜中结果 <b class="text-green-400">+1分</b></p>
+                <p>· 淘汰赛：精确比分 <b class="text-yellow-400">+5分</b>，猜中胜平负 <b class="text-green-400">+2分</b>，首个进球者 <b class="text-orange-400">+8分</b></p>
                 <p>· 比分未出结果前，预测数越多排名越高</p>
             </div>
             <div class="glass rounded-2xl p-3 mb-3 text-center">
@@ -613,9 +612,99 @@ setTimeout(function() {
                 <button onclick="submitChampResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认并结算所有积分</button>
             </div>
 
-            <!-- Enter Results -->
+            <!-- KO: Manage Matches -->
             <div class="glass rounded-2xl p-6">
-                <h3 class="font-bold text-yellow-400 mb-4">📊 录入淘汰赛结果</h3>
+                <h3 class="font-bold text-yellow-400 mb-3">🥊 淘汰赛对阵管理</h3>
+                <p class="text-xs text-gray-400 mb-3">添加淘汰赛对阵（球队待确定时填 TBD）</p>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">轮次</p>
+                        <select id="koRoundSel" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                            <option value="r32">32进16</option>
+                            <option value="r16">16进8</option>
+                            <option value="qf">8进4</option>
+                            <option value="sf">半决赛</option>
+                            <option value="final">决赛</option>
+                        </select>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">开球时间（北京时间）</p>
+                        <input type="datetime-local" id="koKickoff"
+                            class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">主队 *</p>
+                        <input type="text" id="koHome" placeholder="TBD"
+                            class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">主队旗帜</p>
+                        <input type="text" id="koHomeFlag" placeholder="🏳️"
+                            class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">客队 *</p>
+                        <input type="text" id="koAway" placeholder="TBD"
+                            class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-1">客队旗帜</p>
+                        <input type="text" id="koAwayFlag" placeholder="🏳️"
+                            class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    </div>
+                </div>
+                <button onclick="addKoMatch()" class="w-full gold text-black font-bold py-2.5 rounded-xl mb-3 text-sm">添加这场对阵</button>
+                <div id="koMatchAdminList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+            </div>
+
+            <!-- KO: Player Rosters -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-3">👤 球员名单管理</h3>
+                <p class="text-xs text-gray-400 mb-3">为每支球队录入名单，用于首个进球者预测</p>
+                <input type="text" id="rosterTeam" placeholder="球队名称（如 巴西）"
+                    class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-2 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                <textarea id="rosterPlayers" rows="5" placeholder="每行一名球员&#10;姆巴佩&#10;格列兹曼&#10;坎特"
+                    class="w-full glass-dark rounded-xl px-3 py-2 text-xs text-green-400 font-mono resize-none mb-2 focus:outline-none focus:ring-1 focus:ring-yellow-400"></textarea>
+                <button onclick="saveRoster()" class="w-full gold text-black font-bold py-2 rounded-xl text-sm mb-2">保存名单</button>
+                <div id="rosterTeamList" class="space-y-1.5 max-h-40 overflow-y-auto"></div>
+            </div>
+
+            <!-- KO: Score Results -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-3">⚽ 录入淘汰赛结果</h3>
+                <p class="text-xs text-gray-400 mb-3">录入90分钟内结果，系统自动结算积分</p>
+                <select id="koResultMatchSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <option value="">— 选择淘汰赛比赛 —</option>
+                </select>
+                <div class="mb-2">
+                    <p class="text-xs text-gray-400 mb-1.5">90分钟比分</p>
+                    <div class="flex gap-3 mb-3">
+                        <div class="flex-1 text-center">
+                            <p class="text-xs text-gray-400 mb-1" id="koResHomeLabel">主队</p>
+                            <input type="number" id="koResHomeScore" min="0" max="99" placeholder="0" class="score-input w-full rounded-xl text-center">
+                        </div>
+                        <div class="flex items-end pb-3 text-2xl font-black text-gray-500">:</div>
+                        <div class="flex-1 text-center">
+                            <p class="text-xs text-gray-400 mb-1" id="koResAwayLabel">客队</p>
+                            <input type="number" id="koResAwayScore" min="0" max="99" placeholder="0" class="score-input w-full rounded-xl text-center">
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-1">首个进球者（无进球填"无"）</p>
+                    <div id="koScorerInputWrap"></div>
+                </div>
+                <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
+            </div>
+
+            <!-- Clear public room data -->
+            <div class="glass rounded-2xl p-4 border border-red-500/20">
+                <h3 class="font-bold text-red-400 mb-1">🗑️ 清除公共房间数据</h3>
+                <p class="text-xs text-gray-400 mb-3">删除 public 房间的所有用户和积分数据（不可恢复）</p>
+                <button onclick="clearPublicRoom()" class="w-full bg-red-950/60 border border-red-500/40 text-red-300 font-bold py-2.5 rounded-xl text-sm">清除公共房间</button>
+            </div>
+
+            <!-- Enter Results (legacy, hidden) -->
+            <div class="glass rounded-2xl p-6 hidden">
+                <h3 class="font-bold text-yellow-400 mb-4">📊 录入旧淘汰赛结果（旧格式）</h3>
                 <select id="resultMatchSel"
                     class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
                     <option value="">— 选择一场比赛 —</option>
@@ -751,20 +840,18 @@ const FREE_ROOM  = 'public';
 
 let demoMode = false;
 let currentUser = null;
-let currentRoom = FREE_ROOM;
+let currentRoom = PRIZE_ROOM;
 let matchesData = {};
 let predsData = {};
 let scoresData = {};
-// Cross-room data: always load both PRIZE_ROOM and FREE_ROOM regardless of currentRoom
-let prizeRoomScoresData = {};   // dqdm
-let freeRoomScoresData  = {};   // public
-// Aliases kept for similarity helpers (always = the non-current room's preds)
-let crossScoresData     = {};
-let crossChampPredsData = {};
-let crossGroupPredsData = {};
-let crossThirdPicksData = {};
 let avatarsData = {};
 let wantsPrize = true;
+// Knockout stage
+let koMatchesData  = {};  // rooms/${room}/ko/matches
+let koPlayersData  = {};  // rooms/${room}/ko/players (teamName → string[])
+let koPredsData    = {};  // rooms/${room}/ko/preds/${uid}  (matchId → pred)
+let koAllPredsData = {};  // rooms/${room}/ko/preds (all users, for leaderboard)
+let currentKoRound = 'r32';
 const ADMIN_DEFAULT_PWD = 'admin2026';
 
 window.togglePrize = function(val) {
@@ -936,7 +1023,7 @@ window.logout = function() {
 function startApp() {
     show('app');
     document.getElementById('headerName').textContent = currentUser.name;
-    const roomLabel = currentRoom === PRIZE_ROOM ? '大奖房间' : currentRoom === FREE_ROOM ? '公共房间' : currentRoom;
+    const roomLabel = currentRoom === PRIZE_ROOM ? '懂球弟妹' : currentRoom;
     document.getElementById('headerRoom').textContent = `${roomLabel}${demoMode ? ' (演示)' : ''}`;
     _refreshHeaderAvatar();
     const savedTab = localStorage.getItem('wc2026_tab');
@@ -978,26 +1065,23 @@ function startApp() {
             if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
 
-        // ── Cross-room listeners: always load both fixed rooms for merged leaderboard ──
-        onValue(ref(db, `rooms/${PRIZE_ROOM}/scores`), snap => {
-            prizeRoomScoresData = snap.exists() ? snap.val() : {};
-            if (currentRoom !== PRIZE_ROOM) crossScoresData = prizeRoomScoresData;
+        // ── Knockout stage listeners ──
+        onValue(ref(db, `rooms/${currentRoom}/ko/matches`), snap => {
+            koMatchesData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden')) renderKnockout();
+            refreshKoAdmin();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/ko/players`), snap => {
+            koPlayersData = snap.exists() ? snap.val() : {};
+            refreshRosterList();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/ko/preds/${currentUser.id}`), snap => {
+            koPredsData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden')) renderKnockout();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
+            koAllPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
-        });
-        onValue(ref(db, `rooms/${FREE_ROOM}/scores`), snap => {
-            freeRoomScoresData = snap.exists() ? snap.val() : {};
-            if (currentRoom !== FREE_ROOM) crossScoresData = freeRoomScoresData;
-            renderLeaderboard();
-        });
-        const otherRoom = currentRoom === PRIZE_ROOM ? FREE_ROOM : PRIZE_ROOM;
-        onValue(ref(db, `rooms/${otherRoom}/champPreds`), snap => {
-            crossChampPredsData = snap.exists() ? snap.val() : {};
-        });
-        onValue(ref(db, `rooms/${otherRoom}/groupPreds`), snap => {
-            crossGroupPredsData = snap.exists() ? snap.val() : {};
-        });
-        onValue(ref(db, `rooms/${otherRoom}/thirdPicks`), snap => {
-            crossThirdPicksData = snap.exists() ? snap.val() : {};
         });
     }
 }
@@ -1109,6 +1193,372 @@ function renderMatchCard(m) {
     </div>`;
 }
 
+// ─── Knockout Stage ──────────────────────────────────────
+const KO_ROUNDS = ['r32','r16','qf','sf','final'];
+const KO_LABELS = {r32:'32进16', r16:'16进8', qf:'8进4', sf:'半决赛', final:'决赛'};
+
+window.switchKoRound = function(round) {
+    currentKoRound = round;
+    renderKnockout();
+};
+
+function renderKnockout() {
+    const roundList = KO_ROUNDS;
+    const roundLabels = KO_LABELS;
+    roundList.forEach(r => {
+        const btn = document.getElementById(`ko-tab-${r}`);
+        if (!btn) return;
+        if (r === currentKoRound) {
+            btn.className = 'ko-round-tab flex-1 py-2 rounded-xl text-xs font-bold bg-yellow-400/20 text-yellow-300 border border-yellow-400/30';
+        } else {
+            btn.className = 'ko-round-tab flex-1 py-2 rounded-xl text-xs font-bold text-gray-400';
+        }
+    });
+    const container = document.getElementById('koContainer');
+    if (!container) return;
+
+    if (!Object.keys(koMatchesData).length) {
+        container.innerHTML = `<div class="glass rounded-3xl p-8 mx-1 text-center">
+            <p class="text-5xl mb-4">🏆</p>
+            <p class="font-black text-xl text-white mb-2">淘汰赛竞猜</p>
+            <p class="text-sm text-yellow-400 font-bold mb-1">敬请期待</p>
+            <p class="text-xs text-gray-500 mt-3">小组赛结束后（约2026年7月4日）开放</p>
+        </div>`;
+        return;
+    }
+    const roundMatches = Object.entries(koMatchesData)
+        .filter(([,m]) => m.round === currentKoRound)
+        .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
+
+    if (!roundMatches.length) {
+        container.innerHTML = `<div class="glass rounded-2xl p-6 text-center">
+            <p class="text-3xl mb-3">⏳</p>
+            <p class="text-sm font-bold text-gray-300">本轮对阵尚未公布</p>
+            <p class="text-xs text-gray-500 mt-1">晋级球队确定后更新</p>
+        </div>`;
+        return;
+    }
+    container.innerHTML = roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
+}
+
+function renderKoMatchCard(matchId, match) {
+    const myPred = koPredsData[matchId] || null;
+    const kickoff = match.kickoff ? new Date(match.kickoff) : null;
+    const now = new Date();
+    const locked = match.status === 'finished' || match.status === 'live' || (kickoff && kickoff <= now);
+    const finished = match.status === 'finished';
+    const result = match.result || null;
+
+    const roundBadge = `<span class="text-xs px-2 py-0.5 rounded-full bg-white/10 text-gray-300">${KO_LABELS[match.round]||match.round}</span>`;
+
+    let statusBadge;
+    if (finished) {
+        statusBadge = `<span class="text-xs bg-green-900/60 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full">已结束</span>`;
+    } else if (match.status === 'live') {
+        statusBadge = `<span class="text-xs bg-red-900/60 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full pulse">🔴 进行中</span>`;
+    } else if (locked) {
+        statusBadge = `<span class="text-xs bg-orange-900/60 text-orange-300 border border-orange-500/30 px-2 py-0.5 rounded-full">已锁定</span>`;
+    } else {
+        const timeStr = kickoff ? kickoff.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '时间待定';
+        statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${timeStr}</span>`;
+    }
+
+    let vsBlock;
+    if (finished && result) {
+        vsBlock = `<div class="text-2xl font-black text-yellow-400">${result.homeScore} : ${result.awayScore}</div>
+            <div class="text-xs text-gray-400 mt-0.5">${result.scorer ? `⚽ ${result.scorer}` : ''}</div>`;
+    } else {
+        vsBlock = `<div class="text-gray-600 font-black text-xl">VS</div>`;
+    }
+
+    let predBlock = '';
+    if (myPred) {
+        const pts = myPred.points;
+        let ptsBadge;
+        if (pts !== null && pts !== undefined) {
+            const cls = pts >= 13 ? 'bg-orange-500 text-white' : pts >= 5 ? 'bg-yellow-500 text-black' : pts >= 2 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+            ptsBadge = `<span class="${cls} text-xs px-2 py-0.5 rounded-full font-bold">+${pts}分</span>`;
+        } else {
+            ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full">待揭晓</span>`;
+        }
+        predBlock = `<div class="mt-2 pt-2 border-t border-white/10 text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
+            <span>我预测：</span>
+            <span class="font-bold text-blue-300">${myPred.homeScore ?? '?'} : ${myPred.awayScore ?? '?'}</span>
+            ${myPred.scorer ? `<span class="text-orange-300">⚽ ${myPred.scorer}</span>` : ''}
+            ${ptsBadge}
+        </div>`;
+    }
+
+    let predForm = '';
+    if (!locked) {
+        const players = _koRosterForMatch(match);
+        const scorerOpts = players.length
+            ? players.map(p => `<option value="${p}" ${myPred?.scorer===p?'selected':''}>${p}</option>`).join('')
+            : '';
+
+        predForm = `<div class="mt-3 pt-3 border-t border-white/10">
+            <p class="text-xs text-gray-500 mb-1.5">🎯 精确比分（90分钟内）</p>
+            <div class="flex items-center gap-3 mb-3">
+                <input type="number" id="ko-hs-${matchId}" min="0" max="99" placeholder="0"
+                    value="${myPred?.homeScore ?? ''}"
+                    class="score-input flex-1 rounded-xl text-center">
+                <span class="text-gray-500 font-black text-xl">:</span>
+                <input type="number" id="ko-as-${matchId}" min="0" max="99" placeholder="0"
+                    value="${myPred?.awayScore ?? ''}"
+                    class="score-input flex-1 rounded-xl text-center">
+            </div>
+            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者 <span class="text-orange-400 font-bold">+8分</span></p>
+            <select id="ko-scorer-${matchId}" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none">
+                <option value="">不选 / 无进球</option>
+                ${scorerOpts}
+                ${!players.length ? '<option disabled class="text-gray-500">（名单待录入）</option>' : ''}
+            </select>
+            <button onclick="submitKoPred('${matchId}')" class="w-full ${myPred ? 'glass border border-blue-500/40 text-blue-300' : 'gold text-black'} font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
+                ${myPred ? '✏️ 更新预测' : '🎯 提交预测'}
+            </button>
+        </div>`;
+    }
+
+    return `<div class="glass rounded-2xl p-4 mb-3">
+        <div class="flex items-center justify-between mb-2">
+            ${roundBadge}
+            ${statusBadge}
+        </div>
+        <div class="flex items-center">
+            <div class="text-center flex-1">
+                <div class="text-4xl mb-1.5">${match.homeFlag||'🏳️'}</div>
+                <div class="font-bold text-sm leading-tight">${match.home||'TBD'}</div>
+            </div>
+            <div class="flex-1 text-center px-2">${vsBlock}</div>
+            <div class="text-center flex-1">
+                <div class="text-4xl mb-1.5">${match.awayFlag||'🏳️'}</div>
+                <div class="font-bold text-sm leading-tight">${match.away||'TBD'}</div>
+            </div>
+        </div>
+        ${predBlock}
+        ${predForm}
+    </div>`;
+}
+
+function _koRosterForMatch(match) {
+    const h = koPlayersData[match.home] || [];
+    const a = koPlayersData[match.away] || [];
+    return [
+        ...h.map(p => `${p} (${match.home})`),
+        ...a.map(p => `${p} (${match.away})`),
+    ];
+}
+
+window.submitKoPred = async function(matchId) {
+    const match = koMatchesData[matchId];
+    if (!match) return;
+    const kickoff = match.kickoff ? new Date(match.kickoff) : null;
+    if (match.status === 'finished' || match.status === 'live') { toast('比赛已结束或进行中', 'error'); return; }
+    if (kickoff && kickoff <= new Date()) { toast('比赛已开始，无法修改预测', 'error'); return; }
+
+    const hs = parseInt(document.getElementById(`ko-hs-${matchId}`)?.value);
+    const as = parseInt(document.getElementById(`ko-as-${matchId}`)?.value);
+    if (isNaN(hs) || isNaN(as)) { toast('请输入比分', 'error'); return; }
+    const scorer = document.getElementById(`ko-scorer-${matchId}`)?.value || '';
+    const pred = { homeScore: hs, awayScore: as, scorer: scorer || null, points: null };
+
+    if (demoMode) {
+        koPredsData[matchId] = pred;
+        renderKnockout();
+        toast('✅ 预测已保存');
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/ko/preds/${currentUser.id}/${matchId}`), pred);
+        toast('✅ 预测已保存');
+    }
+};
+
+function calcKoPts(pred, result) {
+    let pts = 0;
+    if (pred.homeScore === result.homeScore && pred.awayScore === result.awayScore) {
+        pts += 5;
+    } else {
+        const pOut = pred.homeScore > pred.awayScore ? 'home' : pred.homeScore < pred.awayScore ? 'away' : 'draw';
+        const rOut = result.homeScore > result.awayScore ? 'home' : result.homeScore < result.awayScore ? 'away' : 'draw';
+        if (pOut === rOut) pts += 2;
+    }
+    if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += 8;
+    return pts;
+}
+
+// ── KO Admin functions ────────────────────────────────────
+function refreshKoAdmin() {
+    if (!adminAuthed) return;
+    // Refresh KO result match selector
+    const sel = document.getElementById('koResultMatchSel');
+    if (sel) {
+        const opts = Object.entries(koMatchesData)
+            .filter(([,m]) => m.status !== 'finished')
+            .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''))
+            .map(([id,m]) => {
+                return `<option value="${id}">[${KO_LABELS[m.round]||m.round}] ${m.home||'TBD'} vs ${m.away||'TBD'} ${m.kickoff?new Date(m.kickoff).toLocaleDateString('zh-CN'):''}`;
+            }).join('');
+        sel.innerHTML = '<option value="">— 选择淘汰赛比赛 —</option>' + opts;
+        sel.onchange = function() {
+            const m = koMatchesData[this.value];
+            if (!m) { document.getElementById('koScorerInputWrap').innerHTML=''; return; }
+            document.getElementById('koResHomeLabel').textContent = m.home||'主队';
+            document.getElementById('koResAwayLabel').textContent = m.away||'客队';
+            // Build scorer options from both teams' rosters
+            const players = _koRosterForMatch(m);
+            const opts2 = players.map(p => `<option value="${p}">${p}</option>`).join('');
+            document.getElementById('koScorerInputWrap').innerHTML = `<select id="koResScorer" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                <option value="">无进球</option>
+                ${opts2}
+                <option value="__custom__">🖊️ 手动输入</option>
+            </select>
+            <input type="text" id="koResScorerCustom" placeholder="手动输入球员姓名" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mt-2 focus:outline-none focus:ring-1 focus:ring-yellow-400 hidden">`;
+            document.getElementById('koResScorer').onchange = function() {
+                const ci = document.getElementById('koResScorerCustom');
+                if (ci) ci.classList.toggle('hidden', this.value !== '__custom__');
+            };
+        };
+    }
+    // Refresh KO match list
+    const list = document.getElementById('koMatchAdminList');
+    if (list) {
+        if (!Object.keys(koMatchesData).length) {
+            list.innerHTML = '<p class="text-xs text-gray-500 text-center">暂无对阵</p>';
+            return;
+        }
+        const sorted = Object.entries(koMatchesData).sort((a,b)=>(KO_ROUNDS.indexOf(a[1].round)-KO_ROUNDS.indexOf(b[1].round)) || (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
+        list.innerHTML = sorted.map(([id,m]) => {
+            const dt = m.kickoff ? new Date(m.kickoff).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '待定';
+            const doneBadge = m.status==='finished' ? '<span class="text-green-400 text-xs ml-1">✓</span>' : '';
+            return `<div class="flex items-center justify-between glass-dark rounded-xl px-3 py-2">
+                <div class="text-xs">
+                    <span class="text-yellow-400 font-bold">${KO_LABELS[m.round]||m.round}</span>
+                    <span class="text-gray-300 ml-1">${m.homeFlag||'🏳️'}${m.home||'TBD'} vs ${m.awayFlag||'🏳️'}${m.away||'TBD'}</span>${doneBadge}
+                    <br><span class="text-gray-500">${dt}</span>
+                </div>
+                <button onclick="deleteKoMatch('${id}')" class="text-red-400 text-xs ml-2">删除</button>
+            </div>`;
+        }).join('');
+    }
+}
+
+function refreshRosterList() {
+    if (!adminAuthed) return;
+    const list = document.getElementById('rosterTeamList');
+    if (!list) return;
+    const teams = Object.keys(koPlayersData);
+    if (!teams.length) { list.innerHTML = '<p class="text-xs text-gray-500 text-center">暂无名单</p>'; return; }
+    list.innerHTML = teams.sort().map(team => {
+        const players = koPlayersData[team] || [];
+        return `<div class="glass-dark rounded-xl px-3 py-2 flex items-center justify-between">
+            <div class="text-xs">
+                <span class="font-bold text-yellow-400">${team}</span>
+                <span class="text-gray-400 ml-1">${players.length}人</span>
+            </div>
+            <button onclick="loadRosterForEdit('${team}')" class="text-blue-400 text-xs ml-2">编辑</button>
+        </div>`;
+    }).join('');
+}
+
+window.addKoMatch = async function() {
+    const round = document.getElementById('koRoundSel')?.value;
+    const home = document.getElementById('koHome')?.value.trim() || 'TBD';
+    const homeFlag = document.getElementById('koHomeFlag')?.value.trim() || '🏳️';
+    const away = document.getElementById('koAway')?.value.trim() || 'TBD';
+    const awayFlag = document.getElementById('koAwayFlag')?.value.trim() || '🏳️';
+    const kickoffRaw = document.getElementById('koKickoff')?.value;
+    if (!round) { toast('请选择轮次', 'error'); return; }
+    const kickoff = kickoffRaw ? new Date(kickoffRaw).toISOString() : null;
+    const match = { round, home, homeFlag, away, awayFlag, kickoff, status: 'upcoming' };
+    const matchId = 'ko_' + Date.now();
+    if (demoMode) { koMatchesData[matchId] = match; renderKnockout(); refreshKoAdmin(); }
+    else { await set(ref(db, `rooms/${currentRoom}/ko/matches/${matchId}`), match); }
+    ['koHome','koAway','koHomeFlag','koAwayFlag','koKickoff'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+    toast('✅ 对阵已添加');
+};
+
+window.deleteKoMatch = async function(matchId) {
+    if (!confirm('确认删除这场对阵？')) return;
+    if (demoMode) { delete koMatchesData[matchId]; renderKnockout(); refreshKoAdmin(); }
+    else { await remove(ref(db, `rooms/${currentRoom}/ko/matches/${matchId}`)); }
+    toast('已删除');
+};
+
+window.saveRoster = async function() {
+    const team = document.getElementById('rosterTeam')?.value.trim();
+    const text = document.getElementById('rosterPlayers')?.value || '';
+    if (!team) { toast('请输入球队名称', 'error'); return; }
+    const players = text.split('\n').map(s=>s.trim()).filter(Boolean);
+    if (!players.length) { toast('请输入至少一名球员', 'error'); return; }
+    if (demoMode) { koPlayersData[team] = players; refreshRosterList(); }
+    else { await set(ref(db, `rooms/${currentRoom}/ko/players/${team}`), players); }
+    document.getElementById('rosterTeam').value = '';
+    document.getElementById('rosterPlayers').value = '';
+    toast(`✅ ${team} 名单已保存（${players.length}人）`);
+};
+
+window.loadRosterForEdit = function(team) {
+    document.getElementById('rosterTeam').value = team;
+    document.getElementById('rosterPlayers').value = (koPlayersData[team]||[]).join('\n');
+    document.getElementById('rosterTeam').scrollIntoView({behavior:'smooth'});
+};
+
+window.submitKoResult = async function() {
+    const matchId = document.getElementById('koResultMatchSel')?.value;
+    if (!matchId) { toast('请选择比赛', 'error'); return; }
+    const hs = parseInt(document.getElementById('koResHomeScore')?.value);
+    const as = parseInt(document.getElementById('koResAwayScore')?.value);
+    if (isNaN(hs) || isNaN(as)) { toast('请输入比分', 'error'); return; }
+    const scorerSel = document.getElementById('koResScorer')?.value || '';
+    const scorerCustom = document.getElementById('koResScorerCustom')?.value.trim() || '';
+    let scorer = scorerSel === '__custom__' ? scorerCustom : scorerSel;
+    if (scorer === '' || scorer === '无进球') scorer = null;
+    const outcome = hs > as ? 'home' : hs < as ? 'away' : 'draw';
+    const result = { homeScore: hs, awayScore: as, outcome, scorer };
+
+    // Score all predictions for this match
+    const updates = {};
+    updates[`rooms/${currentRoom}/ko/matches/${matchId}/status`] = 'finished';
+    updates[`rooms/${currentRoom}/ko/matches/${matchId}/result`] = result;
+
+    if (!demoMode) {
+        const [predsSnap, scoresSnap] = await Promise.all([
+            get(ref(db, `rooms/${currentRoom}/ko/preds`)),
+            get(ref(db, `rooms/${currentRoom}/scores`))
+        ]);
+        const allPreds = predsSnap.exists() ? predsSnap.val() : {};
+        const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+
+        Object.entries(allPreds).forEach(([uid, userPreds]) => {
+            const pred = userPreds?.[matchId];
+            if (!pred || pred.points != null) return;
+            const pts = calcKoPts(pred, result);
+            updates[`rooms/${currentRoom}/ko/preds/${uid}/${matchId}/points`] = pts;
+            const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
+            s.total = (s.total||0) + pts;
+            updates[`rooms/${currentRoom}/scores/${uid}`] = s;
+        });
+        await update(ref(db, '/'), updates);
+    } else {
+        koMatchesData[matchId] = { ...koMatchesData[matchId], status:'finished', result };
+        renderKnockout();
+        refreshKoAdmin();
+    }
+    document.getElementById('koResHomeScore').value = '';
+    document.getElementById('koResAwayScore').value = '';
+    toast('✅ 淘汰赛结果已录入，积分已结算');
+};
+
+window.clearPublicRoom = async function() {
+    if (!confirm('确认删除 public 房间所有数据？此操作不可撤销！')) return;
+    if (demoMode) { toast('演示模式无需清除'); return; }
+    try {
+        await remove(ref(db, `rooms/public`));
+        toast('✅ 公共房间数据已清除');
+    } catch(e) {
+        toast('❌ 清除失败: ' + e.message, 'error');
+    }
+};
+
 // ─── Render: Leaderboard ─────────────────────────────────
 function _countPreds(uid) {
     const cp = champPredsData[uid] || {};
@@ -1184,13 +1634,6 @@ function _podiumCard(uid, s, rank, isMe, size) {
 
 function renderLeaderboard() {
     const container = document.getElementById('leaderboardContainer');
-
-    // ─ Prize pool section: always dqdm room only ─
-    const prizeRoomScores = Object.keys(prizeRoomScoresData).length ? prizeRoomScoresData
-        : (currentRoom === PRIZE_ROOM ? scoresData : {});
-    const prizeEntries = Object.entries(prizeRoomScores);
-
-    // ─ Total section: merge both rooms ─
     const allScores = _allScoreEntries();
     const allEntries = Object.entries(allScores);
     if (!allEntries.length) {
@@ -1201,80 +1644,109 @@ function renderLeaderboard() {
 
     let html = '';
 
-    // ── 大奖游戏排行榜 (dqdm room only) ──
-    if (prizeEntries.length > 0) {
-        const prizeSorted = [...prizeEntries].sort(_lbSort);
-        html += `<div class="glass rounded-2xl p-4 mb-4 border border-yellow-400/20">
-            <p class="font-black text-center gold-text mb-0.5">🎁 大奖游戏排名</p>
-            <p class="text-xs text-center text-gray-400 mb-3">仅统计参与大奖游戏的玩家 · 前三名赢取奖品</p>`;
-        if (prizeSorted.length >= 3) {
-            const [p1uid,p1s] = prizeSorted[0], [p2uid,p2s] = prizeSorted[1], [p3uid,p3s] = prizeSorted[2];
-            html += `<div class="grid grid-cols-3 gap-2 mb-3">
-                ${_podiumCard(p2uid, p2s, 2, p2s.name===currentUser.name, 'small')}
-                ${_podiumCard(p1uid, p1s, 1, p1s.name===currentUser.name, 'big')}
-                ${_podiumCard(p3uid, p3s, 3, p3s.name===currentUser.name, 'small')}
+    // ── 总排行榜 ──
+    const top3 = allSorted.slice(0, 3);
+    if (allSorted.length >= 3) {
+        const [p1uid,p1s] = allSorted[0], [p2uid,p2s] = allSorted[1], [p3uid,p3s] = allSorted[2];
+        html += `<div class="grid grid-cols-3 gap-2 mb-3">
+            ${_podiumCard(p2uid, p2s, 2, p2s.name===currentUser.name, 'small')}
+            ${_podiumCard(p1uid, p1s, 1, p1s.name===currentUser.name, 'big')}
+            ${_podiumCard(p3uid, p3s, 3, p3s.name===currentUser.name, 'small')}
+        </div>`;
+        allSorted.slice(3).forEach(([uid, s], i) => {
+            const rank = i + 4, isMe = s.name === currentUser.name;
+            html += `<div class="glass rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
+                <span class="font-black text-base w-7 text-center text-gray-400">${rank}</span>
+                ${_avatarHtml(uid, s.name, 'w-9 h-9', 'text-lg')}
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-sm flex items-center gap-1.5">
+                        <span class="truncate text-white">${s.name||'未知'}</span>
+                        ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>':''}
+                    </div>
+                    <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
+                </div>
+                <div class="text-2xl font-black text-white">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
             </div>`;
-            prizeSorted.slice(3).forEach(([uid, s], i) => {
-                const rank = i + 4, isMe = s.name === currentUser.name;
-                html += `<div class="glass rounded-xl p-2.5 flex items-center gap-2 mb-1.5 ${isMe?'ring-1 ring-yellow-400':''}">
-                    <span class="font-black text-base w-6 text-center text-gray-400">${rank}</span>
-                    ${_avatarHtml(uid, s.name, 'w-7 h-7', 'text-sm')}
-                    <span class="flex-1 text-sm font-bold truncate">${s.name||'未知'}${isMe?' <span class="text-yellow-400 text-xs">我</span>':''}</span>
-                    <span class="font-black">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></span>
-                </div>`;
-            });
-        } else {
-            prizeSorted.forEach(([uid, s], i) => {
-                const rank = i+1, isMe = s.name === currentUser.name;
-                let rCls='glass', rIcon=`<span class="font-black text-xl w-8 text-center">${rank}</span>`;
-                if(rank===1){rCls='rank-gold';rIcon='<span class="text-2xl w-8 text-center">🥇</span>';}
-                else if(rank===2){rCls='rank-silver';rIcon='<span class="text-2xl w-8 text-center">🥈</span>';}
-                else if(rank===3){rCls='rank-bronze';rIcon='<span class="text-2xl w-8 text-center">🥉</span>';}
-                const tc = rank<=3?'text-current':'text-white';
-                html += `<div class="${rCls} rounded-xl p-3 flex items-center gap-3 mb-1.5 ${isMe?'ring-2 ring-yellow-400':''}">
-                    ${rIcon}
-                    ${_avatarHtml(uid, s.name, 'w-8 h-8', 'text-base')}
-                    <span class="flex-1 font-bold text-sm truncate ${tc}">${s.name||'未知'}${isMe?' <span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full">我</span>':''}</span>
-                    <span class="text-xl font-black ${tc}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></span>
-                </div>`;
-            });
-        }
-        html += `</div>`;
+        });
+    } else {
+        allSorted.forEach(([uid, s], i) => {
+            const rank = i+1, isMe = s.name === currentUser.name;
+            let rCls='glass'; let rIcon=`<span class="font-black text-xl w-8 text-center">${rank}</span>`;
+            if(rank===1){rCls='rank-gold';rIcon='<span class="text-2xl w-8 text-center">🥇</span>';}
+            else if(rank===2){rCls='rank-silver';rIcon='<span class="text-2xl w-8 text-center">🥈</span>';}
+            else if(rank===3){rCls='rank-bronze';rIcon='<span class="text-2xl w-8 text-center">🥉</span>';}
+            html += `<div class="${rCls} rounded-2xl p-3 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
+                ${rIcon}
+                ${_avatarHtml(uid, s.name, 'w-8 h-8', 'text-base')}
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-sm">${s.name||'未知'}${isMe?' <span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full ml-1">我</span>':''}</div>
+                    <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
+                </div>
+                <div class="text-xl font-black">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
+            </div>`;
+        });
     }
 
-    // ── 总排行 (all rooms merged) ──
-    const prizeIds = new Set(Object.keys(prizeRoomScoresData));
-    html += `<p class="text-xs text-gray-500 font-bold mb-2">📊 总排行 · 共 ${allSorted.length} 人</p>`;
-    allSorted.forEach(([uid, s], i) => {
-        const rank = i + 1;
+    // ── 每轮淘汰赛积分 toggle ──
+    const rounds = KO_ROUNDS;
+    const roundLabels = KO_LABELS;
+    const koTableRows = allSorted.map(([uid, s]) => {
+        const rowData = rounds.map(r => _koRoundPts(uid, r));
+        const koTotal = rowData.reduce((a,b)=>a+b, 0);
         const isMe = s.name === currentUser.name;
-        let rankCls = 'glass';
-        let rankIcon = `<span class="font-black text-base w-7 text-center text-gray-400">${rank}</span>`;
-        if (rank===1){rankCls='rank-gold'; rankIcon='<span class="text-2xl w-7 text-center">🏆</span>';}
-        else if(rank===2){rankCls='rank-silver'; rankIcon='<span class="text-2xl w-7 text-center">🥈</span>';}
-        else if(rank===3){rankCls='rank-bronze'; rankIcon='<span class="text-2xl w-7 text-center">🥉</span>';}
-        const textCls = rank<=3 ? 'text-current' : 'text-white';
-        // Room tag: based on actual room membership
-        const isPrize = prizeIds.has(uid);
-        const roomTag = isPrize
-            ? `<span class="text-[10px] bg-yellow-400/15 text-yellow-400 px-1.5 py-0.5 rounded-full flex-shrink-0">大奖</span>`
-            : `<span class="text-[10px] bg-white/8 text-gray-500 px-1.5 py-0.5 rounded-full flex-shrink-0">公共</span>`;
-        html += `<div class="${rankCls} rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
-            ${rankIcon}
-            ${_avatarHtml(uid, s.name, 'w-9 h-9', 'text-lg')}
-            <div class="flex-1 min-w-0">
-                <div class="font-bold text-sm flex items-center gap-1.5">
-                    <span class="truncate ${textCls}">${s.name||'未知'}</span>
-                    ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>':''}
-                    ${roomTag}
-                </div>
-                <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
-            </div>
-            <div class="text-2xl font-black ${textCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
-        </div>`;
-    });
+        return `<tr class="border-b border-white/5 ${isMe?'text-yellow-300':'text-gray-300'}">
+            <td class="py-1.5 pr-2 font-bold truncate max-w-[70px] text-xs">${s.name||'?'}</td>
+            ${rowData.map(pts => `<td class="text-center py-1.5 px-0.5 text-xs ${pts>0?'text-green-400 font-bold':''}">${pts || '–'}</td>`).join('')}
+            <td class="text-right py-1.5 pl-2 font-bold text-xs ${koTotal>0?'text-yellow-400':''}">${koTotal || '–'}</td>
+        </tr>`;
+    }).join('');
+
+    html += `<div class="glass rounded-2xl p-3 mt-3">
+        <button onclick="toggleKoRoundScores()" class="w-full flex items-center justify-between py-0.5">
+            <span class="font-bold text-sm text-gray-300">📊 每轮淘汰赛积分</span>
+            <span id="koRoundChevron" class="text-gray-500 text-xs">▶ 展开</span>
+        </button>
+        <div id="koRoundScoresSection" class="hidden mt-3 overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-gray-500 border-b border-white/10 text-xs">
+                        <th class="text-left py-1.5 pr-2">玩家</th>
+                        ${rounds.map(r=>`<th class="text-center py-1.5 px-0.5">${roundLabels[r]}</th>`).join('')}
+                        <th class="text-right py-1.5 pl-2">合计</th>
+                    </tr>
+                </thead>
+                <tbody>${koTableRows}</tbody>
+            </table>
+            ${Object.keys(koMatchesData).length===0?'<p class="text-xs text-gray-500 text-center pt-2">淘汰赛开始后展示数据</p>':''}
+        </div>
+    </div>`;
 
     container.innerHTML = html;
+}
+
+window.toggleKoRoundScores = function() {
+    const sec = document.getElementById('koRoundScoresSection');
+    const chev = document.getElementById('koRoundChevron');
+    if (!sec || !chev) return;
+    if (sec.classList.contains('hidden')) {
+        sec.classList.remove('hidden');
+        chev.textContent = '▼ 收起';
+    } else {
+        sec.classList.add('hidden');
+        chev.textContent = '▶ 展开';
+    }
+};
+
+function _koRoundPts(uid, round) {
+    const userPreds = koAllPredsData[uid] || {};
+    let pts = 0;
+    Object.entries(koMatchesData).forEach(([mid, m]) => {
+        if (m.round !== round || m.status !== 'finished' || !m.result) return;
+        const pred = userPreds[mid];
+        if (!pred || pred.points == null) return;
+        pts += pred.points || 0;
+    });
+    return pts;
 }
 
 function updateHeaderPoints() {
@@ -1522,14 +1994,11 @@ function _genComment(sentence, picks, gpRows, thirdPicksArr) {
 
 // ─── Similarity ──────────────────────────────────────────
 // Helpers that resolve prediction data across both rooms
-function _xChampPred(uid) { return champPredsData[uid] || crossChampPredsData[uid] || {}; }
-function _xGroupPred(uid, gid) { return groupPredsData[`${uid}_${gid}`] || crossGroupPredsData[`${uid}_${gid}`] || null; }
-function _xThirdPicks(uid) { return (thirdPicksData[uid] || crossThirdPicksData[uid])?.picks || []; }
+function _xChampPred(uid) { return champPredsData[uid] || {}; }
+function _xGroupPred(uid, gid) { return groupPredsData[`${uid}_${gid}`] || null; }
+function _xThirdPicks(uid) { return thirdPicksData[uid]?.picks || []; }
 function _allScoreEntries() {
-    // Always merge both fixed rooms + current room (handles custom rooms too)
-    const merged = { ...freeRoomScoresData, ...prizeRoomScoresData };
-    Object.entries(scoresData).forEach(([uid, s]) => { merged[uid] = s; });
-    return merged;
+    return { ...scoresData };
 }
 
 function _calcSimilarity(myUid, otherUid) {
@@ -1964,7 +2433,7 @@ function renderMyPreds() {
             <div class="flex items-center justify-between">
                 <div class="text-center flex-1">
                     <p class="text-2xl font-black text-white">${range.min}<span class="text-xs font-normal text-gray-400">分</span></p>
-                    <p class="text-xs text-gray-500 mt-0.5">最低（全错）</p>
+                    <p class="text-xs text-gray-500 mt-0.5">已确认得分</p>
                 </div>
                 <div class="text-gray-600 font-black text-xl">~</div>
                 <div class="text-center flex-1">
@@ -3063,6 +3532,7 @@ window.switchTab = function(tab) {
     if (tab === 'myPreds') renderMyPreds();
     if (tab === 'champion') renderChampion();
     if (tab === 'topScorer') renderChampSection2(champPredsData[currentUser?.id] || {}, new Date());
+    if (tab === 'knockout') renderKnockout();
 };
 
 // ─── Admin ────────────────────────────────────────────────
@@ -3096,6 +3566,7 @@ window.adminLogin = async function() {
         refreshResultMatchSelect();
         refreshAdminGroupSelects();
         refreshAdminChampSelect();
+        refreshKoAdmin();
     } else {
         toast('密码错误', 'error');
     }
@@ -3449,6 +3920,7 @@ function renderGroups() {
         // Third-place picks from this group
         const thirdFromGroup = myThirdPicks.filter(name => teams.some(t => t.name === name));
 
+        const thirdAdv = roomSettingsData?.thirdAdvanced || [];
         let teamsHtml = teams.map(t => {
             let cls = 'glass', badge = '';
             const isThird = myThirdPicks.includes(t.name);
@@ -3456,13 +3928,22 @@ function renderGroups() {
                 if (g.qualified.includes(t.name)) {
                     cls = 'bg-green-900/40 border border-green-500/40';
                     badge = g.winner === t.name ? '<span class="text-sm">🥇</span>' : '<span class="text-green-400 text-xs font-bold">出线</span>';
+                } else if (isThird) {
+                    cls = 'bg-orange-900/30 border border-orange-500/40';
+                    if (thirdAdv.length === 8) {
+                        badge = thirdAdv.includes(t.name)
+                            ? '<span class="text-green-400 text-xs font-bold">第三✓</span>'
+                            : '<span class="text-gray-500 text-xs">第三✗</span>';
+                    } else {
+                        badge = '<span class="text-orange-400 text-xs font-bold">押第三</span>';
+                    }
                 }
             } else if (qualifiedTeams.includes(t.name)) {
                 cls = 'bg-blue-900/40 border border-blue-500/40';
                 badge = myPred.winner === t.name ? '<span class="text-sm">👑</span>' : '<span class="text-blue-300 text-xs font-bold">出线✓</span>';
             } else if (isThird) {
                 cls = 'bg-orange-900/30 border border-orange-500/40';
-                badge = '<span class="text-orange-400 text-xs font-bold">第三✓</span>';
+                badge = '<span class="text-orange-400 text-xs font-bold">押第三</span>';
             }
             return `<div class="flex items-center gap-2 px-3 py-2 rounded-xl ${cls}">
                 <span class="text-2xl">${t.flag||'🏳️'}</span>
@@ -3503,7 +3984,186 @@ function renderGroups() {
         </div>`;
     });
     container.innerHTML = html;
+    renderThirdPicksSection();
 }
+
+// ─── Third-place Section ──────────────────────────────────
+let _thirdEditPicks = null; // null = not editing, array = editing
+
+function renderThirdPicksSection() {
+    const container = document.getElementById('thirdPicksContainer');
+    if (!container) return;
+    const uid = currentUser.id;
+    const gids = Object.keys(groupsData).sort();
+    if (!gids.length) { container.innerHTML = ''; return; }
+
+    const myPicks = _thirdEditPicks !== null ? _thirdEditPicks : (thirdPicksData[uid]?.picks || []);
+    const saved   = thirdPicksData[uid]?.picks || [];
+    const tpPts   = thirdPicksData[uid]?.points;
+    const thirdAdv = roomSettingsData?.thirdAdvanced || [];
+    const isEditing = _thirdEditPicks !== null;
+
+    // Build pool: for each group, teams NOT in user's top-2 prediction
+    const pool = [];
+    gids.forEach(gid => {
+        const g = groupsData[gid];
+        const myQual = groupPredsData[`${uid}_${gid}`]?.qualified || [];
+        (g?.teams || []).forEach(t => {
+            if (!myQual.includes(t.name)) pool.push({ ...t, groupId: gid, groupName: g.name || gid+'组' });
+        });
+    });
+
+    if (!pool.length) { container.innerHTML = ''; return; }
+
+    const pickedGroups = new Set(pool.filter(t => myPicks.includes(t.name)).map(t => t.groupId));
+    const cnt = myPicks.length;
+    const countCls = cnt >= 8 ? 'text-green-400' : cnt > 0 ? 'text-orange-400' : 'text-gray-500';
+
+    let gridHtml = pool.map(t => {
+        const isPicked = myPicks.includes(t.name);
+        const groupTaken = !isPicked && pickedGroups.has(t.groupId);
+        const full = cnt >= 8 && !isPicked;
+        let cls, badge;
+        if (isPicked) {
+            cls = 'border-orange-400 bg-orange-400/10';
+            if (!isEditing && tpPts !== null && tpPts !== undefined && thirdAdv.length === 8) {
+                const correct = thirdAdv.includes(t.name);
+                badge = correct
+                    ? '<span class="text-green-400 font-black text-xs">+1✓</span>'
+                    : '<span class="text-gray-500 text-xs">✗</span>';
+            } else {
+                badge = '<span class="text-orange-400 font-black text-sm">✓</span>';
+            }
+        } else if (!isEditing) {
+            cls = 'border-white/8 glass opacity-50 pointer-events-none';
+            badge = '';
+        } else if (full || groupTaken) {
+            cls = 'border-white/5 glass opacity-30 pointer-events-none';
+            badge = '';
+        } else {
+            cls = 'border-white/15 glass';
+            badge = '';
+        }
+        const onclick = isEditing ? `onclick="toggleThirdPick('${t.name}')"` : '';
+        return `<div ${onclick} class="flex items-center gap-2 px-2.5 py-2 rounded-xl border-2 ${cls} ${isEditing && !full && !groupTaken ? 'cursor-pointer active:opacity-70' : ''}">
+            <span class="text-lg">${t.flag||'🏳️'}</span>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold truncate leading-tight">${t.name}</p>
+                <p class="text-[10px] text-gray-500">${t.groupName}</p>
+            </div>
+            ${badge}
+        </div>`;
+    }).join('');
+
+    let actionBlock;
+    if (isEditing) {
+        actionBlock = `<div class="flex gap-2 mt-3">
+            <button onclick="cancelThirdEdit()" class="flex-1 glass border border-white/20 text-gray-400 font-bold py-2 rounded-xl text-sm">取消</button>
+            <button onclick="submitThirdPicks()" class="flex-1 gold text-black font-bold py-2 rounded-xl text-sm">保存 (${cnt}/8)</button>
+        </div>`;
+    } else {
+        let savedInfo = '';
+        if (saved.length) {
+            if (tpPts !== null && tpPts !== undefined) {
+                savedInfo = `<span class="text-xs text-green-400 font-bold">已结算 +${tpPts}分</span>`;
+            } else {
+                savedInfo = `<span class="text-xs text-orange-400 font-bold">${saved.length}/8 已选 · 待揭晓</span>`;
+            }
+        } else {
+            savedInfo = `<span class="text-xs text-gray-500">尚未选择</span>`;
+        }
+        actionBlock = `<div class="flex items-center justify-between mt-3">
+            ${savedInfo}
+            <button onclick="startThirdEdit()" class="glass border border-orange-400/40 text-orange-300 font-bold py-1.5 px-4 rounded-xl text-xs">
+                ${saved.length ? '✏️ 修改' : '🎲 开始选择'}
+            </button>
+        </div>`;
+    }
+
+    container.innerHTML = `<div class="glass rounded-2xl p-4 mb-3 mt-1">
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <p class="font-bold text-orange-400">🎲 最佳第三名晋级</p>
+                <p class="text-xs text-gray-500 mt-0.5">12组第三名中共 8 队晋级 · 猜中每队 <span class="text-orange-400 font-bold">+1分</span></p>
+            </div>
+            <span class="font-black text-lg ${countCls}">${cnt}<span class="text-xs font-normal">/8</span></span>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5" id="thirdPickGrid">${gridHtml}</div>
+        ${actionBlock}
+    </div>`;
+}
+
+window.startThirdEdit = function() {
+    _thirdEditPicks = [...(thirdPicksData[currentUser.id]?.picks || [])];
+    renderThirdPicksSection();
+};
+
+window.cancelThirdEdit = function() {
+    _thirdEditPicks = null;
+    renderThirdPicksSection();
+};
+
+window.toggleThirdPick = function(name) {
+    if (_thirdEditPicks === null) return;
+    const uid = currentUser.id;
+    const gids = Object.keys(groupsData);
+
+    // Find groupId for this team
+    let teamGroupId = null;
+    gids.forEach(gid => {
+        const g = groupsData[gid];
+        const myQual = groupPredsData[`${uid}_${gid}`]?.qualified || [];
+        if ((g?.teams||[]).some(t => t.name === name && !myQual.includes(t.name))) {
+            teamGroupId = gid;
+        }
+    });
+
+    if (_thirdEditPicks.includes(name)) {
+        _thirdEditPicks = _thirdEditPicks.filter(n => n !== name);
+    } else {
+        if (_thirdEditPicks.length >= 8) return;
+        // Only one per group
+        if (teamGroupId) {
+            const pool = [];
+            gids.forEach(gid => {
+                const g = groupsData[gid];
+                const myQual = groupPredsData[`${uid}_${gid}`]?.qualified || [];
+                (g?.teams||[]).forEach(t => { if (!myQual.includes(t.name)) pool.push({name:t.name,groupId:gid}); });
+            });
+            const sameGroup = pool.filter(t => t.groupId === teamGroupId).map(t => t.name);
+            _thirdEditPicks = _thirdEditPicks.filter(n => !sameGroup.includes(n));
+        }
+        _thirdEditPicks.push(name);
+    }
+    renderThirdPicksSection();
+};
+
+window.submitThirdPicks = async function() {
+    if (_thirdEditPicks === null) return;
+    const thirdAdv = roomSettingsData?.thirdAdvanced || [];
+    const pred = { userId: currentUser.id, picks: [..._thirdEditPicks], submittedAt: Date.now(), points: null };
+    if (thirdAdv.length === 8) {
+        pred.points = pred.picks.filter(t => thirdAdv.includes(t)).length;
+    }
+    if (demoMode) {
+        thirdPicksData[currentUser.id] = pred;
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/thirdPicks/${currentUser.id}`), pred);
+        if (pred.points != null) {
+            const scoreSnap = await get(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`));
+            const oldPts = thirdPicksData[currentUser.id]?.points ?? null;
+            const s = scoreSnap.exists() ? scoreSnap.val() : { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
+            // Add only the delta (in case re-submitting after results are out)
+            if (oldPts == null) {
+                s.total = (s.total||0) + pred.points;
+                await set(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`), s);
+            }
+        }
+    }
+    _thirdEditPicks = null;
+    toast(`🎲 第三名预测已保存（${pred.picks.length}队）`);
+    renderGroups();
+};
 
 // ─── Group Prediction Modal ───────────────────────────────
 window.openGroupPredModal = function(gid) {
@@ -3802,21 +4462,13 @@ window.submitBatchGroupResult = async function() {
 
     const thirdTeams = Object.values(_batchThirdPicks);
 
-    const roomsToScore = [PRIZE_ROOM, FREE_ROOM];
-    const [
-        gPreds0, third0, scores0,
-        gPreds1, third1, scores1
-    ] = await Promise.all([
-        get(ref(db, `rooms/${roomsToScore[0]}/groupPreds`)),
-        get(ref(db, `rooms/${roomsToScore[0]}/thirdPicks`)),
-        get(ref(db, `rooms/${roomsToScore[0]}/scores`)),
-        get(ref(db, `rooms/${roomsToScore[1]}/groupPreds`)),
-        get(ref(db, `rooms/${roomsToScore[1]}/thirdPicks`)),
-        get(ref(db, `rooms/${roomsToScore[1]}/scores`)),
+    const [gPreds0, third0, scores0] = await Promise.all([
+        get(ref(db, `rooms/${PRIZE_ROOM}/groupPreds`)),
+        get(ref(db, `rooms/${PRIZE_ROOM}/thirdPicks`)),
+        get(ref(db, `rooms/${PRIZE_ROOM}/scores`)),
     ]);
     const roomData = [
-        { room: roomsToScore[0], allGPreds: gPreds0.exists() ? gPreds0.val() : {}, allThirdPicks: third0.exists() ? third0.val() : {}, allScores: scores0.exists() ? scores0.val() : {} },
-        { room: roomsToScore[1], allGPreds: gPreds1.exists() ? gPreds1.val() : {}, allThirdPicks: third1.exists() ? third1.val() : {}, allScores: scores1.exists() ? scores1.val() : {} },
+        { room: PRIZE_ROOM, allGPreds: gPreds0.exists() ? gPreds0.val() : {}, allThirdPicks: third0.exists() ? third0.val() : {}, allScores: scores0.exists() ? scores0.val() : {} },
     ];
 
     const updates = {};
@@ -3860,8 +4512,7 @@ window.submitBatchGroupResult = async function() {
 
     if (predCount === 0) {
         const total0 = Object.keys(roomData[0].allGPreds).length;
-        const total1 = Object.keys(roomData[1].allGPreds).length;
-        toast(`⚠️ 两个房间均无待结算预测（${roomsToScore[0]}:${total0}条，${roomsToScore[1]}:${total1}条）`, 'error');
+        toast(`⚠️ 无待结算预测（共${total0}条，可能已全部结算）`, 'error');
         return;
     }
 
@@ -3880,7 +4531,7 @@ window.submitBatchGroupResult = async function() {
 };
 
 window.recalcMissingScores = async function() {
-    const rooms = [PRIZE_ROOM, FREE_ROOM];
+    const rooms = [PRIZE_ROOM];
     const snaps = await Promise.all(rooms.flatMap(r => [
         get(ref(db, `rooms/${r}/groupPreds`)),
         get(ref(db, `rooms/${r}/thirdPicks`)),
@@ -4444,8 +5095,8 @@ function _wizEnterDemoMode() {
     currentUser = { id: 'demo_' + name, name };
     demo.scores[currentUser.id] = { name, total:0, exact:0, correct:0, wrong:0 };
     localStorage.setItem('wc2026_user', JSON.stringify(currentUser));
-    localStorage.setItem('wc2026_room', FREE_ROOM);
-    currentRoom = FREE_ROOM;
+    localStorage.setItem('wc2026_room', PRIZE_ROOM);
+    currentRoom = PRIZE_ROOM;
     document.getElementById('wizardOverlay').classList.add('hidden');
     startApp();
 }
@@ -4467,7 +5118,7 @@ window.wizardNext = async function() {
             if (!roomInput) { toast('请输入专属房间号', 'error'); nextBtn.textContent = '加入游戏 →'; nextBtn.disabled = false; return; }
             currentRoom = roomInput;
         } else {
-            currentRoom = FREE_ROOM;
+            currentRoom = PRIZE_ROOM;
         }
         wantsPrize = _wizPrize;
 
@@ -4641,13 +5292,7 @@ window.lpTogglePrize = function(val) {
 
 window.lpLogin = async function() {
     const name = document.getElementById('lp-name').value.trim();
-    let room;
-    if (_lpPrize) {
-        room = (document.getElementById('lp-room')?.value || '').trim();
-        if (!room) { toast('请输入专属房间号', 'error'); return; }
-    } else {
-        room = FREE_ROOM;
-    }
+    const room = (document.getElementById('lp-room')?.value || '').trim() || PRIZE_ROOM;
     const pin  = document.getElementById('lp-pin').value.trim();
     if (!name) { toast('请输入昵称', 'error'); return; }
     if (!pin || pin.length < 4) { toast('请设置4位数字PIN码', 'error'); return; }
@@ -4655,7 +5300,7 @@ window.lpLogin = async function() {
     const btn = document.getElementById('lpLoginBtn');
     btn.textContent = '加入中...';
     btn.disabled = true;
-    wantsPrize = _lpPrize;
+    wantsPrize = true;
     currentRoom = room;
 
     try {
