@@ -2105,13 +2105,11 @@ function renderMyPreds() {
             const realFirst = realW || realQ[0] || '';
             const realSecond = realQ.find(t => t !== realFirst) || '';
             const realRow = hasResult ? (() => {
-                const f1cl = (p.qualified||[]).includes(realFirst) ? 'text-sky-300' : 'text-sky-500/60';
-                const f2cl = (p.qualified||[]).includes(realSecond) ? 'text-sky-300' : 'text-sky-500/60';
                 return `<div class="flex items-center gap-2 text-xs mt-1 pt-1 border-t border-white/8">
                     <span class="text-sky-600 w-6 shrink-0">实际</span>
-                    <span class="${f1cl} font-bold">🥇${teamFlag(realFirst)}${realFirst}</span>
+                    <span class="text-sky-300 font-bold">🥇${teamFlag(realFirst)}${realFirst}</span>
                     <span class="text-sky-900">·</span>
-                    <span class="${f2cl} font-bold">🥈${teamFlag(realSecond)}${realSecond}</span>
+                    <span class="text-sky-300 font-bold">🥈${teamFlag(realSecond)}${realSecond}</span>
                 </div>`;
             })() : '';
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
