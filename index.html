@@ -932,6 +932,8 @@ function startApp() {
     const roomLabel = currentRoom === PRIZE_ROOM ? '大奖房间' : currentRoom === FREE_ROOM ? '公共房间' : currentRoom;
     document.getElementById('headerRoom').textContent = `${roomLabel}${demoMode ? ' (演示)' : ''}`;
     _refreshHeaderAvatar();
+    const savedTab = localStorage.getItem('wc2026_tab');
+    if (savedTab) switchTab(savedTab);
 
     loadGroups();
     loadChampPreds();
@@ -3038,6 +3040,7 @@ window.switchTab = function(tab) {
     const activeBtn = document.getElementById(`tab-${tab}`);
     activeBtn.classList.add('active');
     activeBtn.classList.remove('text-gray-400');
+    localStorage.setItem('wc2026_tab', tab);
 
     if (tab === 'myPreds') renderMyPreds();
     if (tab === 'champion') renderChampion();
