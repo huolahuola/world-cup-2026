@@ -2097,7 +2097,7 @@ function renderMyPreds() {
                 const posCorrect = isFirst ? (realW === name) : (realW !== name);
                 return posCorrect ? 'text-yellow-400' : 'text-green-400';
             };
-            const ptsBadge = (pts) => pts === null ? '' :
+            const teamScoreBadge = (pts) => pts === null ? '' :
                 `<span class="text-[10px] font-black ml-0.5 ${pts===2?'text-yellow-400':pts===1?'text-green-400':'text-gray-500'}">+${pts}</span>`;
             const resultRow = (first, second, label) => {
                 if (!first && !second) return '';
@@ -2107,28 +2107,31 @@ function renderMyPreds() {
                 const p2 = teamPts(second, false);
                 return `<div class="flex items-center gap-2 text-xs mt-0.5">
                     <span class="text-gray-500 w-6 shrink-0">${label}</span>
-                    <span class="${f1cl} font-bold">🥇${teamFlag(first)}${first}${ptsBadge(p1)}</span>
+                    <span class="${f1cl} font-bold">🥇${teamFlag(first)}${first}${teamScoreBadge(p1)}</span>
                     <span class="text-gray-600">·</span>
-                    <span class="${f2cl} font-bold">🥈${teamFlag(second)}${second}${ptsBadge(p2)}</span>
+                    <span class="${f2cl} font-bold">🥈${teamFlag(second)}${second}${teamScoreBadge(p2)}</span>
                 </div>`;
             };
             const realFirst = realW || realQ[0] || '';
             const realSecond = realQ.find(t => t !== realFirst) || '';
-            const realRow = hasResult ? (() => {
-                return `<div class="flex items-center gap-2 text-xs mt-1 pt-1 border-t border-white/8">
-                    <span class="text-sky-600 w-6 shrink-0">实际</span>
-                    <span class="text-sky-300 font-bold">🥇${teamFlag(realFirst)}${realFirst}</span>
-                    <span class="text-sky-900">·</span>
-                    <span class="text-sky-300 font-bold">🥈${teamFlag(realSecond)}${realSecond}</span>
-                </div>`;
-            })() : '';
-            html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs text-gray-400 mb-0.5">${g?.name || p.groupId+'组'}</p>
-                    ${resultRow(myFirst, mySecond, '我的')}
-                    ${realRow}
+            const myBox = `<div class="flex-1 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5">
+                <p class="text-[10px] text-gray-500 mb-1">我的预测</p>
+                <p class="${teamColor(myFirst,true)} font-bold text-xs leading-snug">🥇${teamFlag(myFirst)}${myFirst}${teamScoreBadge(teamPts(myFirst,true))}</p>
+                <p class="${teamColor(mySecond,false)} font-bold text-xs leading-snug">🥈${teamFlag(mySecond)}${mySecond}${teamScoreBadge(teamPts(mySecond,false))}</p>
+            </div>`;
+            const realBox = hasResult ? `<div class="flex-1 rounded-lg bg-sky-950/60 border border-sky-700/30 px-2 py-1.5">
+                <p class="text-[10px] text-sky-600 mb-1">实际结果</p>
+                <p class="text-sky-300 font-bold text-xs leading-snug">🥇${teamFlag(realFirst)}${realFirst}</p>
+                <p class="text-sky-300 font-bold text-xs leading-snug">🥈${teamFlag(realSecond)}${realSecond}</p>
+            </div>` : `<div class="flex-1 rounded-lg bg-white/3 border border-white/6 px-2 py-1.5 flex items-center justify-center">
+                <p class="text-[10px] text-gray-600">待揭晓</p>
+            </div>`;
+            html += `<div class="glass rounded-xl p-3 mb-1">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs text-gray-400">${g?.name || p.groupId+'组'}</p>
+                    ${ptsBadge}
                 </div>
-                ${ptsBadge}
+                <div class="flex gap-2">${myBox}${realBox}</div>
             </div>`;
         });
     }
