@@ -3711,6 +3711,7 @@ window.submitBatchGroupResult = async function() {
     const allScores     = scoresSnap.exists()     ? scoresSnap.val()     : {};
 
     const updates = {};
+    let predCount = 0;
 
     for (const gid of ready) {
         const st = _batchGroupState[gid];
@@ -3720,6 +3721,7 @@ window.submitBatchGroupResult = async function() {
         Object.entries(allGPreds)
             .filter(([, p]) => p.groupId === gid && p.points == null)
             .forEach(([key, p]) => {
+                predCount++;
                 const pts = calcGroupPts(p.qualified, st.qualified, p.winner, st.winner);
                 updates[`rooms/${currentRoom}/groupPreds/${key}/points`] = pts;
                 const uid = p.userId;
@@ -3730,6 +3732,11 @@ window.submitBatchGroupResult = async function() {
                 else               allScores[uid].wrong   = (allScores[uid].wrong||0)   + 1;
                 updates[`rooms/${currentRoom}/scores/${uid}`] = allScores[uid];
             });
+    }
+
+    if (predCount === 0) {
+        toast(`⚠️ 在房间「${currentRoom}」找不到待结算的小组预测（共扫描 ${Object.keys(allGPreds).length} 条记录）`, 'error');
+        return;
     }
 
     if (thirdTeams.length === 8) {
@@ -3745,12 +3752,17 @@ window.submitBatchGroupResult = async function() {
             });
     }
 
-    await update(ref(db, '/'), updates);
+    try {
+        await update(ref(db, '/'), updates);
+    } catch(e) {
+        toast(`❌ 写入失败：${e.message}`, 'error');
+        return;
+    }
 
     const thirdMsg = thirdTeams.length === 8
         ? `，第三名出线（${thirdTeams.join('、')}）已结算`
         : thirdTeams.length > 0 ? `（第三名选了 ${thirdTeams.length}/8 支，未结算）` : '';
-    toast(`✅ ${ready.length} 组出线结果已录入，积分已更新${thirdMsg}！`);
+    toast(`✅ ${ready.length} 组已录入，${predCount} 条预测积分已更新${thirdMsg}！`);
     initBatchGroupAdmin();
 };
 
