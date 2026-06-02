@@ -604,11 +604,13 @@ setTimeout(function() {
                     <option value="">— 选择冠军球队 —</option>
                 </select>
                 <p class="text-xs text-gray-300 mb-1">小组赛最佳射手（留空则暂不结算）</p>
-                <input type="text" id="topScorerResultInput" placeholder="填写小组赛最佳射手姓名" maxlength="30"
-                    class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400 placeholder-gray-600">
+                <select id="topScorerResultSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <option value="">— 留空暂不结算 —</option>
+                </select>
                 <p class="text-xs text-gray-300 mb-1">金靴奖得主（留空则暂不结算）</p>
-                <input type="text" id="goldenBootResultInput" placeholder="填写金靴奖得主姓名" maxlength="30"
-                    class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400 placeholder-gray-600">
+                <select id="goldenBootResultSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <option value="">— 留空暂不结算 —</option>
+                </select>
                 <button onclick="submitChampResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认并结算所有积分</button>
             </div>
 
@@ -3383,13 +3385,21 @@ function refreshAdminChampSelect() {
     });
     sel.innerHTML = '<option value="">— 选择冠军球队 —</option>' +
         teams.map(t => `<option value="${t.name}">${t.flag||''} ${t.name}</option>`).join('');
+
+    const scorerOpts = '<option value="">— 留空暂不结算 —</option>' +
+        SCORER_LIST.map(p => `<option value="${p.name}">${p.flag} ${p.name}</option>`).join('') +
+        '<option value="__other__">🌍 其他球员</option>';
+    const tsSel = document.getElementById('topScorerResultSel');
+    const gbSel = document.getElementById('goldenBootResultSel');
+    if (tsSel) tsSel.innerHTML = scorerOpts;
+    if (gbSel) gbSel.innerHTML = scorerOpts;
 }
 
 window.submitChampResult = async function() {
     if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
     const champion = document.getElementById('champResultSel').value;
-    const topScorerResult = (document.getElementById('topScorerResultInput')?.value || '').trim().toLowerCase();
-    const goldenBootResult = (document.getElementById('goldenBootResultInput')?.value || '').trim().toLowerCase();
+    const topScorerResult = document.getElementById('topScorerResultSel')?.value || '';
+    const goldenBootResult = document.getElementById('goldenBootResultSel')?.value || '';
     if (!champion) { toast('请选择冠军球队', 'error'); return; }
     if (!confirm(`确认 ${champion} 为2026世界杯冠军？此操作将结算所有冠军相关积分。`)) return;
 
@@ -3435,7 +3445,7 @@ window.submitChampResult = async function() {
         // Top scorer points (dynamic based on odds at prediction time)
         if (topScorerResult && (p.topScorerPoints === null || p.topScorerPoints === undefined)) {
             const scorerBase = p.topScorerMaxPts || getTopScorerPts(p.topScorer || '');
-            const pts = (p.topScorer && p.topScorer.toLowerCase() === topScorerResult) ? scorerBase : 0;
+            const pts = (p.topScorer && p.topScorer === topScorerResult) ? scorerBase : 0;
             updates[`rooms/${currentRoom}/champPreds/${uid}/topScorerPoints`] = pts;
             delta += pts;
         }
@@ -3443,7 +3453,7 @@ window.submitChampResult = async function() {
         // Golden boot points
         if (goldenBootResult && (p.goldenBootPoints === null || p.goldenBootPoints === undefined)) {
             const base = p.goldenBootMaxPts || getTopScorerPts(p.goldenBoot || '');
-            const pts = (p.goldenBoot && p.goldenBoot.toLowerCase() === goldenBootResult) ? base : 0;
+            const pts = (p.goldenBoot && p.goldenBoot === goldenBootResult) ? base : 0;
             updates[`rooms/${currentRoom}/champPreds/${uid}/goldenBootPoints`] = pts;
             delta += pts;
         }
