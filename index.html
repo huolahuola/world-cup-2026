@@ -2083,12 +2083,16 @@ function renderMyPreds() {
             const myFirst = p.winner || (p.qualified||[])[0] || '';
             const mySecond = (p.qualified||[]).find(t => t !== myFirst) || '';
             const teamFlag = name => (g?.teams||[]).find(t=>t.name===name)?.flag || '🏳️';
+            const teamColor = (name, isFirst) => {
+                if (!hasResult) return 'text-gray-200';
+                if (!realQ.includes(name)) return 'text-red-400';
+                const posCorrect = isFirst ? (realW === name) : (realW !== name);
+                return posCorrect ? 'text-yellow-400' : 'text-green-400';
+            };
             const resultRow = (first, second, label) => {
                 if (!first && !second) return '';
-                const f1ok = hasResult && realQ.includes(first) && realW === first;
-                const f2ok = hasResult && realQ.includes(second) && realW !== second;
-                const f1cl = hasResult ? (realQ.includes(first) ? 'text-green-400' : 'text-red-400') : 'text-gray-200';
-                const f2cl = hasResult ? (realQ.includes(second) ? 'text-green-400' : 'text-red-400') : 'text-gray-200';
+                const f1cl = teamColor(first, true);
+                const f2cl = teamColor(second, false);
                 return `<div class="flex items-center gap-2 text-xs mt-0.5">
                     <span class="text-gray-500 w-6 shrink-0">${label}</span>
                     <span class="${f1cl} font-bold">🥇${teamFlag(first)}${first}</span>
@@ -3581,10 +3585,24 @@ window.submitGroupPrediction = async function() {
         points: null
     };
     const key = `${currentUser.id}_${gpState.groupId}`;
+    // Auto-score immediately if results are already recorded
+    const g = groupsData[gpState.groupId];
+    if (g?.qualified?.length >= 2) {
+        pred.points = calcGroupPts(pred.qualified, g.qualified, pred.winner, g.winner);
+    }
     if (demoMode) {
         groupPredsData[key] = pred;
     } else {
         await set(ref(db, `rooms/${currentRoom}/groupPreds/${key}`), pred);
+        if (pred.points != null) {
+            const scoreSnap = await get(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`));
+            const s = scoreSnap.exists() ? scoreSnap.val() : { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
+            s.total = (s.total||0) + pred.points;
+            if (pred.points >= 4) s.exact = (s.exact||0) + 1;
+            else if (pred.points >= 1) s.correct = (s.correct||0) + 1;
+            else s.wrong = (s.wrong||0) + 1;
+            await set(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`), s);
+        }
     }
     hide('groupPredModal');
     toast('🎯 出线预测已提交！');
@@ -4452,19 +4470,43 @@ window.wizardNext = async function() {
     } else if (step?.type === 'groupsAll') {
         const toSave = step.groupIds.filter(gid => (_wizGpStates[gid]?.selected||[]).length >= 2);
         if (toSave.length > 0) {
+            const scoreUpdates = {};
+            const scoreSnap = demoMode ? null : await get(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`));
+            const myScore = scoreSnap?.exists() ? scoreSnap.val() : { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
             await Promise.all(toSave.map(gid => {
                 const s = _wizGpStates[gid];
+                const g = groupsData[gid];
                 const pred = { userId: currentUser.id, groupId: gid, qualified: s.selected,
                     winner: s.winner||null, thirdBet: null, submittedAt: Date.now(), points: null };
+                if (g?.qualified?.length >= 2) {
+                    pred.points = calcGroupPts(pred.qualified, g.qualified, pred.winner, g.winner);
+                    myScore.total = (myScore.total||0) + pred.points;
+                    if (pred.points >= 4) myScore.exact = (myScore.exact||0) + 1;
+                    else if (pred.points >= 1) myScore.correct = (myScore.correct||0) + 1;
+                    else myScore.wrong = (myScore.wrong||0) + 1;
+                }
                 const key = `${currentUser.id}_${gid}`;
                 if (demoMode) { groupPredsData[key]=pred; return Promise.resolve(); }
                 return set(ref(db, `rooms/${currentRoom}/groupPreds/${key}`), pred);
             }));
+            if (!demoMode && toSave.some(gid => groupsData[gid]?.qualified?.length >= 2)) {
+                await set(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`), myScore);
+            }
             toast(`🎯 ${toSave.length} 组出线预测已保存！`);
         }
     } else if (step?.type === 'thirdPlace') {
         if (_wizThirdPicks.length > 0) {
+            const thirdAdvanced = roomSettingsData?.thirdAdvanced || [];
             const pred = { userId: currentUser.id, picks: [..._wizThirdPicks], submittedAt: Date.now(), points: null };
+            if (thirdAdvanced.length === 8) {
+                pred.points = pred.picks.filter(t => thirdAdvanced.includes(t)).length;
+                if (!demoMode) {
+                    const scoreSnap = await get(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`));
+                    const s = scoreSnap.exists() ? scoreSnap.val() : { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
+                    s.total = (s.total||0) + pred.points;
+                    await set(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`), s);
+                }
+            }
             if (demoMode) { thirdPicksData[currentUser.id] = pred; }
             else await set(ref(db, `rooms/${currentRoom}/thirdPicks/${currentUser.id}`), pred);
             toast(`🎲 已选 ${_wizThirdPicks.length} 支最佳第三名！`);
