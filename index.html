@@ -3319,7 +3319,7 @@ async function loadGroups() {
             groupsData = snap.val();
         }
         renderGroups();
-        refreshAdminGroupSelects();
+        try { refreshAdminGroupSelects(); } catch(e) { console.warn('refreshAdminGroupSelects:', e); }
         renderChampion();
         updateTabDots();
         _scheduleWizard();
@@ -3567,7 +3567,7 @@ function renderBatchGroupAdmin() {
 
         const teamRows = teams.map(t => {
             const isQ = st.qualified.includes(t.name);
-            const safe = t.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+            const safe = (t.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
             return `<label class="flex items-center gap-1.5 cursor-pointer select-none">
                 <input type="checkbox" class="w-3.5 h-3.5 accent-yellow-400" ${isQ ? 'checked' : ''}
                     onchange="batchToggleQualify('${gid}','${safe}')">
@@ -3581,7 +3581,7 @@ function renderBatchGroupAdmin() {
             const btns = st.qualified.map(qn => {
                 const t = teams.find(x => x.name === qn) || {};
                 const isW = st.winner === qn;
-                const safe = qn.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                const safe = (qn||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
                 return `<button onclick="batchSetWinner('${gid}','${safe}')"
                     class="text-xs px-1.5 py-0.5 rounded border transition-all ${isW
                         ? 'border-yellow-400 bg-yellow-400/20 text-yellow-300 font-bold'
@@ -3619,7 +3619,7 @@ function renderBatchGroupAdmin() {
             const btns = candidates.map(t => {
                 const isPicked = pickedName === t.name;
                 const isDisabled = !isPicked && totalPicks >= 8;
-                const safe = t.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                const safe = (t.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
                 return `<button onclick="batchToggleThird('${gid}','${safe}')"
                     class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg border transition-all ${
                         isPicked ? 'border-orange-400 bg-orange-400/20 text-orange-300 font-bold'
