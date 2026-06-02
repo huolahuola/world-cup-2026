@@ -2085,21 +2085,31 @@ function renderMyPreds() {
             const myFirst = p.winner || (p.qualified||[])[0] || '';
             const mySecond = (p.qualified||[]).find(t => t !== myFirst) || '';
             const teamFlag = name => (g?.teams||[]).find(t=>t.name===name)?.flag || '🏳️';
+            const teamPts = (name, isFirst) => {
+                if (!hasResult) return null;
+                if (!realQ.includes(name)) return 0;
+                const posCorrect = isFirst ? (realW === name) : (realW !== name);
+                return posCorrect ? 2 : 1;
+            };
             const teamColor = (name, isFirst) => {
                 if (!hasResult) return 'text-gray-200';
                 if (!realQ.includes(name)) return 'text-red-400';
                 const posCorrect = isFirst ? (realW === name) : (realW !== name);
                 return posCorrect ? 'text-yellow-400' : 'text-green-400';
             };
+            const ptsBadge = (pts) => pts === null ? '' :
+                `<span class="text-[10px] font-black ml-0.5 ${pts===2?'text-yellow-400':pts===1?'text-green-400':'text-gray-500'}">+${pts}</span>`;
             const resultRow = (first, second, label) => {
                 if (!first && !second) return '';
                 const f1cl = teamColor(first, true);
                 const f2cl = teamColor(second, false);
+                const p1 = teamPts(first, true);
+                const p2 = teamPts(second, false);
                 return `<div class="flex items-center gap-2 text-xs mt-0.5">
                     <span class="text-gray-500 w-6 shrink-0">${label}</span>
-                    <span class="${f1cl} font-bold">🥇${teamFlag(first)}${first}</span>
+                    <span class="${f1cl} font-bold">🥇${teamFlag(first)}${first}${ptsBadge(p1)}</span>
                     <span class="text-gray-600">·</span>
-                    <span class="${f2cl} font-bold">🥈${teamFlag(second)}${second}</span>
+                    <span class="${f2cl} font-bold">🥈${teamFlag(second)}${second}${ptsBadge(p2)}</span>
                 </div>`;
             };
             const realFirst = realW || realQ[0] || '';
