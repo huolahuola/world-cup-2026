@@ -734,8 +734,8 @@ setTimeout(function() {
 
 <!-- ══════════ APP LOGIC ══════════ -->
 <script type="module">
-import { initializeApp } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/app/+esm';
-import { getDatabase, ref, set, get, onValue, update, remove, push } from 'https://cdn.jsdelivr.net/npm/firebase@10.12.0/database/+esm';
+import { initializeApp } from './js/firebase-app.js';
+import { getDatabase, ref, set, get, onValue, update, remove, push } from './js/firebase-database.js';
 
 // ─── State ───────────────────────────────────────────────
 let db = null;
