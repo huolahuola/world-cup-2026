@@ -61,6 +61,13 @@
 </head>
 <body class="text-white">
 
+<!-- ══════════ LOADING SPLASH (shown until JS runs) ══════════ -->
+<div id="loadingSplash" style="position:fixed;inset:0;z-index:9999;background:#010810;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+    <div style="font-size:48px">⚽</div>
+    <p style="color:#facc15;font-size:18px;font-weight:900;letter-spacing:1px">2026 美加墨世界杯</p>
+    <p style="color:#6b7280;font-size:13px">加载中...</p>
+</div>
+
 <!-- ══════════ FIREBASE SETUP MODAL ══════════ -->
 <div id="firebaseModal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden p-4">
     <div class="glass rounded-3xl p-8 max-w-lg w-full slide-up">
@@ -811,6 +818,8 @@ async function bootstrap() {
         demoMode = true;
         demo.matches = defaultMatches();
     }
+    const splash = document.getElementById('loadingSplash');
+    if (splash) splash.style.display = 'none';
     const savedUser = localStorage.getItem('wc2026_user');
     const savedRoom = localStorage.getItem('wc2026_room');
     if (savedUser && savedRoom) {
