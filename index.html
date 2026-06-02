@@ -2080,21 +2080,39 @@ function renderMyPreds() {
             const realQ = g?.qualified || [];
             const realW = g?.winner || null;
             const hasResult = realQ.length >= 2;
-            const realLine = hasResult ? (() => {
-                const teams = realQ.map(t => {
-                    const correct = (p.qualified||[]).includes(t);
-                    const flag = (g?.teams||[]).find(x=>x.name===t)?.flag || '🏳️';
-                    return `<span class="${correct?'text-green-400':'text-red-400'} font-bold">${flag}${t}</span>`;
-                }).join('<span class="text-gray-600"> · </span>');
-                const winnerPart = realW ? ` <span class="text-yellow-400">👑${realW}</span>` : '';
-                return `<p class="text-xs mt-0.5">实际: ${teams}${winnerPart}</p>`;
+            const myFirst = p.winner || (p.qualified||[])[0] || '';
+            const mySecond = (p.qualified||[]).find(t => t !== myFirst) || '';
+            const teamFlag = name => (g?.teams||[]).find(t=>t.name===name)?.flag || '🏳️';
+            const resultRow = (first, second, label) => {
+                if (!first && !second) return '';
+                const f1ok = hasResult && realQ.includes(first) && realW === first;
+                const f2ok = hasResult && realQ.includes(second) && realW !== second;
+                const f1cl = hasResult ? (realQ.includes(first) ? 'text-green-400' : 'text-red-400') : 'text-gray-200';
+                const f2cl = hasResult ? (realQ.includes(second) ? 'text-green-400' : 'text-red-400') : 'text-gray-200';
+                return `<div class="flex items-center gap-2 text-xs mt-0.5">
+                    <span class="text-gray-500 w-6 shrink-0">${label}</span>
+                    <span class="${f1cl} font-bold">🥇${teamFlag(first)}${first}</span>
+                    <span class="text-gray-600">·</span>
+                    <span class="${f2cl} font-bold">🥈${teamFlag(second)}${second}</span>
+                </div>`;
+            };
+            const realFirst = realW || realQ[0] || '';
+            const realSecond = realQ.find(t => t !== realFirst) || '';
+            const realRow = hasResult ? (() => {
+                const f1cl = (p.qualified||[]).includes(realFirst) ? 'text-green-400' : 'text-red-400';
+                const f2cl = (p.qualified||[]).includes(realSecond) ? 'text-green-400' : 'text-red-400';
+                return `<div class="flex items-center gap-2 text-xs mt-0.5">
+                    <span class="text-gray-500 w-6 shrink-0">实际</span>
+                    <span class="${f1cl} font-bold">🥇${teamFlag(realFirst)}${realFirst}</span>
+                    <span class="text-gray-600">·</span>
+                    <span class="${f2cl} font-bold">🥈${teamFlag(realSecond)}${realSecond}</span>
+                </div>`;
             })() : '';
             html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs text-gray-400">${g?.name || p.groupId+'组'}</p>
-                    <p class="text-sm font-bold leading-tight text-gray-200">我的: ${(p.qualified||[]).join(' · ')}${p.winner ? ` 👑${p.winner}` : ''}</p>
-                    ${realLine}
-                    ${p.thirdBet ? `<p class="text-xs text-orange-400">🎲 押第三: ${p.thirdBet}</p>` : ''}
+                    <p class="text-xs text-gray-400 mb-0.5">${g?.name || p.groupId+'组'}</p>
+                    ${resultRow(myFirst, mySecond, '我的')}
+                    ${realRow}
                 </div>
                 ${ptsBadge}
             </div>`;
