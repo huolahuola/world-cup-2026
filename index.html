@@ -689,7 +689,7 @@ setTimeout(function() {
                             <input type="number" id="koResAwayScore" min="0" max="99" placeholder="0" class="score-input w-full rounded-xl text-center">
                         </div>
                     </div>
-                    <p class="text-xs text-gray-400 mb-1">首个进球者（无进球填"无"）</p>
+                    <p class="text-xs text-gray-400 mb-1">首个进球者</p>
                     <div id="koScorerInputWrap"></div>
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
@@ -1409,13 +1409,7 @@ function refreshKoAdmin() {
             document.getElementById('koScorerInputWrap').innerHTML = `<select id="koResScorer" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
                 <option value="">无进球</option>
                 ${opts2}
-                <option value="__custom__">🖊️ 手动输入</option>
-            </select>
-            <input type="text" id="koResScorerCustom" placeholder="手动输入球员姓名" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mt-2 focus:outline-none focus:ring-1 focus:ring-yellow-400 hidden">`;
-            document.getElementById('koResScorer').onchange = function() {
-                const ci = document.getElementById('koResScorerCustom');
-                if (ci) ci.classList.toggle('hidden', this.value !== '__custom__');
-            };
+            </select>`;
         };
     }
     // Refresh KO match list
@@ -1508,10 +1502,8 @@ window.submitKoResult = async function() {
     const hs = parseInt(document.getElementById('koResHomeScore')?.value);
     const as = parseInt(document.getElementById('koResAwayScore')?.value);
     if (isNaN(hs) || isNaN(as)) { toast('请输入比分', 'error'); return; }
-    const scorerSel = document.getElementById('koResScorer')?.value || '';
-    const scorerCustom = document.getElementById('koResScorerCustom')?.value.trim() || '';
-    let scorer = scorerSel === '__custom__' ? scorerCustom : scorerSel;
-    if (scorer === '' || scorer === '无进球') scorer = null;
+    let scorer = document.getElementById('koResScorer')?.value || '';
+    if (!scorer) scorer = null;
     const outcome = hs > as ? 'home' : hs < as ? 'away' : 'draw';
     const result = { homeScore: hs, awayScore: as, outcome, scorer };
 
