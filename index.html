@@ -1126,7 +1126,6 @@ function _countPreds(uid) {
     for (const gid of gids) {
         const p = groupPredsData[`${uid}_${gid}`];
         if (p?.qualified?.length) addN(p.qualified.length, p.points);
-        if (p?.winner) add1(true, p.points);
     }
     const thirdArr = thirdPicksData[uid]?.picks || [];
     const thirdPtsRaw = thirdPicksData[uid]?.points;
