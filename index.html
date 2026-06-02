@@ -3718,7 +3718,7 @@ window.submitBatchGroupResult = async function() {
         updates[`rooms/${currentRoom}/groups/${gid}/winner`]    = st.winner;
 
         Object.entries(allGPreds)
-            .filter(([, p]) => p.groupId === gid && p.points === null)
+            .filter(([, p]) => p.groupId === gid && p.points == null)
             .forEach(([key, p]) => {
                 const pts = calcGroupPts(p.qualified, st.qualified, p.winner, st.winner);
                 updates[`rooms/${currentRoom}/groupPreds/${key}/points`] = pts;
@@ -3735,7 +3735,7 @@ window.submitBatchGroupResult = async function() {
     if (thirdTeams.length === 8) {
         updates[`rooms/${currentRoom}/settings/thirdAdvanced`] = thirdTeams;
         Object.entries(allThirdPicks)
-            .filter(([, tp]) => tp.points === null || tp.points === undefined)
+            .filter(([, tp]) => tp.points == null)
             .forEach(([uid, tp]) => {
                 const pts = (tp.picks||[]).filter(t => thirdTeams.includes(t)).length;
                 updates[`rooms/${currentRoom}/thirdPicks/${uid}/points`] = pts;
