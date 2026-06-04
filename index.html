@@ -6,6 +6,7 @@
     <title>2026 美加墨世界杯竞猜</title>
     <script src="https://cdn.tailwindcss.com" defer></script>
     <style>
+        :root { --header-h: 56px; }
         .hidden { display: none !important; }
         * { box-sizing: border-box; }
         body {
@@ -40,33 +41,60 @@
         .tab-btn.active { border-bottom-color: #f7c948; color: #f7c948; }
         /* ── Desktop responsive ───────────────────────── */
         @media (min-width: 1024px) {
-            #app { max-width: 1300px; display: grid;
+            /* Grid shell */
+            #app { max-width: 1360px;
+                display: grid;
                 grid-template-areas: "header header" "sidebar content";
-                grid-template-columns: 220px 1fr;
+                grid-template-columns: 256px 1fr;
                 grid-template-rows: auto 1fr; }
-            #appHeader { grid-area: header; }
-            #mainTabs { grid-area: sidebar; flex-direction: column !important;
-                border-right: 1px solid rgba(255,255,255,0.08);
+
+            /* Header: taller, larger text */
+            #appHeader { grid-area: header; padding: 0 32px !important; height: 72px; }
+            #appHeader > div { height: 72px; align-items: center; }
+            #appHeader h1 { font-size: 17px; }
+
+            /* Sidebar */
+            #mainTabs { grid-area: sidebar;
+                flex-direction: column !important;
+                border-right: 1px solid rgba(255,255,255,0.07);
                 border-bottom: none !important;
-                background: rgba(0,0,0,0.18);
-                padding: 10px 0;
-                position: sticky; top: var(--header-h, 68px); align-self: start;
-                max-height: calc(100vh - var(--header-h, 68px)); overflow-y: auto; }
+                background: rgba(3,6,16,0.55);
+                padding: 0;
+                position: sticky; top: var(--header-h, 72px); align-self: start;
+                max-height: calc(100vh - var(--header-h, 72px)); overflow-y: auto; }
+
+            /* Sidebar user card: shown on desktop */
+            #sidebarHeader { display: block !important; width: 100%; }
+
+            /* Nav items */
             #mainTabs .tab-btn { flex: none !important; width: 100%;
                 flex-direction: row !important; justify-content: flex-start !important;
-                padding: 13px 22px !important; font-size: 14px !important;
+                padding: 12px 20px !important; font-size: 13.5px !important;
                 gap: 12px !important; border-bottom: none !important;
-                border-left: 3px solid transparent; border-radius: 0 !important; }
+                border-left: 3px solid transparent; border-radius: 0 !important;
+                color: rgba(156,163,175,1); transition: background 0.15s, color 0.15s; }
+            #mainTabs .tab-btn:hover { background: rgba(255,255,255,0.04) !important; color: rgba(255,255,255,0.85) !important; }
             #mainTabs .tab-btn.active { border-bottom-color: transparent !important;
-                border-left-color: #f7c948; background: rgba(247,201,72,0.08);
+                border-left-color: #f7c948;
+                background: rgba(247,201,72,0.09) !important;
                 color: #f7c948 !important; }
-            #mainTabs .tab-btn span { font-size: 14px !important; }
-            #mainContent { grid-area: content; padding: 24px 36px !important; }
-            /* Groups: 2-col grid */
+            #mainTabs .tab-btn span { font-size: 13.5px !important; }
+
+            /* Content area */
+            #mainContent { grid-area: content; padding: 28px 40px 48px !important; }
+            /* Cap readable width per section */
+            #mainContent > div { max-width: 880px; }
+
+            /* Groups: 2-col on desktop */
             #groupsContainer { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
             #groupsContainer > div { margin-bottom: 0 !important; }
             #thirdPicksContainer { grid-column: 1 / -1; }
+
+            /* Leaderboard: slightly wider cards */
+            #leaderboardContainer { max-width: none !important; }
         }
+        /* Sidebar user card base styles (hidden on mobile) */
+        #sidebarHeader { display: none; }
         .match-card { transition: transform 0.2s, box-shadow 0.2s; }
         .match-card:hover { transform: translateY(-2px); }
         .rank-gold { background: linear-gradient(135deg, #f7c948, #e89c00); color: #000; }
@@ -329,6 +357,23 @@ setTimeout(function() {
 
     <!-- Tabs -->
     <div id="mainTabs" class="flex border-b border-white/8 bg-black/20">
+
+        <!-- Desktop-only sidebar header -->
+        <div id="sidebarHeader">
+            <div class="px-5 pt-5 pb-4 border-b border-white/8">
+                <p class="text-[10px] font-black tracking-widest text-gray-600 uppercase mb-3">⚽ 2026 世界杯竞猜</p>
+                <div class="flex items-center gap-3">
+                    <div id="sidebarAvatar" class="w-10 h-10 rounded-full gold flex items-center justify-center text-black font-black text-base flex-shrink-0 overflow-hidden"></div>
+                    <div class="min-w-0">
+                        <p class="font-bold text-sm text-white truncate" id="sidebarName"></p>
+                        <p class="font-black text-yellow-400 text-lg leading-none mt-0.5"><span id="sidebarScore">0</span><span class="text-xs font-normal text-gray-500"> 分</span></p>
+                    </div>
+                </div>
+                <p class="text-[11px] text-gray-600 mt-2" id="sidebarRank"></p>
+            </div>
+            <p class="text-[10px] font-bold tracking-widest text-gray-600 uppercase px-5 pt-4 pb-1">导航</p>
+        </div>
+
         <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active flex-1 py-3 font-bold text-xs whitespace-nowrap relative flex flex-col items-center gap-0.5">🏆<span>冠军</span></button>
         <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">⚽<span>射手</span></button>
         <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">🏅<span>出线</span></button>
@@ -1058,15 +1103,16 @@ window.logout = function() {
 // ─── App Start ────────────────────────────────────────────
 function startApp() {
     show('app');
-    // Sync header height to CSS so sidebar sticky top aligns perfectly
+    // Sync header height CSS variable for sidebar sticky
     requestAnimationFrame(() => {
-        const h = document.getElementById('appHeader')?.offsetHeight || 68;
+        const h = document.getElementById('appHeader')?.offsetHeight || 56;
         document.documentElement.style.setProperty('--header-h', h + 'px');
     });
     document.getElementById('headerName').textContent = currentUser.name;
     const roomLabel = currentRoom === PRIZE_ROOM ? '懂球弟妹' : currentRoom;
     document.getElementById('headerRoom').textContent = `${roomLabel}${demoMode ? ' (演示)' : ''}`;
     _refreshHeaderAvatar();
+    _updateSidebarUser();
     const savedTab = localStorage.getItem('wc2026_tab');
     if (savedTab) switchTab(savedTab);
 
@@ -1840,6 +1886,33 @@ function _koRoundPts(uid, round) {
 function updateHeaderPoints() {
     const my = Object.values(scoresData).find(s => s.name === currentUser.name);
     if (my) document.getElementById('headerPoints').innerHTML = `${my.total||0} <span class="text-xs font-normal text-gray-400">分</span>`;
+    _updateSidebarUser();
+}
+
+function _updateSidebarUser() {
+    if (!currentUser) return;
+    const nameEl = document.getElementById('sidebarName');
+    const scoreEl = document.getElementById('sidebarScore');
+    const avatarEl = document.getElementById('sidebarAvatar');
+    const rankEl = document.getElementById('sidebarRank');
+    if (!nameEl) return;
+    nameEl.textContent = currentUser.name;
+    const src = avatarsData[currentUser.id];
+    if (avatarEl) {
+        if (src) {
+            avatarEl.innerHTML = `<img src="${src}" class="w-full h-full object-cover rounded-full">`;
+        } else {
+            avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
+        }
+    }
+    const all = Object.values(scoresData).sort((a,b) => (b.total||0) - (a.total||0));
+    const my = all.find(s => s.name === currentUser.name);
+    if (scoreEl) scoreEl.textContent = my?.total || 0;
+    if (rankEl && all.length > 0) {
+        const rank = all.findIndex(s => s.name === currentUser.name) + 1;
+        const medals = ['🥇','🥈','🥉'];
+        rankEl.textContent = rank > 0 ? `${medals[rank-1] || `#${rank}`} 第 ${rank} 名，共 ${all.length} 人` : '';
+    }
 }
 
 // ─── Avatar helpers ───────────────────────────────────────
@@ -1864,6 +1937,7 @@ function _refreshHeaderAvatar() {
         el.style.backgroundImage = '';
         el.textContent = currentUser.name.charAt(0).toUpperCase();
     }
+    _updateSidebarUser();
 }
 
 function _refreshMyProfileCard() {
