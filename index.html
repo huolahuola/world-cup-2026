@@ -3385,14 +3385,21 @@ function refreshAdminChampSelect() {
     });
     sel.innerHTML = '<option value="">— 选择冠军球队 —</option>' +
         teams.map(t => `<option value="${t.name}">${t.flag||''} ${t.name}</option>`).join('');
+    if (roomSettingsData?.champion) sel.value = roomSettingsData.champion;
 
     const scorerOpts = '<option value="">— 留空暂不结算 —</option>' +
         SCORER_LIST.map(p => `<option value="${p.name}">${p.flag} ${p.name}</option>`).join('') +
         '<option value="__other__">🌍 其他球员</option>';
     const tsSel = document.getElementById('topScorerResultSel');
     const gbSel = document.getElementById('goldenBootResultSel');
-    if (tsSel) tsSel.innerHTML = scorerOpts;
-    if (gbSel) gbSel.innerHTML = scorerOpts;
+    if (tsSel) {
+        tsSel.innerHTML = scorerOpts;
+        if (roomSettingsData?.topScorer) tsSel.value = roomSettingsData.topScorer;
+    }
+    if (gbSel) {
+        gbSel.innerHTML = scorerOpts;
+        if (roomSettingsData?.goldenBoot) gbSel.value = roomSettingsData.goldenBoot;
+    }
 }
 
 window.submitChampResult = async function() {
@@ -4539,17 +4546,20 @@ window.recalcMissingScores = async function() {
         get(ref(db, `rooms/${r}/thirdPicks`)),
         get(ref(db, `rooms/${r}/scores`)),
         get(ref(db, `rooms/${r}/groups`)),
-        get(ref(db, `rooms/${r}/settings/thirdAdvanced`)),
+        get(ref(db, `rooms/${r}/settings`)),
+        get(ref(db, `rooms/${r}/champPreds`)),
     ]));
     const updates = {};
     let fixed = 0;
     rooms.forEach((room, ri) => {
-        const [gpSnap, tpSnap, scoresSnap, groupsSnap, thirdSnap] = snaps.slice(ri * 5, ri * 5 + 5);
-        const allGPreds  = gpSnap.exists()     ? gpSnap.val()     : {};
-        const allThird   = tpSnap.exists()     ? tpSnap.val()     : {};
-        const allScores  = scoresSnap.exists() ? scoresSnap.val() : {};
-        const roomGroups = groupsSnap.exists() ? groupsSnap.val() : {};
-        const thirdAdv   = thirdSnap.exists()  ? thirdSnap.val()  : [];
+        const [gpSnap, tpSnap, scoresSnap, groupsSnap, settingsSnap, champSnap] = snaps.slice(ri * 6, ri * 6 + 6);
+        const allGPreds  = gpSnap.exists()       ? gpSnap.val()       : {};
+        const allThird   = tpSnap.exists()       ? tpSnap.val()       : {};
+        const allScores  = scoresSnap.exists()   ? scoresSnap.val()   : {};
+        const roomGroups = groupsSnap.exists()   ? groupsSnap.val()   : {};
+        const settings   = settingsSnap.exists() ? settingsSnap.val() : {};
+        const allChamp   = champSnap.exists()    ? champSnap.val()    : {};
+        const thirdAdv   = settings.thirdAdvanced || [];
 
         Object.entries(allGPreds).forEach(([key, p]) => {
             if (p.points != null) return;
@@ -4576,6 +4586,49 @@ window.recalcMissingScores = async function() {
                 allScores[uid].total = (allScores[uid].total||0) + pts;
                 updates[`rooms/${room}/scores/${uid}`] = allScores[uid];
                 fixed++;
+            });
+        }
+
+        // Score champion preds for any user who submitted after admin already ran submitChampResult
+        const champion     = settings.champion    || '';
+        const topScorer    = settings.topScorer   || '';
+        const goldenBoot   = settings.goldenBoot  || '';
+        if (champion) {
+            Object.entries(allChamp).forEach(([uid, p]) => {
+                let delta = 0;
+                if (p.champPoints == null) {
+                    const pts = (p.champion && p.champion === champion) ? (p.champMaxPts || getChampPts(champion)) : 0;
+                    updates[`rooms/${room}/champPreds/${uid}/champPoints`] = pts;
+                    delta += pts; fixed++;
+                }
+                if (p.midway && p.midwayPoints == null) {
+                    const pts = p.midway === champion ? Math.round(getChampPts(p.midway) * 0.5) : 0;
+                    updates[`rooms/${room}/champPreds/${uid}/midwayPoints`] = pts;
+                    delta += pts; fixed++;
+                }
+                if (p.bonusPoints == null) {
+                    const bothRight = p.champion && p.midway && p.champion === p.midway && p.champion === champion;
+                    const pts = bothRight ? Math.round((p.champMaxPts || getChampPts(champion)) * 0.25) : 0;
+                    updates[`rooms/${room}/champPreds/${uid}/bonusPoints`] = pts;
+                    delta += pts; fixed++;
+                }
+                if (topScorer && p.topScorerPoints == null) {
+                    const scorerBase = p.topScorerMaxPts || getTopScorerPts(p.topScorer || '');
+                    const pts = (p.topScorer && p.topScorer === topScorer) ? scorerBase : 0;
+                    updates[`rooms/${room}/champPreds/${uid}/topScorerPoints`] = pts;
+                    delta += pts; fixed++;
+                }
+                if (goldenBoot && p.goldenBootPoints == null) {
+                    const base = p.goldenBootMaxPts || getTopScorerPts(p.goldenBoot || '');
+                    const pts = (p.goldenBoot && p.goldenBoot === goldenBoot) ? base : 0;
+                    updates[`rooms/${room}/champPreds/${uid}/goldenBootPoints`] = pts;
+                    delta += pts; fixed++;
+                }
+                if (delta > 0) {
+                    if (!allScores[uid]) allScores[uid] = { name:'', total:0, exact:0, correct:0, wrong:0 };
+                    allScores[uid].total = (allScores[uid].total||0) + delta;
+                    updates[`rooms/${room}/scores/${uid}`] = allScores[uid];
+                }
             });
         }
     });
