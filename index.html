@@ -284,6 +284,7 @@ setTimeout(function() {
             <div>
                 <h1 class="font-black text-base leading-tight">🏆 2026 美加墨世界杯</h1>
                 <p class="text-xs text-gray-400" id="headerRoom"></p>
+                <p class="text-xs text-green-400/80 font-medium" id="onlineCount" style="display:none"></p>
             </div>
             <div class="flex items-center gap-3">
                 <div class="text-right">
@@ -835,7 +836,7 @@ setTimeout(function() {
 <!-- ══════════ APP LOGIC ══════════ -->
 <script type="module">
 import { initializeApp } from './js/firebase-app.js';
-import { getDatabase, ref, set, get, onValue, update, remove, push } from './js/firebase-database.js';
+import { getDatabase, ref, set, get, onValue, update, remove, push, onDisconnect } from './js/firebase-database.js';
 
 // ─── State ───────────────────────────────────────────────
 let db = null;
@@ -851,11 +852,13 @@ let scoresData = {};
 let avatarsData = {};
 let wantsPrize = true;
 // Knockout stage
-let koMatchesData  = {};  // rooms/${room}/ko/matches
-let koPlayersData  = {};  // rooms/${room}/ko/players (teamName → string[])
-let koPredsData    = {};  // rooms/${room}/ko/preds/${uid}  (matchId → pred)
-let koAllPredsData = {};  // rooms/${room}/ko/preds (all users, for leaderboard)
+let koMatchesData  = {};
+let koPlayersData  = {};
+let koPredsData    = {};
+let koAllPredsData = {};
 let currentKoRound = 'r32';
+let presenceData   = {};
+let _prevPresence  = {};
 const ADMIN_DEFAULT_PWD = 'admin2026';
 
 window.togglePrize = function(val) {
@@ -1087,6 +1090,24 @@ function startApp() {
             koAllPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
         });
+
+        // ── Presence ──
+        const myPresRef = ref(db, `rooms/${currentRoom}/presence/${currentUser.id}`);
+        set(myPresRef, { name: currentUser.name, at: Date.now() });
+        onDisconnect(myPresRef).remove();
+        onValue(ref(db, `rooms/${currentRoom}/presence`), snap => {
+            const newData = snap.exists() ? snap.val() : {};
+            for (const [uid, p] of Object.entries(newData)) {
+                if (!_prevPresence[uid] && uid !== currentUser.id) {
+                    const arrivals = ['刚进了房间，摩拳擦掌', '悄悄潜入了房间', '正在运筹帷幄'];
+                    _showFunnyNotif(p.name, arrivals[Math.floor(Math.random() * arrivals.length)]);
+                }
+            }
+            _prevPresence = { ...newData };
+            presenceData = newData;
+            _updateOnlineCount();
+        });
+        _scheduleAmbientNotif();
     }
 }
 
@@ -3944,6 +3965,68 @@ function stripFlag(s) {
 
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ─── Presence helpers ────────────────────────────────────
+function _updateOnlineCount() {
+    const cnt = Object.keys(presenceData).length;
+    const el = document.getElementById('onlineCount');
+    if (!el) return;
+    if (cnt > 0) {
+        el.textContent = `● ${cnt}人在线`;
+        el.style.display = '';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+const _FUNNY_PHRASES = [
+    '正在运筹帷幄',
+    '在假装自己懂球',
+    '在认真研究赔率',
+    '在祈祷自己猜对了',
+    '在悄悄修改预测',
+    '在研究晋级形势',
+    '在担心自己垫底',
+    '正在深度思考',
+    '在分析数据',
+    '在研读战术板',
+    '在用眼神逼球队进球',
+    '在质疑裁判',
+    '在观察对手动向',
+    '正在调整战略部署',
+    '在掰手指算积分',
+    '在纠结要不要改预测',
+    '在神秘地盯着排行榜',
+    '在暗中考察对手',
+];
+
+let _funnyNotifQueue = 0;
+function _showFunnyNotif(name, phrase) {
+    const delay = _funnyNotifQueue * 600;
+    _funnyNotifQueue++;
+    setTimeout(() => {
+        _funnyNotifQueue = Math.max(0, _funnyNotifQueue - 1);
+        const el = document.createElement('div');
+        el.className = 'fixed bottom-24 left-4 glass-dark border border-white/15 text-gray-300 text-xs px-4 py-2.5 rounded-2xl z-[99] shadow-2xl slide-up';
+        el.style.cssText += 'max-width:220px;cursor:pointer;transition:opacity 0.4s';
+        el.innerHTML = `<span class="text-green-400 font-bold">${name}</span> ${phrase}`;
+        el.onclick = () => el.remove();
+        document.body.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 4500);
+    }, delay);
+}
+
+function _scheduleAmbientNotif() {
+    const delay = 28000 + Math.random() * 22000;
+    setTimeout(() => {
+        const others = Object.entries(presenceData).filter(([uid]) => uid !== currentUser?.id);
+        if (others.length > 0) {
+            const [, p] = others[Math.floor(Math.random() * others.length)];
+            _showFunnyNotif(p.name, _FUNNY_PHRASES[Math.floor(Math.random() * _FUNNY_PHRASES.length)]);
+        }
+        _scheduleAmbientNotif();
+    }, delay);
+}
 
 window.toast = function(msg, type = 'success') {
     const el = document.createElement('div');
