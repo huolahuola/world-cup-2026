@@ -5238,7 +5238,7 @@ window.wizardNext = async function() {
 
         try {
             if (!db) throw new Error('no db');
-            const usersSnap = await get(ref(db, `rooms/${room}/users`));
+            const usersSnap = await get(ref(db, `rooms/${currentRoom}/users`));
             let uid = null, isExisting = false;
             if (usersSnap.exists()) {
                 const users = usersSnap.val();
@@ -5246,19 +5246,19 @@ window.wizardNext = async function() {
                 if (match) { uid = match[0]; isExisting = true; }
             }
             if (isExisting) {
-                const userSnap = await get(ref(db, `rooms/${room}/users/${uid}`));
+                const userSnap = await get(ref(db, `rooms/${currentRoom}/users/${uid}`));
                 const savedPin = userSnap.val()?.pin;
                 if (savedPin && pin && savedPin !== pin) toast('PIN码不匹配，已用昵称+房间号找回账号 ⚠️');
-                await update(ref(db, `rooms/${room}/users/${uid}`), { prizePool: wantsPrize, pin });
-                await update(ref(db, `rooms/${room}/scores/${uid}`), { prizePool: wantsPrize });
+                await update(ref(db, `rooms/${currentRoom}/users/${uid}`), { prizePool: wantsPrize, pin });
+                await update(ref(db, `rooms/${currentRoom}/scores/${uid}`), { prizePool: wantsPrize });
             } else {
                 uid = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-                await set(ref(db, `rooms/${room}/users/${uid}`), { name, joinedAt:Date.now(), prizePool:wantsPrize, pin });
-                await set(ref(db, `rooms/${room}/scores/${uid}`), { name, total:0, exact:0, correct:0, wrong:0, prizePool:wantsPrize });
-                const mSnap = await get(ref(db, `rooms/${room}/matches`));
+                await set(ref(db, `rooms/${currentRoom}/users/${uid}`), { name, joinedAt:Date.now(), prizePool:wantsPrize, pin });
+                await set(ref(db, `rooms/${currentRoom}/scores/${uid}`), { name, total:0, exact:0, correct:0, wrong:0, prizePool:wantsPrize });
+                const mSnap = await get(ref(db, `rooms/${currentRoom}/matches`));
                 if (!mSnap.exists()) {
-                    await set(ref(db, `rooms/${room}/matches`), defaultMatches());
-                    await set(ref(db, `rooms/${room}/settings`), { adminPassword: ADMIN_DEFAULT_PWD });
+                    await set(ref(db, `rooms/${currentRoom}/matches`), defaultMatches());
+                    await set(ref(db, `rooms/${currentRoom}/settings`), { adminPassword: ADMIN_DEFAULT_PWD });
                 }
             }
             currentUser = { id: uid, name };
