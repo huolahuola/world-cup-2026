@@ -1578,7 +1578,17 @@ function _countPreds(uid) {
     add1(cp.goldenBoot, cp.goldenBootPoints);
     for (const gid of gids) {
         const p = groupPredsData[`${uid}_${gid}`];
-        if (p?.qualified?.length) addN(p.qualified.length, p.points);
+        if (!p?.qualified?.length) continue;
+        const g = groupsData[gid];
+        if (!g?.qualified?.length) {
+            total += p.qualified.length; pending += p.qualified.length;
+        } else {
+            p.qualified.forEach(t => {
+                total++;
+                if (g.qualified.includes(t)) correct++;
+                else wrong++;
+            });
+        }
     }
     const thirdArr = thirdPicksData[uid]?.picks || [];
     const thirdPtsRaw = thirdPicksData[uid]?.points;
@@ -3184,8 +3194,7 @@ window.confirmChampPick = async function() {
     const pred = { ...existing, userId: currentUser.id, champion: teamName, champAt: Date.now(),
         champMaxPts: maxPts,
         champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null, midwayPoints: existing.midwayPoints ?? null };
-    if (demoMode) { champPredsData[currentUser.id] = pred; renderChampion(); }
-    else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
+    await _saveChampPred(pred);
     toast(isChange ? `🏆 冠军预测已改为 ${teamName}（猜中+${maxPts}分）！` : `🏆 ${teamName} 已选为冠军预测！猜中可得+${maxPts}分`);
 };
 
@@ -3234,8 +3243,7 @@ window.submitTopScorer = async function() {
     const pred = { ...existing, userId: currentUser.id, topScorer: name, topScorerAt: Date.now(),
         topScorerMaxPts: maxPts,
         champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null, midwayPoints: existing.midwayPoints ?? null };
-    if (demoMode) { champPredsData[currentUser.id] = pred; renderChampion(); }
-    else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
+    await _saveChampPred(pred);
     toast(`⚽ 小组赛最佳射手已更新为 "${name}"！猜中得+${maxPts}分`);
 };
 
@@ -3345,8 +3353,7 @@ window.submitGoldenBoot = async function() {
     const existing = champPredsData[currentUser.id] || {};
     const pred = { ...existing, userId: currentUser.id, goldenBoot: name, goldenBootAt: Date.now(),
         goldenBootMaxPts: maxPts, goldenBootPoints: existing.goldenBootPoints ?? null };
-    if (demoMode) { champPredsData[currentUser.id] = pred; renderChampion(); }
-    else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
+    await _saveChampPred(pred);
     toast(`👟 金靴预测已更新为 "${name}"！猜中得+${maxPts}分`);
 };
 
@@ -3371,10 +3378,59 @@ window.confirmMidwayPick = async function() {
     const pred = { ...existing, userId: currentUser.id, midway: teamName, midwayAt: Date.now(),
         champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null,
         midwayPoints: existing.midwayPoints ?? null, bonusPoints: existing.bonusPoints ?? null };
-    if (demoMode) { champPredsData[currentUser.id] = pred; renderChampion(); }
-    else { await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred); }
+    await _saveChampPred(pred);
     toast(`🎯 ${teamName} 已永久锁定为半程冠军预测！`);
 };
+
+// ─── Auto-score champion pred if results already known ───
+function _fillChampPoints(pred) {
+    const ch = roomSettingsData?.champion   || '';
+    const ts = roomSettingsData?.topScorer  || '';
+    const gb = roomSettingsData?.goldenBoot || '';
+    const out = { ...pred };
+    let delta = 0;
+    if (ch) {
+        if (out.champPoints == null && out.champion) {
+            out.champPoints = out.champion === ch ? (out.champMaxPts || getChampPts(ch)) : 0;
+            delta += out.champPoints;
+        }
+        if (out.midway && out.midwayPoints == null) {
+            out.midwayPoints = out.midway === ch ? Math.round(getChampPts(out.midway) * 0.5) : 0;
+            delta += out.midwayPoints;
+        }
+        if (out.bonusPoints == null && out.champion && out.midway) {
+            const bothRight = out.champion === out.midway && out.champion === ch;
+            out.bonusPoints = bothRight ? Math.round((out.champMaxPts || getChampPts(ch)) * 0.25) : 0;
+            delta += out.bonusPoints;
+        }
+    }
+    if (ts && out.topScorerPoints == null && out.topScorer) {
+        const base = out.topScorerMaxPts || getTopScorerPts(out.topScorer);
+        out.topScorerPoints = out.topScorer === ts ? base : 0;
+        delta += out.topScorerPoints;
+    }
+    if (gb && out.goldenBootPoints == null && out.goldenBoot) {
+        const base = out.goldenBootMaxPts || getTopScorerPts(out.goldenBoot);
+        out.goldenBootPoints = out.goldenBoot === gb ? base : 0;
+        delta += out.goldenBootPoints;
+    }
+    return { pred: out, delta };
+}
+
+async function _saveChampPred(pred) {
+    const uid = currentUser.id;
+    const { pred: scored, delta } = _fillChampPoints(pred);
+    if (demoMode) { champPredsData[uid] = scored; renderChampion(); return; }
+    const upd = {};
+    upd[`rooms/${currentRoom}/champPreds/${uid}`] = scored;
+    if (delta > 0) {
+        const snap = await get(ref(db, `rooms/${currentRoom}/scores/${uid}`));
+        const s = snap.exists() ? snap.val() : { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
+        s.total = (s.total||0) + delta;
+        upd[`rooms/${currentRoom}/scores/${uid}`] = s;
+    }
+    await update(ref(db, '/'), upd);
+}
 
 function refreshAdminChampSelect() {
     const sel = document.getElementById('champResultSel');
@@ -4818,7 +4874,8 @@ function _renderWizStep() {
     document.getElementById('wizStep').textContent = `第 ${_wizIdx+1} 步 / ${total}`;
     document.getElementById('wizBar').style.width = `${(_wizIdx/total)*100}%`;
     document.getElementById('wizNextBtn').textContent = _wizIdx === total-1 ? '完成 ✓' : '下一步 →';
-    document.getElementById('wizSkipBtn').textContent = '跳过/稍后再选';
+    const _isOptionalStep = step?.type === 'sentence';
+    document.getElementById('wizSkipBtn').style.display = _isOptionalStep ? '' : 'none';
 
     if (step.type === 'champion') {
         document.getElementById('wizTitle').textContent = '🏆 冠军预测';
@@ -5134,6 +5191,8 @@ window.wizToggleThird = function(name) {
 
 window.wizardSkip = function() {
     if (!currentUser) { _wizEnterDemoMode(); return; }
+    const step = _wizSteps[_wizIdx];
+    if (step?.type && step.type !== 'sentence') { toast('这一步必须完成，不能跳过', 'error'); return; }
     _wizAdvance();
 };
 
@@ -5223,16 +5282,29 @@ window.wizardNext = async function() {
         return;
     }
 
-    // Prediction steps
+    // Prediction steps — validate required steps before saving
     const step = _wizSteps[_wizIdx];
+    if (step?.type === 'champion') {
+        if (!_wizChampPick) { toast('请先点选一支球队作为冠军预测', 'error'); return; }
+    } else if (step?.type === 'topScorer') {
+        const _sv = document.getElementById('wizScorerSelect')?.value;
+        const _sn = _sv === '__other__' ? document.getElementById('wizScorerOtherInput')?.value?.trim() : _sv;
+        if (!_sn) { toast('请先选择最佳射手球员', 'error'); return; }
+    } else if (step?.type === 'groupsAll') {
+        const _missing = step.groupIds.filter(gid => (_wizGpStates[gid]?.selected||[]).length < 2);
+        if (_missing.length > 0) {
+            toast(`还有 ${_missing.length} 组未完成（${_missing.map(g=>groupsData[g]?.name||g).join('、')}）`, 'error'); return;
+        }
+    } else if (step?.type === 'thirdPlace') {
+        if (_wizThirdPicks.length < 8) { toast(`请选满 8 支最佳第三名，已选 ${_wizThirdPicks.length} 支`, 'error'); return; }
+    }
     if (step?.type === 'champion' && _wizChampPick) {
         const existing = champPredsData[currentUser.id] || {};
         const maxPts = getChampPts(_wizChampPick);
         const pred = { ...existing, userId: currentUser.id, champion: _wizChampPick, champAt: Date.now(),
             champMaxPts: maxPts, champPoints: existing.champPoints??null,
             topScorerPoints: existing.topScorerPoints??null, midwayPoints: existing.midwayPoints??null };
-        if (demoMode) champPredsData[currentUser.id] = pred;
-        else await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred);
+        await _saveChampPred(pred);
         toast(`🏆 ${_wizChampPick} 已保存！猜中+${maxPts}分`);
     } else if (step?.type === 'topScorer') {
         const selVal = document.getElementById('wizScorerSelect')?.value;
@@ -5246,8 +5318,7 @@ window.wizardNext = async function() {
             const pred = { ...existing, userId: currentUser.id, topScorer: name, topScorerAt: Date.now(),
                 topScorerMaxPts: maxPts, champPoints: existing.champPoints??null,
                 topScorerPoints: existing.topScorerPoints??null, midwayPoints: existing.midwayPoints??null };
-            if (demoMode) champPredsData[currentUser.id] = pred;
-            else await set(ref(db, `rooms/${currentRoom}/champPreds/${currentUser.id}`), pred);
+            await _saveChampPred(pred);
             toast(`⚽ "${name}" 已保存！猜中+${maxPts}分`);
         }
     } else if (step?.type === 'groupsAll') {
