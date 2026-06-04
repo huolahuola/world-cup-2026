@@ -5448,7 +5448,6 @@ window.wizardNext = async function() {
             ? document.getElementById('wizScorerOtherInput')?.value?.trim()
             : selVal;
         if (name) {
-            if (!confirm(`确认将 "${name}" 设为最佳射手预测？`)) return;
             const maxPts = getTopScorerPts(name);
             const existing = champPredsData[currentUser.id] || {};
             const pred = { ...existing, userId: currentUser.id, topScorer: name, topScorerAt: Date.now(),
