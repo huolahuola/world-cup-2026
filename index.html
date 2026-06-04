@@ -3290,7 +3290,10 @@ window.confirmChampPick = async function() {
     const maxPts = getChampPts(teamName);
     const pred = { ...existing, userId: currentUser.id, champion: teamName, champAt: Date.now(),
         champMaxPts: maxPts,
-        champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null, midwayPoints: existing.midwayPoints ?? null };
+        champPoints: null,                              // reset: new pick → re-score
+        bonusPoints: null,                              // reset: depends on champion === midway
+        topScorerPoints: existing.topScorerPoints ?? null,
+        midwayPoints: existing.midwayPoints ?? null };
     await _saveChampPred(pred);
     toast(isChange ? `🏆 冠军预测已改为 ${teamName}（猜中+${maxPts}分）！` : `🏆 ${teamName} 已选为冠军预测！猜中可得+${maxPts}分`);
 };
@@ -3339,7 +3342,9 @@ window.submitTopScorer = async function() {
     const existing = champPredsData[currentUser.id] || {};
     const pred = { ...existing, userId: currentUser.id, topScorer: name, topScorerAt: Date.now(),
         topScorerMaxPts: maxPts,
-        champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null, midwayPoints: existing.midwayPoints ?? null };
+        champPoints: existing.champPoints ?? null,
+        topScorerPoints: null,                          // reset: new pick → re-score
+        midwayPoints: existing.midwayPoints ?? null };
     await _saveChampPred(pred);
     toast(`⚽ 小组赛最佳射手已更新为 "${name}"！猜中得+${maxPts}分`);
 };
@@ -3463,7 +3468,8 @@ window.submitGoldenBoot = async function() {
     const maxPts = getTopScorerPts(name);
     const existing = champPredsData[currentUser.id] || {};
     const pred = { ...existing, userId: currentUser.id, goldenBoot: name, goldenBootAt: Date.now(),
-        goldenBootMaxPts: maxPts, goldenBootPoints: existing.goldenBootPoints ?? null };
+        goldenBootMaxPts: maxPts,
+        goldenBootPoints: null };                       // reset: new pick → re-score
     await _saveChampPred(pred);
     toast(`👟 金靴预测已更新为 "${name}"！猜中得+${maxPts}分`);
 };
@@ -3487,8 +3493,10 @@ window.confirmMidwayPick = async function() {
     midwayPendingPick = null;
     const existing = champPredsData[currentUser.id] || {};
     const pred = { ...existing, userId: currentUser.id, midway: teamName, midwayAt: Date.now(),
-        champPoints: existing.champPoints ?? null, topScorerPoints: existing.topScorerPoints ?? null,
-        midwayPoints: existing.midwayPoints ?? null, bonusPoints: existing.bonusPoints ?? null };
+        champPoints: existing.champPoints ?? null,
+        topScorerPoints: existing.topScorerPoints ?? null,
+        midwayPoints: null,                             // reset: new pick → re-score
+        bonusPoints: null };                            // reset: depends on champion === midway
     await _saveChampPred(pred);
     toast(`🎯 ${teamName} 已永久锁定为半程冠军预测！`);
 };
@@ -3530,14 +3538,18 @@ function _fillChampPoints(pred) {
 
 async function _saveChampPred(pred) {
     const uid = currentUser.id;
-    const { pred: scored, delta } = _fillChampPoints(pred);
+    const old = champPredsData[uid] || {};
+    const { pred: scored } = _fillChampPoints(pred);
     if (demoMode) { champPredsData[uid] = scored; renderChampion(); return; }
+    const _sum = p => (p.champPoints ?? 0) + (p.midwayPoints ?? 0) + (p.bonusPoints ?? 0)
+                    + (p.topScorerPoints ?? 0) + (p.goldenBootPoints ?? 0);
+    const netDelta = _sum(scored) - _sum(old);
     const upd = {};
     upd[`rooms/${currentRoom}/champPreds/${uid}`] = scored;
-    if (delta > 0) {
+    if (netDelta !== 0) {
         const snap = await get(ref(db, `rooms/${currentRoom}/scores/${uid}`));
         const s = snap.exists() ? snap.val() : { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
-        s.total = (s.total||0) + delta;
+        s.total = (s.total||0) + netDelta;
         upd[`rooms/${currentRoom}/scores/${uid}`] = s;
     }
     await update(ref(db, '/'), upd);
