@@ -1720,17 +1720,21 @@ function renderLeaderboard() {
     const koTableRows = allSorted.map(([uid, s]) => {
         const rowData = rounds.map(r => _koRoundPts(uid, r));
         const koTotal = rowData.reduce((a,b)=>a+b, 0);
+        const champPts = _champTotalPts(uid);
+        const groupPts = _groupTotalPts(uid);
         const isMe = s.name === currentUser.name;
         return `<tr class="border-b border-white/5 ${isMe?'text-yellow-300':'text-gray-300'}">
             <td class="py-1.5 pr-2 font-bold truncate max-w-[70px] text-xs">${s.name||'?'}</td>
-            ${rowData.map(pts => `<td class="text-center py-1.5 px-0.5 text-xs ${pts>0?'text-green-400 font-bold':''}">${pts || '–'}</td>`).join('')}
-            <td class="text-right py-1.5 pl-2 font-bold text-xs ${koTotal>0?'text-yellow-400':''}">${koTotal || '–'}</td>
+            <td class="text-center py-1.5 px-0.5 text-xs ${champPts>0?'text-yellow-400 font-bold':''}">${champPts || '–'}</td>
+            <td class="text-center py-1.5 px-0.5 text-xs ${groupPts>0?'text-green-400 font-bold':''}">${groupPts || '–'}</td>
+            ${rowData.map(pts => `<td class="text-center py-1.5 px-0.5 text-xs ${pts>0?'text-blue-400 font-bold':''}">${pts || '–'}</td>`).join('')}
+            <td class="text-right py-1.5 pl-2 font-bold text-xs ${koTotal>0?'text-blue-300':''}">${koTotal || '–'}</td>
         </tr>`;
     }).join('');
 
     html += `<div class="glass rounded-2xl p-3 mt-3">
         <button onclick="toggleKoRoundScores()" class="w-full flex items-center justify-between py-0.5">
-            <span class="font-bold text-sm text-gray-300">📊 每轮淘汰赛积分</span>
+            <span class="font-bold text-sm text-gray-300">📊 积分明细</span>
             <span id="koRoundChevron" class="text-gray-500 text-xs">▶ 展开</span>
         </button>
         <div id="koRoundScoresSection" class="hidden mt-3 overflow-x-auto">
@@ -1738,13 +1742,14 @@ function renderLeaderboard() {
                 <thead>
                     <tr class="text-gray-500 border-b border-white/10 text-xs">
                         <th class="text-left py-1.5 pr-2">玩家</th>
-                        ${rounds.map(r=>`<th class="text-center py-1.5 px-0.5">${roundLabels[r]}</th>`).join('')}
-                        <th class="text-right py-1.5 pl-2">合计</th>
+                        <th class="text-center py-1.5 px-0.5 text-yellow-500">🏆冠军</th>
+                        <th class="text-center py-1.5 px-0.5 text-green-500">🏅出线</th>
+                        ${rounds.map(r=>`<th class="text-center py-1.5 px-0.5 text-blue-400">${roundLabels[r]}</th>`).join('')}
+                        <th class="text-right py-1.5 pl-2">淘汰合计</th>
                     </tr>
                 </thead>
                 <tbody>${koTableRows}</tbody>
             </table>
-            ${Object.keys(koMatchesData).length===0?'<p class="text-xs text-gray-500 text-center pt-2">淘汰赛开始后展示数据</p>':''}
         </div>
     </div>`;
 
@@ -1763,6 +1768,28 @@ window.toggleKoRoundScores = function() {
         chev.textContent = '▶ 展开';
     }
 };
+
+function _champTotalPts(uid) {
+    const cp = champPredsData[uid] || {};
+    let pts = 0;
+    if (cp.champPoints != null)      pts += cp.champPoints;
+    if (cp.midwayPoints != null)     pts += cp.midwayPoints;
+    if (cp.bonusPoints != null)      pts += cp.bonusPoints;
+    if (cp.topScorerPoints != null)  pts += cp.topScorerPoints;
+    if (cp.goldenBootPoints != null) pts += cp.goldenBootPoints;
+    return pts;
+}
+
+function _groupTotalPts(uid) {
+    let pts = 0;
+    for (const gid of Object.keys(groupsData)) {
+        const p = groupPredsData[`${uid}_${gid}`];
+        if (p?.points != null) pts += p.points;
+    }
+    const thirdPts = thirdPicksData[uid]?.points;
+    if (thirdPts != null) pts += thirdPts;
+    return pts;
+}
 
 function _koRoundPts(uid, round) {
     const userPreds = koAllPredsData[uid] || {};
