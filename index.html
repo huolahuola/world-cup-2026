@@ -2975,20 +2975,34 @@ function renderChampSection1(myPred, now) {
 
     // After deadline — locked forever
     if (timeLocked) {
+        const actualChamp = roomSettingsData?.champion || '';
+        let html = '';
+        if (actualChamp) {
+            html += `<div class="rounded-xl p-3 mb-2 bg-yellow-400/10 border border-yellow-400/30">
+                <p class="text-xs text-yellow-400 font-bold mb-1.5">🏆 实际冠军</p>
+                <div class="flex items-center gap-2">
+                    <span class="text-3xl">${getTeamFlag(actualChamp)}</span>
+                    <span class="font-black text-white text-xl">${actualChamp}</span>
+                </div>
+            </div>`;
+        }
         if (myPred.champion) {
             const maxPts = myPred.champMaxPts || getChampPts(myPred.champion);
-            let badge = myPred.champPoints !== null && myPred.champPoints !== undefined
+            const isRight = actualChamp && myPred.champion === actualChamp;
+            const badge = myPred.champPoints !== null && myPred.champPoints !== undefined
                 ? `<span class="${myPred.champPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.champPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓 (最高+${maxPts}分)</span>`;
-            el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
-                <span class="text-4xl">${getTeamFlag(myPred.champion)}</span>
+            html += `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
+                <span class="text-2xl">${actualChamp ? (isRight?'✅':'❌') : getTeamFlag(myPred.champion)}</span>
                 <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
-                    <span class="font-black text-white text-lg">${myPred.champion}</span>${badge}
+                    <span class="text-xs text-gray-400 mr-1">我的预测:</span>
+                    <span class="font-black text-white">${myPred.champion}</span>${badge}
                 </div><p class="text-xs text-gray-500 mt-0.5">🔒 已截止，无法更改</p></div>
             </div>`;
         } else {
-            el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
+            html += `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
         }
+        el.innerHTML = html;
         return;
     }
 
@@ -3047,20 +3061,34 @@ function renderChampSection2(myPred, now) {
     if (!el) return;
 
     if (now >= TOP_SCORER_DEADLINE) {
+        const actualScorer = roomSettingsData?.topScorer || '';
+        let html = '';
+        if (actualScorer) {
+            html += `<div class="rounded-xl p-3 mb-2 bg-orange-400/10 border border-orange-400/30">
+                <p class="text-xs text-orange-400 font-bold mb-1.5">⚽ 小组赛最佳射手</p>
+                <div class="flex items-center gap-2">
+                    <span class="text-3xl">⚽</span>
+                    <span class="font-black text-white text-xl">${actualScorer}</span>
+                </div>
+            </div>`;
+        }
         if (myPred.topScorer) {
             const scorerMaxPts = myPred.topScorerMaxPts || getTopScorerPts(myPred.topScorer);
-            let badge = myPred.topScorerPoints !== null && myPred.topScorerPoints !== undefined
+            const isRight = actualScorer && myPred.topScorer === actualScorer;
+            const badge = myPred.topScorerPoints !== null && myPred.topScorerPoints !== undefined
                 ? `<span class="${myPred.topScorerPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.topScorerPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓 (最高+${scorerMaxPts}分)</span>`;
-            el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
-                <span class="text-4xl">⚽</span>
+            html += `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
+                <span class="text-2xl">${actualScorer ? (isRight?'✅':'❌') : '⚽'}</span>
                 <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
-                    <span class="font-black text-white text-lg">${myPred.topScorer}</span>${badge}
+                    <span class="text-xs text-gray-400 mr-1">我的预测:</span>
+                    <span class="font-black text-white">${myPred.topScorer}</span>${badge}
                 </div><p class="text-xs text-gray-500 mt-0.5">🔒 竞猜已截止</p></div>
             </div>`;
         } else {
-            el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
+            html += `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
         }
+        el.innerHTML = html;
         return;
     }
 
@@ -3086,8 +3114,10 @@ function renderChampSection3(myPred, now) {
     if (!el) return;
 
     if (myPred.midway) {
+        const actualChamp = roomSettingsData?.champion || '';
+        const isRight = actualChamp && myPred.midway === actualChamp;
         let badge = myPred.midwayPoints !== null && myPred.midwayPoints !== undefined
-            ? `<span class="${myPred.midwayPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.midwayPoints}分</span>`
+            ? `<span class="${myPred.midwayPoints>=10?'bg-yellow-500 text-black':myPred.midwayPoints>0?'bg-green-700 text-white':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.midwayPoints}分</span>`
             : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓</span>`;
         const _base = myPred.champMaxPts || getChampPts(myPred.champion || '');
         const _midBase = Math.round(getChampPts(myPred.midway) * 0.5);
@@ -3095,12 +3125,24 @@ function renderChampSection3(myPred, now) {
         const mHint = myPred.midway === myPred.champion
             ? `<p class="text-xs text-green-400 mt-0.5">与冠军相同 → 猜对可得 +${_base}+${_midBase}+${_bonusBase}分（原始+半程+一致奖励）</p>`
             : `<p class="text-xs text-blue-300 mt-0.5">独立计分，猜中冠军 +${_midBase}分（原始冠军分不受影响）</p>`;
-        el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
-            <span class="text-4xl">${getTeamFlag(myPred.midway)}</span>
+        let html = '';
+        if (actualChamp) {
+            html += `<div class="rounded-xl p-3 mb-2 bg-yellow-400/10 border border-yellow-400/30">
+                <p class="text-xs text-yellow-400 font-bold mb-1.5">🏆 实际冠军</p>
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">${getTeamFlag(actualChamp)}</span>
+                    <span class="font-black text-white text-lg">${actualChamp}</span>
+                </div>
+            </div>`;
+        }
+        html += `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
+            <span class="text-2xl">${actualChamp ? (isRight?'✅':'❌') : getTeamFlag(myPred.midway)}</span>
             <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
-                <span class="font-black text-white text-lg">${myPred.midway}</span>${badge}
+                <span class="text-xs text-gray-400 mr-1">我的预测:</span>
+                <span class="font-black text-white">${myPred.midway}</span>${badge}
             </div>${mHint}<p class="text-xs text-gray-500 mt-0.5">🔒 永久锁定，无法更改</p></div>
         </div>`;
+        el.innerHTML = html;
         return;
     }
 
@@ -3273,20 +3315,34 @@ function renderChampSection4(myPred, now) {
     if (chip) chip.textContent = cd ? `⏰ 还剩 ${cd}` : '🔒 已截止';
 
     if (now >= GOLDEN_BOOT_DEADLINE) {
+        const actualBoot = roomSettingsData?.goldenBoot || '';
+        let html = '';
+        if (actualBoot) {
+            html += `<div class="rounded-xl p-3 mb-2 bg-green-400/10 border border-green-400/30">
+                <p class="text-xs text-green-400 font-bold mb-1.5">👟 金靴奖得主</p>
+                <div class="flex items-center gap-2">
+                    <span class="text-3xl">👟</span>
+                    <span class="font-black text-white text-xl">${actualBoot}</span>
+                </div>
+            </div>`;
+        }
         if (myPred.goldenBoot) {
             const maxPts = myPred.goldenBootMaxPts || getTopScorerPts(myPred.goldenBoot);
-            let badge = myPred.goldenBootPoints !== null && myPred.goldenBootPoints !== undefined
+            const isRight = actualBoot && myPred.goldenBoot === actualBoot;
+            const badge = myPred.goldenBootPoints !== null && myPred.goldenBootPoints !== undefined
                 ? `<span class="${myPred.goldenBootPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2.5 py-1 rounded-full font-black ml-2">+${myPred.goldenBootPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2.5 py-1 rounded-full ml-2">待揭晓（最高+${maxPts}分）</span>`;
-            el.innerHTML = `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
-                <span class="text-4xl">👟</span>
+            html += `<div class="glass-dark rounded-xl p-3 flex items-center gap-3">
+                <span class="text-2xl">${actualBoot ? (isRight?'✅':'❌') : '👟'}</span>
                 <div class="flex-1"><div class="flex items-center flex-wrap gap-1">
-                    <span class="font-black text-white text-lg">${myPred.goldenBoot}</span>${badge}
+                    <span class="text-xs text-gray-400 mr-1">我的预测:</span>
+                    <span class="font-black text-white">${myPred.goldenBoot}</span>${badge}
                 </div><p class="text-xs text-gray-500 mt-0.5">🔒 竞猜已截止</p></div>
             </div>`;
         } else {
-            el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
+            html += `<div class="glass-dark rounded-xl p-4 text-center"><p class="text-2xl mb-1">🔒</p><p class="text-sm text-gray-400">竞猜已截止，未参与</p></div>`;
         }
+        el.innerHTML = html;
         return;
     }
 
