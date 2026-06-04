@@ -2094,7 +2094,7 @@ window.generatePredCard = async function(mode = 'full') {
         if (gpRows.length)   H += 44 + gpRows.length * GP_ROW_H + 18 + GAP;
     }
     if (simInfo)   H += 64 + GAP;
-    H += 140; // footer
+    H += 156; // footer
 
     const SCALE = 2;
     const cv = document.createElement('canvas');
@@ -2374,7 +2374,7 @@ window.generatePredCard = async function(mode = 'full') {
     }
 
     // ── Footer ──
-    const FH = 132;
+    const FH = 148;
     rr(P, cy, W-P*2, FH, 10, C.bgCard, C.border);
     ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 12, 3, FH - 24);
     // QR code (light bg for contrast)
@@ -2399,7 +2399,12 @@ window.generatePredCard = async function(mode = 'full') {
     ctx.fillText('huolahuola.github.io', P+18, cy+76);
     ctx.fillText('/world-cup-2026', P+18, cy+92);
     ctx.font = f(9); ctx.fillStyle = C.gray2;
-    ctx.fillText('生成于 ' + new Date().toLocaleDateString('zh-CN'), P+18, cy+112);
+    const _now = new Date();
+    const _tzId = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const _tzAbbr = _now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
+    const _dtStr = _now.toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
+    ctx.fillText('存档于 ' + _dtStr + ' ' + _tzAbbr, P+18, cy+112);
+    ctx.fillText('时区: ' + _tzId, P+18, cy+128);
     ctx.textBaseline = 'alphabetic';
 
     // ── Download ──
