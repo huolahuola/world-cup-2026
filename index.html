@@ -561,8 +561,10 @@ setTimeout(function() {
             <!-- Recalculate missing scores -->
             <div class="glass rounded-2xl p-4 border border-orange-500/20">
                 <h3 class="font-bold text-orange-400 mb-1">🔄 补算遗漏积分</h3>
-                <p class="text-xs text-gray-400 mb-3">扫描两个房间所有未算分的预测，自动补全。已有分数的不会重复计算。</p>
-                <button onclick="recalcMissingScores()" class="w-full bg-orange-500/20 border border-orange-500/40 text-orange-300 font-bold py-2.5 rounded-xl text-sm">立即补算</button>
+                <p class="text-xs text-gray-400 mb-3">扫描所有未算分的预测，自动补全。已有分数的不会重复计算。</p>
+                <button onclick="recalcMissingScores()" class="w-full bg-orange-500/20 border border-orange-500/40 text-orange-300 font-bold py-2.5 rounded-xl text-sm mb-2">立即补算</button>
+                <button onclick="fullRescore()" class="w-full bg-red-500/20 border border-red-500/40 text-red-300 font-bold py-2.5 rounded-xl text-sm mb-2">⚠️ 全量重算（清零重来）</button>
+                <button onclick="migrateUndefinedRoom()" class="w-full bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold py-2.5 rounded-xl text-sm">🔧 迁移误存数据</button>
             </div>
 
             <!-- Group Results - Batch Entry -->
@@ -4695,6 +4697,140 @@ window.recalcMissingScores = async function() {
     } catch(e) {
         toast(`❌ 写入失败：${e.message}`, 'error');
     }
+};
+
+// ─── Full rescore from scratch ────────────────────────────
+window.fullRescore = async function() {
+    if (!confirm('全量重算将清零所有人分数并根据当前结果从头计算。确认继续？')) return;
+    const room = currentRoom;
+    const [gpSnap, tpSnap, champSnap, koPredsSnap, koMatchSnap, groupsSnap, settingsSnap, scoresSnap] = await Promise.all([
+        get(ref(db, `rooms/${room}/groupPreds`)),
+        get(ref(db, `rooms/${room}/thirdPicks`)),
+        get(ref(db, `rooms/${room}/champPreds`)),
+        get(ref(db, `rooms/${room}/ko/preds`)),
+        get(ref(db, `rooms/${room}/ko/matches`)),
+        get(ref(db, `rooms/${room}/groups`)),
+        get(ref(db, `rooms/${room}/settings`)),
+        get(ref(db, `rooms/${room}/scores`)),
+    ]);
+    const allGP    = gpSnap.exists()       ? gpSnap.val()       : {};
+    const allThird = tpSnap.exists()       ? tpSnap.val()       : {};
+    const allChamp = champSnap.exists()    ? champSnap.val()    : {};
+    const koP      = koPredsSnap.exists()  ? koPredsSnap.val()  : {};
+    const koM      = koMatchSnap.exists()  ? koMatchSnap.val()  : {};
+    const grps     = groupsSnap.exists()   ? groupsSnap.val()   : {};
+    const sett     = settingsSnap.exists() ? settingsSnap.val() : {};
+    const oldScores= scoresSnap.exists()   ? scoresSnap.val()   : {};
+    const champion  = sett.champion    || '';
+    const topScorer = sett.topScorer   || '';
+    const goldenBoot= sett.goldenBoot  || '';
+    const thirdAdv  = sett.thirdAdvanced || [];
+
+    // Reset all scores to 0
+    const scores = {};
+    Object.entries(oldScores).forEach(([uid, s]) => {
+        scores[uid] = { name: s.name||'', total:0, exact:0, correct:0, wrong:0 };
+        if (s.prizePool !== undefined) scores[uid].prizePool = s.prizePool;
+    });
+    const ensure = uid => { if (!scores[uid]) scores[uid] = { name:'', total:0, exact:0, correct:0, wrong:0 }; };
+    const updates = {};
+
+    Object.entries(allGP).forEach(([key, p]) => {
+        const g = grps[p.groupId];
+        if (!g?.qualified?.length) { updates[`rooms/${room}/groupPreds/${key}/points`] = null; return; }
+        const pts = calcGroupPts(p.qualified, g.qualified, p.winner, g.winner);
+        updates[`rooms/${room}/groupPreds/${key}/points`] = pts;
+        ensure(p.userId); scores[p.userId].total += pts;
+        if (pts >= 4) scores[p.userId].exact++;
+        else if (pts >= 1) scores[p.userId].correct++;
+        else scores[p.userId].wrong++;
+    });
+
+    if (thirdAdv.length === 8) {
+        Object.entries(allThird).forEach(([uid, tp]) => {
+            const pts = (tp.picks||[]).filter(t => thirdAdv.includes(t)).length;
+            updates[`rooms/${room}/thirdPicks/${uid}/points`] = pts;
+            ensure(uid); scores[uid].total += pts;
+        });
+    }
+
+    if (champion) {
+        Object.entries(allChamp).forEach(([uid, p]) => {
+            ensure(uid);
+            if (p.champion) {
+                const pts = p.champion === champion ? (p.champMaxPts||getChampPts(champion)) : 0;
+                updates[`rooms/${room}/champPreds/${uid}/champPoints`] = pts;
+                scores[uid].total += pts;
+            }
+            if (p.midway) {
+                const pts = p.midway === champion ? Math.round(getChampPts(p.midway)*0.5) : 0;
+                updates[`rooms/${room}/champPreds/${uid}/midwayPoints`] = pts;
+                scores[uid].total += pts;
+            }
+            if (p.champion && p.midway) {
+                const ok = p.champion===p.midway && p.champion===champion;
+                const pts = ok ? Math.round((p.champMaxPts||getChampPts(champion))*0.25) : 0;
+                updates[`rooms/${room}/champPreds/${uid}/bonusPoints`] = pts;
+                scores[uid].total += pts;
+            }
+            if (topScorer && p.topScorer) {
+                const pts = p.topScorer===topScorer ? (p.topScorerMaxPts||getTopScorerPts(p.topScorer)) : 0;
+                updates[`rooms/${room}/champPreds/${uid}/topScorerPoints`] = pts;
+                scores[uid].total += pts;
+            }
+            if (goldenBoot && p.goldenBoot) {
+                const pts = p.goldenBoot===goldenBoot ? (p.goldenBootMaxPts||getTopScorerPts(p.goldenBoot)) : 0;
+                updates[`rooms/${room}/champPreds/${uid}/goldenBootPoints`] = pts;
+                scores[uid].total += pts;
+            }
+        });
+    }
+
+    Object.entries(koP).forEach(([uid, userPreds]) => {
+        Object.entries(userPreds).forEach(([matchId, pred]) => {
+            const match = koM[matchId];
+            if (!match?.result || match.status !== 'finished') { updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = null; return; }
+            const pts = calcKoPts(pred, match.result);
+            updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
+            ensure(uid); scores[uid].total += pts;
+        });
+    });
+
+    Object.entries(scores).forEach(([uid, s]) => { updates[`rooms/${room}/scores/${uid}`] = s; });
+    try {
+        await update(ref(db, '/'), updates);
+        toast('✅ 全量重算完成！');
+    } catch(e) { toast('❌ ' + e.message, 'error'); }
+};
+
+// ─── Migrate data from rooms/undefined (wizard bug fix) ──
+window.migrateUndefinedRoom = async function() {
+    const snap = await get(ref(db, 'rooms/undefined'));
+    if (!snap.exists()) { toast('rooms/undefined 没有数据，无需迁移'); return; }
+    const srcData = snap.val();
+    const userCount = Object.keys(srcData.users||{}).length;
+    if (!confirm(`rooms/undefined 中发现 ${userCount} 个用户的数据，迁移到 ${currentRoom}？`)) return;
+    const updates = {};
+    // Merge users
+    Object.entries(srcData.users||{}).forEach(([uid,v]) => { updates[`rooms/${currentRoom}/users/${uid}`] = v; });
+    // Merge groupPreds
+    Object.entries(srcData.groupPreds||{}).forEach(([key,v]) => { updates[`rooms/${currentRoom}/groupPreds/${key}`] = { ...v, points: null }; });
+    // Merge champPreds
+    Object.entries(srcData.champPreds||{}).forEach(([uid,v]) => {
+        updates[`rooms/${currentRoom}/champPreds/${uid}`] = { ...v, champPoints: null, midwayPoints: null, bonusPoints: null, topScorerPoints: null, goldenBootPoints: null };
+    });
+    // Merge thirdPicks
+    Object.entries(srcData.thirdPicks||{}).forEach(([uid,v]) => { updates[`rooms/${currentRoom}/thirdPicks/${uid}`] = { ...v, points: null }; });
+    // Merge scores (base records, zero total)
+    Object.entries(srcData.scores||{}).forEach(([uid,s]) => {
+        if (!updates[`rooms/${currentRoom}/scores/${uid}`]) {
+            updates[`rooms/${currentRoom}/scores/${uid}`] = { name: s.name||'', total:0, exact:0, correct:0, wrong:0 };
+        }
+    });
+    try {
+        await update(ref(db, '/'), updates);
+        toast(`✅ 已迁移 ${userCount} 个用户，请点「全量重算」更新积分`);
+    } catch(e) { toast('❌ ' + e.message, 'error'); }
 };
 
 window.submitThirdResult = async function() {
