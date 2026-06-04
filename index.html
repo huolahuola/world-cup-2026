@@ -38,6 +38,35 @@
         .score-input:focus { outline: none; border-color: #f7c948; background: rgba(247,201,72,0.1); }
         .tab-btn { transition: all 0.2s; border-bottom: 3px solid transparent; }
         .tab-btn.active { border-bottom-color: #f7c948; color: #f7c948; }
+        /* ── Desktop responsive ───────────────────────── */
+        @media (min-width: 1024px) {
+            #app { max-width: 1300px; display: grid;
+                grid-template-areas: "header header" "sidebar content";
+                grid-template-columns: 220px 1fr;
+                grid-template-rows: auto 1fr; }
+            #appHeader { grid-area: header; }
+            #mainTabs { grid-area: sidebar; flex-direction: column !important;
+                border-right: 1px solid rgba(255,255,255,0.08);
+                border-bottom: none !important;
+                background: rgba(0,0,0,0.18);
+                padding: 10px 0;
+                position: sticky; top: var(--header-h, 68px); align-self: start;
+                max-height: calc(100vh - var(--header-h, 68px)); overflow-y: auto; }
+            #mainTabs .tab-btn { flex: none !important; width: 100%;
+                flex-direction: row !important; justify-content: flex-start !important;
+                padding: 13px 22px !important; font-size: 14px !important;
+                gap: 12px !important; border-bottom: none !important;
+                border-left: 3px solid transparent; border-radius: 0 !important; }
+            #mainTabs .tab-btn.active { border-bottom-color: transparent !important;
+                border-left-color: #f7c948; background: rgba(247,201,72,0.08);
+                color: #f7c948 !important; }
+            #mainTabs .tab-btn span { font-size: 14px !important; }
+            #mainContent { grid-area: content; padding: 24px 36px !important; }
+            /* Groups: 2-col grid */
+            #groupsContainer { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+            #groupsContainer > div { margin-bottom: 0 !important; }
+            #thirdPicksContainer { grid-column: 1 / -1; }
+        }
         .match-card { transition: transform 0.2s, box-shadow 0.2s; }
         .match-card:hover { transform: translateY(-2px); }
         .rank-gold { background: linear-gradient(135deg, #f7c948, #e89c00); color: #000; }
@@ -276,10 +305,10 @@ setTimeout(function() {
 </div>
 
 <!-- ══════════ MAIN APP ══════════ -->
-<div id="app" class="hidden max-w-xl mx-auto pb-24">
+<div id="app" class="hidden max-w-xl mx-auto pb-24 lg:pb-8">
 
     <!-- Header -->
-    <header class="sticky top-0 z-30 glass-dark border-b border-white/8 px-4 py-3">
+    <header id="appHeader" class="sticky top-0 z-30 glass-dark border-b border-white/8 px-4 py-3">
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="font-black text-base leading-tight">🏆 2026 美加墨世界杯</h1>
@@ -299,7 +328,7 @@ setTimeout(function() {
     </header>
 
     <!-- Tabs -->
-    <div class="flex border-b border-white/8 bg-black/20">
+    <div id="mainTabs" class="flex border-b border-white/8 bg-black/20">
         <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active flex-1 py-3 font-bold text-xs whitespace-nowrap relative flex flex-col items-center gap-0.5">🏆<span>冠军</span></button>
         <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">⚽<span>射手</span></button>
         <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">🏅<span>出线</span></button>
@@ -309,7 +338,7 @@ setTimeout(function() {
     </div>
 
     <!-- Content -->
-    <div class="p-4 space-y-3">
+    <div id="mainContent" class="p-4 space-y-3">
 
         <!-- Champion Prediction -->
         <div id="content-champion">
@@ -1029,6 +1058,11 @@ window.logout = function() {
 // ─── App Start ────────────────────────────────────────────
 function startApp() {
     show('app');
+    // Sync header height to CSS so sidebar sticky top aligns perfectly
+    requestAnimationFrame(() => {
+        const h = document.getElementById('appHeader')?.offsetHeight || 68;
+        document.documentElement.style.setProperty('--header-h', h + 'px');
+    });
     document.getElementById('headerName').textContent = currentUser.name;
     const roomLabel = currentRoom === PRIZE_ROOM ? '懂球弟妹' : currentRoom;
     document.getElementById('headerRoom').textContent = `${roomLabel}${demoMode ? ' (演示)' : ''}`;
