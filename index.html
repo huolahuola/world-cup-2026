@@ -414,7 +414,7 @@ setTimeout(function() {
                 </div>
                 <div class="flex items-center gap-2 mb-3">
                     <span id="champDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
-                    <span class="text-xs text-gray-500">截止前可随时修改</span>
+                    <span id="champLockHint" class="text-xs text-gray-500">截止前可随时修改</span>
                 </div>
                 <div id="champSection1"><div class="shimmer rounded-xl h-16"></div></div>
             </div>
@@ -457,7 +457,7 @@ setTimeout(function() {
                 </div>
                 <div class="flex items-center gap-2 mb-3">
                     <span id="scorerDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
-                    <span class="text-xs text-red-400 font-bold">截止前可随时修改</span>
+                    <span id="scorerLockHint" class="text-xs text-red-400 font-bold">截止前可随时修改</span>
                 </div>
                 <div id="champSection2"><div class="shimmer rounded-xl h-12"></div></div>
             </div>
@@ -632,6 +632,17 @@ setTimeout(function() {
         </div>
 
         <div id="adminContent" class="hidden space-y-4">
+
+            <!-- Phase 1 Lock -->
+            <div class="glass rounded-2xl p-4 border border-yellow-500/20">
+                <h3 class="font-bold text-yellow-400 mb-1">🔒 锁定第一阶段竞猜</h3>
+                <p class="text-xs text-gray-400 mb-3">锁定后所有用户的冠军、射手、小组出线、第三名预测均无法再修改。</p>
+                <div id="phase1LockStatus" class="mb-3"></div>
+                <div class="flex gap-2">
+                    <button onclick="togglePhase1Lock(true)" class="flex-1 bg-red-500/20 border border-red-500/40 text-red-300 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">🔒 立即锁定</button>
+                    <button onclick="togglePhase1Lock(false)" class="flex-1 bg-green-500/20 border border-green-500/40 text-green-300 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">🔓 解除锁定</button>
+                </div>
+            </div>
 
             <!-- Recalculate missing scores -->
             <div class="glass rounded-2xl p-4 border border-orange-500/20">
@@ -3128,6 +3139,26 @@ function renderChampion() {
     // Clear stale pending if already saved
     if (champPendingPick && myPred.champion) champPendingPick = null;
     if (midwayPendingPick && myPred.midway) midwayPendingPick = null;
+    const hintEl = document.getElementById('champLockHint');
+    if (hintEl) {
+        if (isPhase1Locked() && now < CHAMPION_DEADLINE) {
+            hintEl.textContent = '🔒 已锁定，无法修改';
+            hintEl.className = 'text-xs text-yellow-600';
+        } else {
+            hintEl.textContent = '截止前可随时修改';
+            hintEl.className = 'text-xs text-gray-500';
+        }
+    }
+    const scorerHintEl = document.getElementById('scorerLockHint');
+    if (scorerHintEl) {
+        if (isPhase1Locked() && now < TOP_SCORER_DEADLINE) {
+            scorerHintEl.textContent = '🔒 已锁定，无法修改';
+            scorerHintEl.className = 'text-xs text-yellow-600';
+        } else {
+            scorerHintEl.textContent = '截止前可随时修改';
+            scorerHintEl.className = 'text-xs text-red-400 font-bold';
+        }
+    }
     renderChampSection1(myPred, now);
     renderChampSection2(myPred, now);
     renderChampSection3(myPred, now);
@@ -3442,6 +3473,7 @@ window.saveWcSentence = async function() {
 };
 
 window.confirmChampPick = async function() {
+    if (isPhase1Locked()) { toast('🔒 竞猜已锁定，无法修改', 'error'); return; }
     if (!champPendingPick) return;
     if (new Date() >= CHAMPION_DEADLINE) { toast('冠军竞猜已截止', 'error'); return; }
     const teamName = champPendingPick;
@@ -3488,6 +3520,7 @@ window.updateScorerPreview = function(val) {
 };
 
 window.submitTopScorer = async function() {
+    if (isPhase1Locked()) { toast('🔒 竞猜已锁定，无法修改', 'error'); return; }
     if (new Date() >= TOP_SCORER_DEADLINE) { toast('竞猜已截止', 'error'); return; }
     const sel = document.getElementById('topScorerSelect');
     const selVal = sel?.value;
@@ -3884,6 +3917,35 @@ window.switchTab = function(tab) {
     if (tab === 'knockout') renderKnockout();
 };
 
+// ─── Phase 1 Lock ────────────────────────────────────────
+function isPhase1Locked() { return !!roomSettingsData?.phase1Locked; }
+
+window.togglePhase1Lock = async function(lock) {
+    if (demoMode) {
+        roomSettingsData = { ...roomSettingsData, phase1Locked: lock };
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/settings/phase1Locked`), lock ? true : null);
+    }
+    toast(lock ? '🔒 第一阶段已锁定，用户无法再修改预测' : '🔓 已解除锁定');
+    _refreshPhase1LockStatus();
+    renderGroups();
+};
+
+function _refreshPhase1LockStatus() {
+    const el = document.getElementById('phase1LockStatus');
+    if (!el) return;
+    const locked = isPhase1Locked();
+    el.innerHTML = locked
+        ? `<div class="flex items-center gap-2 bg-red-900/30 border border-red-500/30 rounded-xl px-3 py-2">
+               <span class="text-red-400 font-bold">🔒 已锁定</span>
+               <span class="text-xs text-gray-400">用户无法再修改第一阶段预测</span>
+           </div>`
+        : `<div class="flex items-center gap-2 bg-green-900/20 border border-green-500/20 rounded-xl px-3 py-2">
+               <span class="text-green-400 font-bold">🔓 未锁定</span>
+               <span class="text-xs text-gray-400">用户可正常修改预测</span>
+           </div>`;
+}
+
 // ─── Admin ────────────────────────────────────────────────
 let adminAuthed = false;
 
@@ -3912,6 +3974,7 @@ window.adminLogin = async function() {
         adminAuthed = true;
         hide('adminLoginSection');
         show('adminContent');
+        _refreshPhase1LockStatus();
         refreshResultMatchSelect();
         refreshAdminGroupSelects();
         refreshAdminChampSelect();
@@ -4296,6 +4359,8 @@ async function loadGroups() {
     onValue(ref(db, `rooms/${currentRoom}/settings`), snap => {
         roomSettingsData = snap.exists() ? snap.val() : {};
         if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
+        _refreshPhase1LockStatus();
+        renderGroups();
     });
     onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
         groupPredsData = snap.exists() ? snap.val() : {};
@@ -4363,6 +4428,7 @@ function _scheduleInlineSave(gid) {
 async function saveInlineGroupPred(gid) {
     const st = _inlineGroupEdits[gid];
     if (!st || st.selected.length < 2) return;
+    if (isPhase1Locked()) { toast('🔒 竞猜已锁定，无法修改', 'error'); delete _inlineGroupEdits[gid]; renderGroups(); return; }
     const pred = {
         userId: currentUser.id,
         groupId: gid,
@@ -4465,6 +4531,17 @@ function renderGroups() {
                     cls = `glass cursor-pointer select-none active:scale-95 transition-transform border border-white/10 ${qFull ? 'opacity-50' : 'hover:border-blue-500/40'}`;
                     badge = qFull ? '<span class="text-gray-600 text-xs">已满</span>' : '<span class="text-gray-500 text-xs">点选</span>';
                 }
+                if (locked) {
+                    if (isQ) cls = 'bg-blue-900/40 border-2 border-blue-400/60';
+                    else if (isThird) cls = 'bg-orange-900/30 border border-orange-500/40';
+                    else cls = 'glass border border-white/10 opacity-50';
+                    const lockBadge = isQ ? `<span class="text-blue-300 text-[11px] font-bold ml-0.5 w-5 text-right">${isW ? '👑' : '✓'}</span>` : isThird ? '<span class="text-orange-400 text-xs font-bold">押第三</span>' : '';
+                    return `<div class="flex items-center gap-2 px-3 py-2 rounded-xl ${cls}">
+                        <span class="text-2xl">${t.flag||'🏳️'}</span>
+                        <span class="font-bold text-sm flex-1">${t.name}</span>
+                        ${lockBadge}
+                    </div>`;
+                }
                 return `<div class="flex items-center gap-2 px-3 py-2 rounded-xl ${cls}" onclick="inlinePickTeam('${gid}','${t.name}')">
                     <span class="text-2xl">${t.flag||'🏳️'}</span>
                     <span class="font-bold text-sm flex-1">${t.name}</span>
@@ -4473,8 +4550,11 @@ function renderGroups() {
             }
         }).join('');
 
+        const locked = isPhase1Locked();
         let statusBadge = isFinished
             ? `<span class="text-xs bg-green-900/60 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full">已揭晓</span>`
+            : locked
+            ? `<span class="text-xs bg-yellow-900/60 text-yellow-300 border border-yellow-500/30 px-2 py-0.5 rounded-full">🔒 已锁定</span>`
             : `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">竞猜中</span>`;
 
         let footer = '';
@@ -4501,7 +4581,9 @@ function renderGroups() {
             </div>`;
         } else if (!myPred) {
             // No pred yet — hint
-            footer = `<p class="text-xs text-gray-500 text-center mt-2 pt-2 border-t border-white/8">点击球队选出 2 支出线队，可标记小组第一</p>`;
+            footer = locked
+                ? `<p class="text-xs text-yellow-600 text-center mt-2 pt-2 border-t border-white/8">🔒 竞猜已锁定</p>`
+                : `<p class="text-xs text-gray-500 text-center mt-2 pt-2 border-t border-white/8">点击球队选出 2 支出线队，可标记小组第一</p>`;
         } else {
             // Saved pred — show summary + edit hint
             let ptsBadge = '';
@@ -4513,7 +4595,8 @@ function renderGroups() {
             }
             const winnerTxt = myPred.winner ? ` · 第一: ${myPred.winner}` : '';
             const thirdTxt = thirdFromGroup.length ? ` · 第三: <span class="text-orange-400 font-bold">${thirdFromGroup.join('、')}</span>` : '';
-            footer = `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-white/8">我预测: <span class="text-white font-bold">${myPred.qualified.join('、')}</span>${winnerTxt}${thirdTxt}${ptsBadge} <span class="text-gray-600">· 点球队可修改</span></p>`;
+            const editHint = locked ? '<span class="text-yellow-700">🔒 已锁定</span>' : '<span class="text-gray-600">· 点球队可修改</span>';
+            footer = `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-white/8">我预测: <span class="text-white font-bold">${myPred.qualified.join('、')}</span>${winnerTxt}${thirdTxt}${ptsBadge} ${editHint}</p>`;
         }
 
         html += `<div class="glass rounded-2xl p-4 mb-3">
@@ -4592,7 +4675,7 @@ function renderThirdPicksSection() {
             cls = 'border-white/15 glass cursor-pointer active:opacity-70 hover:border-orange-400/40';
             badge = '';
         }
-        const onclick = !resultsOut && !full && !groupTaken ? `onclick="toggleThirdPick('${t.name}')"` : '';
+        const onclick = !resultsOut && !full && !groupTaken && !isPhase1Locked() ? `onclick="toggleThirdPick('${t.name}')"` : '';
         return `<div ${onclick} class="flex items-center gap-2 px-2.5 py-2 rounded-xl border-2 ${cls}">
             <span class="text-lg">${t.flag||'🏳️'}</span>
             <div class="flex-1 min-w-0">
@@ -4615,6 +4698,9 @@ function renderThirdPicksSection() {
             <span class="text-xs font-bold ${cnt>=8?'text-green-400':'text-orange-400'}">${cnt>=8?'✓ 已选满 8 支，自动保存中…':'已选 '+cnt+'/8 支'}</span>
             <button onclick="cancelThirdEdit()" class="text-xs text-gray-500 hover:text-white transition-colors">撤销</button>
         </div>`;
+    } else if (isPhase1Locked()) {
+        const info = saved.length ? `已选 ${saved.length}/8` : '未填写';
+        statusLine = `<p class="text-xs text-yellow-700 mt-3 text-center">🔒 已锁定 · ${info}</p>`;
     } else if (saved.length) {
         const info = tpPts != null
             ? `已结算 <span class="text-green-400 font-bold">+${tpPts}分</span>`
@@ -4644,6 +4730,7 @@ window.cancelThirdEdit = function() {
 };
 
 window.toggleThirdPick = function(name) {
+    if (isPhase1Locked()) { toast('🔒 竞猜已锁定，无法修改', 'error'); return; }
     // Initialize working copy from saved if first edit
     if (_thirdEditPicks === null) {
         _thirdEditPicks = [...(thirdPicksData[currentUser.id]?.picks || [])];
