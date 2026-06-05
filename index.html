@@ -4258,6 +4258,93 @@ async function loadGroups() {
 }
 
 // ─── Render Groups ────────────────────────────────────────
+// ─── Inline group prediction state ───────────────────────
+let _inlineGroupEdits = {};   // {gid: {selected:[], winner:null}}
+let _inlineSaveTimers = {};   // {gid: timerID}
+
+window.inlinePickTeam = function(gid, name) {
+    if (!_inlineGroupEdits[gid]) {
+        const p = groupPredsData[`${currentUser.id}_${gid}`];
+        _inlineGroupEdits[gid] = { selected: p?.qualified ? [...p.qualified] : [], winner: p?.winner || null };
+    }
+    const st = _inlineGroupEdits[gid];
+    if (st.selected.includes(name)) {
+        st.selected = st.selected.filter(n => n !== name);
+        if (st.winner === name) st.winner = null;
+    } else if (st.selected.length < 2) {
+        st.selected.push(name);
+    } else {
+        toast('已选满 2 支，先点击已选的球队取消', 'error');
+        return;
+    }
+    _scheduleInlineSave(gid);
+    renderGroups();
+};
+
+window.inlineSetWinner = function(gid, name) {
+    if (!_inlineGroupEdits[gid]) {
+        const p = groupPredsData[`${currentUser.id}_${gid}`];
+        _inlineGroupEdits[gid] = { selected: p?.qualified ? [...p.qualified] : [], winner: p?.winner || null };
+    }
+    const st = _inlineGroupEdits[gid];
+    st.winner = st.winner === name ? null : name;
+    _scheduleInlineSave(gid);
+    renderGroups();
+};
+
+window.inlineCancelEdit = function(gid) {
+    if (_inlineSaveTimers[gid]) { clearTimeout(_inlineSaveTimers[gid]); delete _inlineSaveTimers[gid]; }
+    delete _inlineGroupEdits[gid];
+    renderGroups();
+};
+
+function _scheduleInlineSave(gid) {
+    if (_inlineSaveTimers[gid]) clearTimeout(_inlineSaveTimers[gid]);
+    const st = _inlineGroupEdits[gid];
+    if (st && st.selected.length === 2) {
+        _inlineSaveTimers[gid] = setTimeout(() => saveInlineGroupPred(gid), 600);
+    }
+}
+
+async function saveInlineGroupPred(gid) {
+    const st = _inlineGroupEdits[gid];
+    if (!st || st.selected.length < 2) return;
+    const pred = {
+        userId: currentUser.id,
+        groupId: gid,
+        qualified: st.selected,
+        winner: st.winner || null,
+        thirdBet: null,
+        submittedAt: Date.now(),
+        points: null
+    };
+    const key = `${currentUser.id}_${gid}`;
+    const g = groupsData[gid];
+    if (g?.qualified?.length >= 2) {
+        pred.points = calcGroupPts(pred.qualified, g.qualified, pred.winner, g.winner);
+    }
+    delete _inlineGroupEdits[gid];
+    delete _inlineSaveTimers[gid];
+
+    if (demoMode) {
+        groupPredsData[key] = pred;
+        toast('✓ 预测已保存');
+        renderGroups();
+        return;
+    }
+    await set(ref(db, `rooms/${currentRoom}/groupPreds/${key}`), pred);
+    if (pred.points != null) {
+        const scoreSnap = await get(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`));
+        const s = scoreSnap.exists() ? scoreSnap.val() : { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
+        s.total = (s.total||0) + pred.points;
+        if (pred.points >= 4) s.exact = (s.exact||0) + 1;
+        else if (pred.points >= 1) s.correct = (s.correct||0) + 1;
+        else s.wrong = (s.wrong||0) + 1;
+        await set(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`), s);
+    }
+    toast('✓ 预测已保存');
+}
+
 function renderGroups() {
     const container = document.getElementById('groupsContainer');
     if (!groupsData || !Object.keys(groupsData).length) {
@@ -4278,6 +4365,11 @@ function renderGroups() {
         // Third-place picks from this group
         const thirdFromGroup = myThirdPicks.filter(name => teams.some(t => t.name === name));
 
+        // Inline edit state (if user is actively editing this group)
+        const editSt = !isFinished ? (_inlineGroupEdits[gid] || null) : null;
+        const displayQ = editSt ? editSt.selected : qualifiedTeams;
+        const displayW = editSt ? editSt.winner : (myPred?.winner || null);
+
         const thirdAdv = roomSettingsData?.thirdAdvanced || [];
         let teamsHtml = teams.map(t => {
             let cls = 'glass', badge = '';
@@ -4296,26 +4388,68 @@ function renderGroups() {
                         badge = '<span class="text-orange-400 text-xs font-bold">押第三</span>';
                     }
                 }
-            } else if (qualifiedTeams.includes(t.name)) {
-                cls = 'bg-blue-900/40 border border-blue-500/40';
-                badge = myPred.winner === t.name ? '<span class="text-sm">👑</span>' : '<span class="text-blue-300 text-xs font-bold">出线✓</span>';
-            } else if (isThird) {
-                cls = 'bg-orange-900/30 border border-orange-500/40';
-                badge = '<span class="text-orange-400 text-xs font-bold">押第三</span>';
+                return `<div class="flex items-center gap-2 px-3 py-2 rounded-xl ${cls}">
+                    <span class="text-2xl">${t.flag||'🏳️'}</span>
+                    <span class="font-bold text-sm flex-1">${t.name}</span>
+                    ${badge}
+                </div>`;
+            } else {
+                // Non-finished: inline interactive
+                const isQ = displayQ.includes(t.name);
+                const isW = displayW === t.name;
+                const qFull = displayQ.length >= 2;
+                if (isQ) {
+                    cls = 'bg-blue-900/40 border-2 border-blue-400/60 cursor-pointer select-none active:scale-95 transition-transform';
+                    badge = `<button onclick="event.stopPropagation();inlineSetWinner('${gid}','${t.name}')"
+                        class="shrink-0 px-1.5 py-0.5 rounded-lg text-xs transition-all ${isW ? 'gold text-black font-black' : 'glass border border-white/20 text-gray-400'}"
+                        >${isW ? '👑' : '第一?'}</button>
+                        <span class="text-blue-300 text-[11px] font-bold ml-0.5 w-5 text-right">✓</span>`;
+                } else if (isThird) {
+                    cls = 'bg-orange-900/30 border border-orange-500/40 cursor-pointer select-none active:scale-95 transition-transform';
+                    badge = '<span class="text-orange-400 text-xs font-bold">押第三</span>';
+                } else {
+                    cls = `glass cursor-pointer select-none active:scale-95 transition-transform border border-white/10 ${qFull ? 'opacity-50' : 'hover:border-blue-500/40'}`;
+                    badge = qFull ? '<span class="text-gray-600 text-xs">已满</span>' : '<span class="text-gray-500 text-xs">点选</span>';
+                }
+                return `<div class="flex items-center gap-2 px-3 py-2 rounded-xl ${cls}" onclick="inlinePickTeam('${gid}','${t.name}')">
+                    <span class="text-2xl">${t.flag||'🏳️'}</span>
+                    <span class="font-bold text-sm flex-1">${t.name}</span>
+                    ${badge}
+                </div>`;
             }
-            return `<div class="flex items-center gap-2 px-3 py-2 rounded-xl ${cls}">
-                <span class="text-2xl">${t.flag||'🏳️'}</span>
-                <span class="font-bold text-sm flex-1">${t.name}</span>
-                ${badge}
-            </div>`;
         }).join('');
 
         let statusBadge = isFinished
             ? `<span class="text-xs bg-green-900/60 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full">已揭晓</span>`
             : `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">竞猜中</span>`;
 
-        let myPredLine = '';
-        if (myPred?.qualified) {
+        let footer = '';
+        if (isFinished) {
+            // Show saved pred result below finished group
+            if (myPred?.qualified) {
+                let ptsBadge = '';
+                if (myPred.points !== null && myPred.points !== undefined) {
+                    const cls2 = myPred.points >= 4 ? 'bg-yellow-500 text-black' : myPred.points >= 2 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+                    ptsBadge = `<span class="${cls2} text-xs px-2 py-0.5 rounded-full font-bold ml-1">+${myPred.points}</span>`;
+                } else {
+                    ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full ml-1">待揭晓</span>`;
+                }
+                const winnerTxt = myPred.winner ? ` · 第一: ${myPred.winner}` : '';
+                const thirdTxt = thirdFromGroup.length ? ` · 第三: <span class="text-orange-400 font-bold">${thirdFromGroup.join('、')}</span>` : '';
+                footer = `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-white/8">我预测: <span class="text-white font-bold">${myPred.qualified.join('、')}</span>${winnerTxt}${thirdTxt}${ptsBadge}</p>`;
+            }
+        } else if (editSt) {
+            // Actively editing
+            const qc = displayQ.length;
+            footer = `<div class="mt-2 pt-2 border-t border-white/8 flex items-center justify-between">
+                <span class="text-xs font-bold ${qc>=2?'text-green-400':'text-yellow-400'}">${qc>=2?'✓ 已自动保存…':'已选 '+qc+'/2 支出线队'}</span>
+                <button onclick="inlineCancelEdit('${gid}')" class="text-xs text-gray-500 hover:text-white transition-colors">取消修改</button>
+            </div>`;
+        } else if (!myPred) {
+            // No pred yet — hint
+            footer = `<p class="text-xs text-gray-500 text-center mt-2 pt-2 border-t border-white/8">点击球队选出 2 支出线队，可标记小组第一</p>`;
+        } else {
+            // Saved pred — show summary + edit hint
             let ptsBadge = '';
             if (myPred.points !== null && myPred.points !== undefined) {
                 const cls2 = myPred.points >= 4 ? 'bg-yellow-500 text-black' : myPred.points >= 2 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
@@ -4324,13 +4458,9 @@ function renderGroups() {
                 ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full ml-1">待揭晓</span>`;
             }
             const winnerTxt = myPred.winner ? ` · 第一: ${myPred.winner}` : '';
-            const thirdTxt = thirdFromGroup.length ? ` · 第三出线: <span class="text-orange-400 font-bold">${thirdFromGroup.join('、')}</span>` : '';
-            myPredLine = `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-white/8">我预测出线: <span class="text-white font-bold">${myPred.qualified.join('、')}</span>${winnerTxt}${thirdTxt}${ptsBadge}</p>`;
+            const thirdTxt = thirdFromGroup.length ? ` · 第三: <span class="text-orange-400 font-bold">${thirdFromGroup.join('、')}</span>` : '';
+            footer = `<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-white/8">我预测: <span class="text-white font-bold">${myPred.qualified.join('、')}</span>${winnerTxt}${thirdTxt}${ptsBadge} <span class="text-gray-600">· 点球队可修改</span></p>`;
         }
-
-        const btn = isFinished ? '' : `<button onclick="openGroupPredModal('${gid}')"
-            class="w-full mt-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform ${myPred ? 'glass border border-blue-500/40 text-blue-300' : 'gold text-black'}">
-            ${myPred ? '✏️ 修改预测' : '🎯 预测出线球队'}</button>`;
 
         html += `<div class="glass rounded-2xl p-4 mb-3">
             <div class="flex justify-between items-center mb-3">
@@ -4338,7 +4468,7 @@ function renderGroups() {
                 ${statusBadge}
             </div>
             <div class="grid grid-cols-2 gap-2">${teamsHtml}</div>
-            ${myPredLine}${btn}
+            ${footer}
         </div>`;
     });
     container.innerHTML = html;
