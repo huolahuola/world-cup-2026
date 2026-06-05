@@ -2654,16 +2654,39 @@ function renderMyPreds() {
     // Champion predictions (new 3-section model)
     const myChamp = champPredsData[currentUser?.id];
     if (myChamp && (myChamp.champion || myChamp.topScorer || myChamp.midway)) {
+        const actualChamp  = roomSettingsData?.champion   || '';
+        const actualScorer = roomSettingsData?.topScorer  || '';
+        const actualBoot   = roomSettingsData?.goldenBoot || '';
+
+        // helper: side-by-side result box
+        const _resBox = (myPick, actual, myFlag, actualFlag, myLabel, actualLabel) => {
+            if (!actual) return '';
+            const correct = myPick === actual;
+            return `<div class="mt-2 pt-2 border-t border-white/8 flex gap-2">
+                <div class="flex-1 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5">
+                    <p class="text-[10px] text-gray-500 mb-0.5">${myLabel}</p>
+                    <p class="text-xs font-bold ${correct?'text-yellow-400':'text-red-400'}">${myFlag} ${myPick} ${correct?'✓':'✗'}</p>
+                </div>
+                <div class="flex-1 rounded-lg bg-sky-950/60 border border-sky-700/30 px-2 py-1.5">
+                    <p class="text-[10px] text-sky-600 mb-0.5">${actualLabel}</p>
+                    <p class="text-xs font-bold text-sky-300">${actualFlag} ${actual}</p>
+                </div>
+            </div>`;
+        };
+
         html += `<p class="text-xs text-gray-500 font-bold pb-1">冠军竞猜</p>`;
         if (myChamp.champion) {
             let b = myChamp.champPoints !== null && myChamp.champPoints !== undefined
                 ? `<span class="${myChamp.champPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.champPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
             const _champBase = myChamp.champMaxPts || getChampPts(myChamp.champion);
-            html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
-                <span class="text-3xl">${getTeamFlag(myChamp.champion)}</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">冠军 · 猜中+${_champBase}分</p>
-                <p class="font-black text-white">${myChamp.champion}</p></div>${b}
+            html += `<div class="glass rounded-xl p-3 mb-1">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">${getTeamFlag(myChamp.champion)}</span>
+                    <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">冠军 · 猜中+${_champBase}分</p>
+                    <p class="font-black text-white">${myChamp.champion}</p></div>${b}
+                </div>
+                ${_resBox(myChamp.champion, actualChamp, getTeamFlag(myChamp.champion), getTeamFlag(actualChamp), '我猜', '实际冠军')}
             </div>`;
         }
         if (myChamp.topScorer) {
@@ -2671,10 +2694,13 @@ function renderMyPreds() {
                 ? `<span class="${myChamp.topScorerPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.topScorerPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
             const _scorerBase = myChamp.topScorerMaxPts || getTopScorerPts(myChamp.topScorer);
-            html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
-                <span class="text-3xl">⚽</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">小组赛最佳射手 · 猜中+${_scorerBase}分</p>
-                <p class="font-black text-white">${myChamp.topScorer}</p></div>${b}
+            html += `<div class="glass rounded-xl p-3 mb-1">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">⚽</span>
+                    <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">小组赛最佳射手 · 猜中+${_scorerBase}分</p>
+                    <p class="font-black text-white">${myChamp.topScorer}</p></div>${b}
+                </div>
+                ${_resBox(myChamp.topScorer, actualScorer, '⚽', '⚽', '我猜', '实际射手')}
             </div>`;
         }
         if (myChamp.goldenBoot) {
@@ -2682,10 +2708,13 @@ function renderMyPreds() {
                 ? `<span class="${myChamp.goldenBootPoints>=10?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${myChamp.goldenBootPoints}分</span>`
                 : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
             const _goldenBase = myChamp.goldenBootMaxPts || getTopScorerPts(myChamp.goldenBoot);
-            html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
-                <span class="text-3xl">👟</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">金靴奖 · 猜中+${_goldenBase}分</p>
-                <p class="font-black text-white">${myChamp.goldenBoot}</p></div>${b}
+            html += `<div class="glass rounded-xl p-3 mb-1">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">👟</span>
+                    <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">金靴奖 · 猜中+${_goldenBase}分</p>
+                    <p class="font-black text-white">${myChamp.goldenBoot}</p></div>${b}
+                </div>
+                ${_resBox(myChamp.goldenBoot, actualBoot, '👟', '👟', '我猜', '实际金靴')}
             </div>`;
         }
         if (myChamp.midway) {
@@ -2701,10 +2730,14 @@ function renderMyPreds() {
             const bonusBadge = _same && myChamp.bonusPoints != null
                 ? `<span class="${myChamp.bonusPoints>0?'bg-green-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold ml-1">奖励+${myChamp.bonusPoints}</span>`
                 : '';
-            html += `<div class="glass rounded-xl p-3 flex items-center gap-3 mb-1">
-                <span class="text-3xl">${getTeamFlag(myChamp.midway)}</span>
-                <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">半程冠军（独立 · 猜中+${_mb}分${_same?' · 一致奖励+'+_bonus+'分':''}）</p>
-                <p class="font-black text-white">${myChamp.midway}</p>${mHint}</div><div class="flex flex-col items-end gap-1">${b}${bonusBadge}</div>
+            html += `<div class="glass rounded-xl p-3 mb-1">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">${getTeamFlag(myChamp.midway)}</span>
+                    <div class="flex-1 min-w-0"><p class="text-xs text-gray-400">半程冠军（独立 · 猜中+${_mb}分${_same?' · 一致奖励+'+_bonus+'分':''}）</p>
+                    <p class="font-black text-white">${myChamp.midway}</p>${mHint}</div>
+                    <div class="flex flex-col items-end gap-1">${b}${bonusBadge}</div>
+                </div>
+                ${_resBox(myChamp.midway, actualChamp, getTeamFlag(myChamp.midway), getTeamFlag(actualChamp), '我猜', '实际冠军')}
             </div>`;
         }
     }
@@ -2786,11 +2819,18 @@ function renderMyPreds() {
         let tpBadge = tpPoints !== null && tpPoints !== undefined
             ? `<span class="${tpPoints>0?'bg-yellow-500 text-black':'bg-gray-700 text-gray-400'} text-xs px-2 py-1 rounded-full font-bold">+${tpPoints}分</span>`
             : `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-1 rounded-full">待揭晓</span>`;
+        const realThird = roomSettingsData?.thirdAdvanced || [];
         const flags = myThirdPicks.map(name => {
             const team = Object.values(groupsData).flatMap(g => g.teams||[]).find(t => t.name === name);
-            return `<span class="inline-flex items-center gap-1 bg-orange-900/30 border border-orange-500/30 rounded-lg px-2 py-1 text-xs font-bold">${team?.flag||'🏳️'} ${name}</span>`;
+            const correct = realThird.length >= 8 && realThird.includes(name);
+            const wrong   = realThird.length >= 8 && !realThird.includes(name);
+            const cls = correct
+                ? 'bg-green-900/40 border-green-500/50 text-green-300'
+                : wrong
+                    ? 'bg-gray-800/60 border-gray-600/30 text-gray-500'
+                    : 'bg-orange-900/30 border-orange-500/30';
+            return `<span class="inline-flex items-center gap-1 ${cls} border rounded-lg px-2 py-1 text-xs font-bold">${team?.flag||'🏳️'} ${name}${correct?' ✓':wrong?' ✗':''}</span>`;
         }).join('');
-        const realThird = roomSettingsData?.thirdAdvanced || [];
         const realThirdLine = realThird.length === 8 ? (() => {
             const realFlags = realThird.map(name => {
                 const correct = myThirdPicks.includes(name);
@@ -4519,9 +4559,14 @@ function renderThirdPicksSection() {
         const full = cnt >= 8 && !isPicked;
         let cls, badge;
         if (isPicked) {
-            cls = `border-orange-400 bg-orange-400/10${!resultsOut?' cursor-pointer active:opacity-70':''}`;
-            if (resultsOut && tpPts !== null && tpPts !== undefined) {
-                const correct = thirdAdv.includes(t.name);
+            const correct = resultsOut && thirdAdv.includes(t.name);
+            const wrong   = resultsOut && !thirdAdv.includes(t.name);
+            cls = correct
+                ? 'border-green-400 bg-green-900/30'
+                : wrong
+                    ? 'border-gray-600 bg-gray-800/40 opacity-60'
+                    : `border-orange-400 bg-orange-400/10 cursor-pointer active:opacity-70`;
+            if (resultsOut) {
                 badge = correct
                     ? '<span class="text-green-400 font-black text-xs">+1✓</span>'
                     : '<span class="text-gray-500 text-xs">✗</span>';
