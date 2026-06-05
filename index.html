@@ -2667,9 +2667,9 @@ function renderMyPreds() {
                     <p class="text-[10px] text-gray-500 mb-0.5">${myLabel}</p>
                     <p class="text-xs font-bold ${correct?'text-yellow-400':'text-red-400'}">${myFlag} ${myPick} ${correct?'✓':'✗'}</p>
                 </div>
-                <div class="flex-1 rounded-lg bg-sky-950/60 border border-sky-700/30 px-2 py-1.5">
-                    <p class="text-[10px] text-sky-600 mb-0.5">${actualLabel}</p>
-                    <p class="text-xs font-bold text-sky-300">${actualFlag} ${actual}</p>
+                <div class="flex-1 rounded-lg bg-green-950/60 border border-green-700/30 px-2 py-1.5">
+                    <p class="text-[10px] text-green-600 mb-0.5">${actualLabel}</p>
+                    <p class="text-xs font-bold text-green-300">${actualFlag} ${actual}</p>
                 </div>
             </div>`;
         };
@@ -2795,10 +2795,10 @@ function renderMyPreds() {
                 <p class="${teamColor(myFirst,true)} font-bold text-xs leading-snug">🥇${teamFlag(myFirst)}${myFirst}${teamScoreBadge(teamPts(myFirst,true))}</p>
                 <p class="${teamColor(mySecond,false)} font-bold text-xs leading-snug">🥈${teamFlag(mySecond)}${mySecond}${teamScoreBadge(teamPts(mySecond,false))}</p>
             </div>`;
-            const realBox = hasResult ? `<div class="flex-1 rounded-lg bg-sky-950/60 border border-sky-700/30 px-2 py-1.5">
-                <p class="text-[10px] text-sky-600 mb-1">实际结果</p>
-                <p class="text-sky-300 font-bold text-xs leading-snug">🥇${teamFlag(realFirst)}${realFirst}</p>
-                <p class="text-sky-300 font-bold text-xs leading-snug">🥈${teamFlag(realSecond)}${realSecond}</p>
+            const realBox = hasResult ? `<div class="flex-1 rounded-lg bg-green-950/60 border border-green-700/30 px-2 py-1.5">
+                <p class="text-[10px] text-green-600 mb-1">实际结果</p>
+                <p class="text-green-300 font-bold text-xs leading-snug">🥇${teamFlag(realFirst)}${realFirst}</p>
+                <p class="text-green-300 font-bold text-xs leading-snug">🥈${teamFlag(realSecond)}${realSecond}</p>
             </div>` : `<div class="flex-1 rounded-lg bg-white/3 border border-white/6 px-2 py-1.5 flex items-center justify-center">
                 <p class="text-[10px] text-gray-600">待揭晓</p>
             </div>`;
