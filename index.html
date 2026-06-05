@@ -1684,13 +1684,22 @@ function _countPreds(uid) {
         if (!p?.qualified?.length) continue;
         const g = groupsData[gid];
         if (!g?.qualified?.length) {
+            // No result yet — qualified picks + winner pick all pending
             total += p.qualified.length; pending += p.qualified.length;
+            if (p.winner) { total++; pending++; }
         } else {
             p.qualified.forEach(t => {
                 total++;
                 if (g.qualified.includes(t)) correct++;
                 else wrong++;
             });
+            // Winner pick: correct if picked winner matches actual winner
+            if (p.winner) {
+                total++;
+                if (!g.winner) pending++;
+                else if (p.winner === g.winner) correct++;
+                else wrong++;
+            }
         }
     }
     const thirdArr = thirdPicksData[uid]?.picks || [];
