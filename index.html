@@ -4476,7 +4476,8 @@ function renderGroups() {
 }
 
 // ─── Third-place Section ──────────────────────────────────
-let _thirdEditPicks = null; // null = not editing, array = editing
+let _thirdEditPicks = null; // null = clean (show saved), array = unsaved edits
+let _thirdSaveTimer = null;
 
 function renderThirdPicksSection() {
     const container = document.getElementById('thirdPicksContainer');
@@ -4485,13 +4486,13 @@ function renderThirdPicksSection() {
     const gids = Object.keys(groupsData).sort();
     if (!gids.length) { container.innerHTML = ''; return; }
 
-    const myPicks = _thirdEditPicks !== null ? _thirdEditPicks : (thirdPicksData[uid]?.picks || []);
-    const saved   = thirdPicksData[uid]?.picks || [];
-    const tpPts   = thirdPicksData[uid]?.points;
-    const thirdAdv = roomSettingsData?.thirdAdvanced || [];
-    const isEditing = _thirdEditPicks !== null;
+    const saved     = thirdPicksData[uid]?.picks || [];
+    const tpPts     = thirdPicksData[uid]?.points;
+    const thirdAdv  = roomSettingsData?.thirdAdvanced || [];
+    const resultsOut = thirdAdv.length >= 8;
+    const myPicks   = _thirdEditPicks !== null ? _thirdEditPicks : saved;
 
-    // Build pool: for each group, teams NOT in user's top-2 prediction
+    // Build pool: teams NOT in user's top-2 prediction per group
     const pool = [];
     gids.forEach(gid => {
         const g = groupsData[gid];
@@ -4513,8 +4514,8 @@ function renderThirdPicksSection() {
         const full = cnt >= 8 && !isPicked;
         let cls, badge;
         if (isPicked) {
-            cls = 'border-orange-400 bg-orange-400/10';
-            if (!isEditing && tpPts !== null && tpPts !== undefined && thirdAdv.length === 8) {
+            cls = `border-orange-400 bg-orange-400/10${!resultsOut?' cursor-pointer active:opacity-70':''}`;
+            if (resultsOut && tpPts !== null && tpPts !== undefined) {
                 const correct = thirdAdv.includes(t.name);
                 badge = correct
                     ? '<span class="text-green-400 font-black text-xs">+1✓</span>'
@@ -4522,18 +4523,18 @@ function renderThirdPicksSection() {
             } else {
                 badge = '<span class="text-orange-400 font-black text-sm">✓</span>';
             }
-        } else if (!isEditing) {
-            cls = 'border-white/8 glass opacity-50 pointer-events-none';
+        } else if (resultsOut) {
+            cls = 'border-white/8 glass opacity-40';
             badge = '';
         } else if (full || groupTaken) {
             cls = 'border-white/5 glass opacity-30 pointer-events-none';
             badge = '';
         } else {
-            cls = 'border-white/15 glass';
+            cls = 'border-white/15 glass cursor-pointer active:opacity-70 hover:border-orange-400/40';
             badge = '';
         }
-        const onclick = isEditing ? `onclick="toggleThirdPick('${t.name}')"` : '';
-        return `<div ${onclick} class="flex items-center gap-2 px-2.5 py-2 rounded-xl border-2 ${cls} ${isEditing && !full && !groupTaken ? 'cursor-pointer active:opacity-70' : ''}">
+        const onclick = !resultsOut && !full && !groupTaken ? `onclick="toggleThirdPick('${t.name}')"` : '';
+        return `<div ${onclick} class="flex items-center gap-2 px-2.5 py-2 rounded-xl border-2 ${cls}">
             <span class="text-lg">${t.flag||'🏳️'}</span>
             <div class="flex-1 min-w-0">
                 <p class="text-xs font-bold truncate leading-tight">${t.name}</p>
@@ -4543,29 +4544,25 @@ function renderThirdPicksSection() {
         </div>`;
     }).join('');
 
-    let actionBlock;
-    if (isEditing) {
-        actionBlock = `<div class="flex gap-2 mt-3">
-            <button onclick="cancelThirdEdit()" class="flex-1 glass border border-white/20 text-gray-400 font-bold py-2 rounded-xl text-sm">取消</button>
-            <button onclick="submitThirdPicks()" class="flex-1 gold text-black font-bold py-2 rounded-xl text-sm">保存 (${cnt}/8)</button>
-        </div>`;
-    } else {
-        let savedInfo = '';
-        if (saved.length) {
-            if (tpPts !== null && tpPts !== undefined) {
-                savedInfo = `<span class="text-xs text-green-400 font-bold">已结算 +${tpPts}分</span>`;
-            } else {
-                savedInfo = `<span class="text-xs text-orange-400 font-bold">${saved.length}/8 已选 · 待揭晓</span>`;
-            }
+    let statusLine;
+    if (resultsOut) {
+        if (tpPts !== null && tpPts !== undefined) {
+            statusLine = `<p class="text-xs text-gray-500 mt-3 text-center">已结算 <span class="text-green-400 font-black">+${tpPts}分</span></p>`;
         } else {
-            savedInfo = `<span class="text-xs text-gray-500">尚未选择</span>`;
+            statusLine = `<p class="text-xs text-gray-500 mt-3 text-center">待结算</p>`;
         }
-        actionBlock = `<div class="flex items-center justify-between mt-3">
-            ${savedInfo}
-            <button onclick="startThirdEdit()" class="glass border border-orange-400/40 text-orange-300 font-bold py-1.5 px-4 rounded-xl text-xs">
-                ${saved.length ? '✏️ 修改' : '🎲 开始选择'}
-            </button>
+    } else if (_thirdEditPicks !== null) {
+        statusLine = `<div class="mt-3 flex items-center justify-between">
+            <span class="text-xs font-bold ${cnt>=8?'text-green-400':'text-orange-400'}">${cnt>=8?'✓ 已选满 8 支，自动保存中…':'已选 '+cnt+'/8 支'}</span>
+            <button onclick="cancelThirdEdit()" class="text-xs text-gray-500 hover:text-white transition-colors">撤销</button>
         </div>`;
+    } else if (saved.length) {
+        const info = tpPts != null
+            ? `已结算 <span class="text-green-400 font-bold">+${tpPts}分</span>`
+            : `${saved.length}/8 已选 · 待揭晓`;
+        statusLine = `<p class="text-xs text-gray-500 mt-3">${info} <span class="text-gray-600">· 点球队可修改</span></p>`;
+    } else {
+        statusLine = `<p class="text-xs text-gray-500 text-center mt-3">点击球队押注晋级的第三名（共选 8 支，每组最多 1 支）</p>`;
     }
 
     container.innerHTML = `<div class="glass rounded-2xl p-4 mb-3 mt-1">
@@ -4577,40 +4574,35 @@ function renderThirdPicksSection() {
             <span class="font-black text-lg ${countCls}">${cnt}<span class="text-xs font-normal">/8</span></span>
         </div>
         <div class="grid grid-cols-2 gap-1.5" id="thirdPickGrid">${gridHtml}</div>
-        ${actionBlock}
+        ${statusLine}
     </div>`;
 }
 
-window.startThirdEdit = function() {
-    _thirdEditPicks = [...(thirdPicksData[currentUser.id]?.picks || [])];
-    renderThirdPicksSection();
-};
-
 window.cancelThirdEdit = function() {
+    if (_thirdSaveTimer) { clearTimeout(_thirdSaveTimer); _thirdSaveTimer = null; }
     _thirdEditPicks = null;
     renderThirdPicksSection();
 };
 
 window.toggleThirdPick = function(name) {
-    if (_thirdEditPicks === null) return;
+    // Initialize working copy from saved if first edit
+    if (_thirdEditPicks === null) {
+        _thirdEditPicks = [...(thirdPicksData[currentUser.id]?.picks || [])];
+    }
     const uid = currentUser.id;
     const gids = Object.keys(groupsData);
 
-    // Find groupId for this team
     let teamGroupId = null;
     gids.forEach(gid => {
         const g = groupsData[gid];
         const myQual = groupPredsData[`${uid}_${gid}`]?.qualified || [];
-        if ((g?.teams||[]).some(t => t.name === name && !myQual.includes(t.name))) {
-            teamGroupId = gid;
-        }
+        if ((g?.teams||[]).some(t => t.name === name && !myQual.includes(t.name))) teamGroupId = gid;
     });
 
     if (_thirdEditPicks.includes(name)) {
         _thirdEditPicks = _thirdEditPicks.filter(n => n !== name);
     } else {
         if (_thirdEditPicks.length >= 8) return;
-        // Only one per group
         if (teamGroupId) {
             const pool = [];
             gids.forEach(gid => {
@@ -4623,16 +4615,21 @@ window.toggleThirdPick = function(name) {
         }
         _thirdEditPicks.push(name);
     }
+    // Auto-save after 800ms debounce
+    if (_thirdSaveTimer) clearTimeout(_thirdSaveTimer);
+    _thirdSaveTimer = setTimeout(() => submitThirdPicks(true), 800);
     renderThirdPicksSection();
 };
 
-window.submitThirdPicks = async function() {
+window.submitThirdPicks = async function(silent) {
     if (_thirdEditPicks === null) return;
+    if (_thirdSaveTimer) { clearTimeout(_thirdSaveTimer); _thirdSaveTimer = null; }
     const thirdAdv = roomSettingsData?.thirdAdvanced || [];
     const pred = { userId: currentUser.id, picks: [..._thirdEditPicks], submittedAt: Date.now(), points: null };
     if (thirdAdv.length === 8) {
         pred.points = pred.picks.filter(t => thirdAdv.includes(t)).length;
     }
+    _thirdEditPicks = null;
     if (demoMode) {
         thirdPicksData[currentUser.id] = pred;
     } else {
@@ -4641,15 +4638,14 @@ window.submitThirdPicks = async function() {
             const scoreSnap = await get(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`));
             const oldPts = thirdPicksData[currentUser.id]?.points ?? null;
             const s = scoreSnap.exists() ? scoreSnap.val() : { name: currentUser.name, total:0, exact:0, correct:0, wrong:0 };
-            // Add only the delta (in case re-submitting after results are out)
             if (oldPts == null) {
                 s.total = (s.total||0) + pred.points;
                 await set(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`), s);
             }
         }
     }
-    _thirdEditPicks = null;
-    toast(`🎲 第三名预测已保存（${pred.picks.length}队）`);
+    if (!silent) toast(`🎲 第三名预测已保存（${pred.picks.length}队）`);
+    else toast(`✓ 第三名预测已保存`);
     renderGroups();
 };
 
