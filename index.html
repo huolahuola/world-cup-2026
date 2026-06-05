@@ -3012,12 +3012,16 @@ function updateTabDots() {
         if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-topScorer" class="tab-dot"></span>');
     } else if (!needsScorer && scorerDot) scorerDot.remove();
 
-    // Groups tab dot — check if any group has no prediction from this user
+    // Groups tab dot — disappears only when every group has 2 picks + winner AND 8 third-place picks chosen
     const groupDot = document.getElementById('dot-groups');
     const uid = currentUser.id;
     const groupIds = Object.keys(groupsData);
-    const needsGroups = now < GROUP_DEADLINE && groupIds.length > 0 &&
-        !groupIds.every(gid => groupPredsData[`${uid}_${gid}`]);
+    const allGroupsFull = groupIds.length > 0 && groupIds.every(gid => {
+        const p = groupPredsData[`${uid}_${gid}`];
+        return p?.qualified?.length >= 2 && p?.winner;
+    });
+    const thirdFull = (thirdPicksData[uid]?.picks?.length || 0) >= 8;
+    const needsGroups = now < GROUP_DEADLINE && groupIds.length > 0 && (!allGroupsFull || !thirdFull);
     if (needsGroups && !groupDot) {
         const btn = document.getElementById('tab-groups');
         if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-groups" class="tab-dot"></span>');
@@ -4253,6 +4257,7 @@ async function loadGroups() {
     onValue(ref(db, `rooms/${currentRoom}/thirdPicks`), snap => {
         thirdPicksData = snap.exists() ? snap.val() : {};
         renderGroups();
+        updateTabDots();
         if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
     });
 }
