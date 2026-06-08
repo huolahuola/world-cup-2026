@@ -4491,6 +4491,7 @@ function renderGroups() {
         const displayW = editSt ? editSt.winner : (myPred?.winner || null);
 
         const thirdAdv = roomSettingsData?.thirdAdvanced || [];
+        const locked = isPhase1Locked();
         let teamsHtml = teams.map(t => {
             let cls = 'glass', badge = '';
             const isThird = myThirdPicks.includes(t.name);
@@ -4550,7 +4551,6 @@ function renderGroups() {
             }
         }).join('');
 
-        const locked = isPhase1Locked();
         let statusBadge = isFinished
             ? `<span class="text-xs bg-green-900/60 text-green-300 border border-green-500/30 px-2 py-0.5 rounded-full">已揭晓</span>`
             : locked
