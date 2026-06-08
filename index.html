@@ -928,6 +928,7 @@ let matchesData = {};
 let predsData = {};
 let scoresData = {};
 let avatarsData = {};
+let usersTableData = {}; // uid → user record from rooms/.../users
 let wantsPrize = true;
 // Knockout stage
 let koMatchesData  = {};
@@ -1163,6 +1164,7 @@ function startApp() {
         });
         onValue(ref(db, `rooms/${currentRoom}/users`), snap => {
             avatarsData = {};
+            usersTableData = snap.exists() ? snap.val() : {};
             if (snap.exists()) {
                 Object.entries(snap.val()).forEach(([uid, u]) => {
                     if (u.avatar) avatarsData[uid] = u.avatar;
@@ -2200,7 +2202,12 @@ function _xChampPred(uid) { return champPredsData[uid] || {}; }
 function _xGroupPred(uid, gid) { return groupPredsData[`${uid}_${gid}`] || null; }
 function _xThirdPicks(uid) { return thirdPicksData[uid]?.picks || []; }
 function _allScoreEntries() {
-    return { ...scoresData };
+    if (!Object.keys(usersTableData).length) return { ...scoresData };
+    const result = {};
+    for (const uid of Object.keys(usersTableData)) {
+        if (scoresData[uid]) result[uid] = scoresData[uid];
+    }
+    return result;
 }
 
 function _calcSimilarity(myUid, otherUid) {
@@ -3807,6 +3814,9 @@ let _scoreSeeded = false;
 async function _seedScoreEntry() {
     if (_scoreSeeded || demoMode) return;
     _scoreSeeded = true;
+    // Only create score entry if this UID is registered in the users table
+    const userSnap = await get(ref(db, `rooms/${currentRoom}/users/${currentUser.id}`));
+    if (!userSnap.exists()) return; // stale/unknown UID — do not create entry
     const path = `rooms/${currentRoom}/scores/${currentUser.id}`;
     const snap = await get(ref(db, path));
     if (!snap.exists()) {
