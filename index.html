@@ -5608,7 +5608,7 @@ function _renderWizStep() {
         document.getElementById('wizTitle').textContent = '🏆 冠军预测';
         document.getElementById('wizContent').innerHTML = _renderWizChamp();
     } else if (step.type === 'topScorer') {
-        document.getElementById('wizTitle').textContent = '⚽ 最佳射手';
+        document.getElementById('wizTitle').textContent = '⚽ 小组赛最佳射手';
         document.getElementById('wizContent').innerHTML = _renderWizScorer();
     } else if (step.type === 'groupsAll') {
         document.getElementById('wizTitle').textContent = '🏅 各组出线预测';
@@ -5756,7 +5756,7 @@ function _renderWizChamp() {
 
 function _renderWizScorer() {
     return `<div class="glass rounded-2xl p-4">
-        <p class="text-sm text-gray-300 mb-1">预测 2026 世界杯最佳射手</p>
+        <p class="text-sm text-gray-300 mb-1">预测小组赛最佳射手（仅小组赛阶段）</p>
         <p class="text-xs text-gray-500 mb-1">越冷门赔率越高 · 其他球员+50分</p>
         <p class="text-xs text-gray-400 mb-4">截止前随时修改</p>
         <select id="wizScorerSelect" onchange="onWizScorerSelectChange(this.value)"
