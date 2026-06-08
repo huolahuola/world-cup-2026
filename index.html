@@ -439,6 +439,7 @@ setTimeout(function() {
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
                 <p>· <b class="text-white">小组赛最佳射手</b>：截止 6月10日 23:59 CET，截止前可随时修改，猜中得分按赔率（10~100分）</p>
+                <p class="text-gray-500">　↳ 进球数第一；若并列则按助攻数排，助攻也相同则同为最佳射手，均视为猜中</p>
                 <p>· <b class="text-white">金靴奖</b>：小组赛结束后（约6月27日）开放，截止7月18日 23:59 CET，猜中得分按赔率（10~100分）</p>
                 <p>· 越冷门赔率越高，热门球员+10分，冷门球员最高+100分，名单外球员+50分</p>
             </div>
@@ -684,7 +685,7 @@ setTimeout(function() {
                 <select id="champResultSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
                     <option value="">— 选择冠军球队 —</option>
                 </select>
-                <p class="text-xs text-gray-300 mb-1">小组赛最佳射手（留空则暂不结算）</p>
+                <p class="text-xs text-gray-300 mb-1">小组赛最佳射手（留空则暂不结算）<span class="text-gray-500"> · 进球并列按助攻排；助攻也并列可多选（分别结算）</span></p>
                 <select id="topScorerResultSel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
                     <option value="">— 留空暂不结算 —</option>
                 </select>
