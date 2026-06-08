@@ -1778,53 +1778,51 @@ function renderLeaderboard() {
         html += `<div class="glass rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2 border border-purple-500/20">
             <span class="text-lg">🎭</span>
             <div>
-                <p class="text-xs font-bold text-purple-300">模拟讲台 · 按名字首字母排序</p>
+                <p class="text-xs font-bold text-purple-300">模拟领奖台 · 按名字首字母排序</p>
                 <p class="text-[10px] text-gray-500">比赛开始后将显示真实积分排名</p>
             </div>
         </div>`;
     }
 
-    // ── 总排行榜 ──
-    if (allSorted.length >= 3) {
-        const [p1uid,p1s] = allSorted[0], [p2uid,p2s] = allSorted[1], [p3uid,p3s] = allSorted[2];
-        html += `<div class="grid grid-cols-3 gap-2 mb-3">
-            ${_podiumCard(p2uid, p2s, 2, p2s.name===currentUser.name, 'small')}
-            ${_podiumCard(p1uid, p1s, 1, p1s.name===currentUser.name, 'big')}
-            ${_podiumCard(p3uid, p3s, 3, p3s.name===currentUser.name, 'small')}
+    // ── 领奖台（前3名，不足3人显示虚位占位格）──
+    const slot = (idx) => {
+        if (idx < allSorted.length) return allSorted[idx];
+        return [null, null];
+    };
+    const _emptySlot = (rank) => {
+        const big = rank === 1;
+        const colors = ['rank-gold','rank-silver','rank-bronze'];
+        const trophies = ['🏆','🥈','🥉'];
+        return `<div class="flex flex-col items-center gap-1 ${big?'pt-0':'pt-4'}">
+            <div class="${colors[rank-1]} rounded-2xl px-3 py-3 flex flex-col items-center gap-1 w-full opacity-30">
+                <span class="text-2xl">${trophies[rank-1]}</span>
+                <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl">?</div>
+                <p class="${big?'text-sm':'text-xs'} font-bold text-center text-gray-400">虚位以待</p>
+                <p class="${big?'text-3xl':'text-2xl'} font-black">–</p>
+            </div>
         </div>`;
-        allSorted.slice(3).forEach(([uid, s], i) => {
-            const rank = i + 4, isMe = s.name === currentUser.name;
-            html += `<div class="glass rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
-                <span class="font-black text-base w-7 text-center text-gray-400">${rank}</span>
-                ${_avatarHtml(uid, s.name, 'w-9 h-9', 'text-lg')}
-                <div class="flex-1 min-w-0">
-                    <div class="font-bold text-sm flex items-center gap-1.5">
-                        <span class="truncate text-white">${s.name||'未知'}</span>
-                        ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>':''}
-                    </div>
-                    <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
+    };
+    const [p1uid,p1s] = slot(0), [p2uid,p2s] = slot(1), [p3uid,p3s] = slot(2);
+    html += `<div class="grid grid-cols-3 gap-2 mb-3">
+        ${p2s ? _podiumCard(p2uid, p2s, 2, p2s.name===currentUser.name, 'small') : _emptySlot(2)}
+        ${p1s ? _podiumCard(p1uid, p1s, 1, p1s.name===currentUser.name, 'big')   : _emptySlot(1)}
+        ${p3s ? _podiumCard(p3uid, p3s, 3, p3s.name===currentUser.name, 'small') : _emptySlot(3)}
+    </div>`;
+    allSorted.slice(3).forEach(([uid, s], i) => {
+        const rank = i + 4, isMe = s.name === currentUser.name;
+        html += `<div class="glass rounded-2xl p-3.5 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
+            <span class="font-black text-base w-7 text-center text-gray-400">${rank}</span>
+            ${_avatarHtml(uid, s.name, 'w-9 h-9', 'text-lg')}
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm flex items-center gap-1.5">
+                    <span class="truncate text-white">${s.name||'未知'}</span>
+                    ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>':''}
                 </div>
-                <div class="text-2xl font-black text-white">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
-            </div>`;
-        });
-    } else {
-        allSorted.forEach(([uid, s], i) => {
-            const rank = i+1, isMe = s.name === currentUser.name;
-            let rCls='glass'; let rIcon=`<span class="font-black text-xl w-8 text-center">${rank}</span>`;
-            if(rank===1){rCls='rank-gold';rIcon='<span class="text-2xl w-8 text-center">🥇</span>';}
-            else if(rank===2){rCls='rank-silver';rIcon='<span class="text-2xl w-8 text-center">🥈</span>';}
-            else if(rank===3){rCls='rank-bronze';rIcon='<span class="text-2xl w-8 text-center">🥉</span>';}
-            html += `<div class="${rCls} rounded-2xl p-3 flex items-center gap-3 mb-2 ${isMe?'ring-2 ring-yellow-400':''}">
-                ${rIcon}
-                ${_avatarHtml(uid, s.name, 'w-8 h-8', 'text-base')}
-                <div class="flex-1 min-w-0">
-                    <div class="font-bold text-sm">${s.name||'未知'}${isMe?' <span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full ml-1">我</span>':''}</div>
-                    <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
-                </div>
-                <div class="text-xl font-black">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
-            </div>`;
-        });
-    }
+                <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
+            </div>
+            <div class="text-2xl font-black text-white">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></div>
+        </div>`;
+    });
 
     // ── 每轮淘汰赛积分 toggle ──
     const rounds = KO_ROUNDS;
