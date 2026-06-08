@@ -3031,6 +3031,10 @@ function loadChampPreds() {
     if (demoMode) { renderChampion(); tryShowWizard(); return; }
     onValue(ref(db, `rooms/${currentRoom}/champPreds`), snap => {
         champPredsData = snap.exists() ? snap.val() : {};
+        // Seed score entry if user has predictions but no score record yet
+        if (champPredsData[currentUser.id] && !scoresData[currentUser.id]) {
+            _seedScoreEntry();
+        }
         renderChampion();
         renderMyPreds();
         updateTabDots();
@@ -3730,11 +3734,23 @@ function _fillChampPoints(pred) {
     return { pred: out, delta };
 }
 
+let _scoreSeeded = false;
+async function _seedScoreEntry() {
+    if (_scoreSeeded || demoMode) return;
+    _scoreSeeded = true;
+    const path = `rooms/${currentRoom}/scores/${currentUser.id}`;
+    const snap = await get(ref(db, path));
+    if (!snap.exists()) {
+        await set(ref(db, path), { name: currentUser.name, total: 0 });
+    }
+}
+
 async function _saveChampPred(pred) {
     const uid = currentUser.id;
     const old = champPredsData[uid] || {};
     const { pred: scored } = _fillChampPoints(pred);
     if (demoMode) { champPredsData[uid] = scored; renderChampion(); return; }
+    _seedScoreEntry();
     const _sum = p => (p.champPoints ?? 0) + (p.midwayPoints ?? 0) + (p.bonusPoints ?? 0)
                     + (p.topScorerPoints ?? 0) + (p.goldenBootPoints ?? 0);
     const netDelta = _sum(scored) - _sum(old);
@@ -4429,6 +4445,7 @@ async function saveInlineGroupPred(gid) {
     const st = _inlineGroupEdits[gid];
     if (!st || st.selected.length < 2) return;
     if (isPhase1Locked()) { toast('🔒 竞猜已锁定，无法修改', 'error'); delete _inlineGroupEdits[gid]; renderGroups(); return; }
+    _seedScoreEntry();
     const pred = {
         userId: currentUser.id,
         groupId: gid,
@@ -4770,6 +4787,7 @@ window.toggleThirdPick = function(name) {
 window.submitThirdPicks = async function(silent) {
     if (_thirdEditPicks === null) return;
     if (_thirdSaveTimer) { clearTimeout(_thirdSaveTimer); _thirdSaveTimer = null; }
+    _seedScoreEntry();
     const thirdAdv = roomSettingsData?.thirdAdvanced || [];
     const pred = { userId: currentUser.id, picks: [..._thirdEditPicks], submittedAt: Date.now(), points: null };
     if (thirdAdv.length === 8) {
