@@ -1767,12 +1767,24 @@ function renderLeaderboard() {
         container.innerHTML = `<div class="text-center py-12 text-gray-500"><p class="text-4xl mb-3">🏅</p><p>暂无参与者</p></div>`;
         return;
     }
-    const allSorted = [...allEntries].sort(_lbSort);
+    const allHaveZero = allEntries.every(([,s]) => !s.total);
+    const allSorted = allHaveZero
+        ? [...allEntries].sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||'', 'zh-CN'))
+        : [...allEntries].sort(_lbSort);
 
     let html = '';
 
+    if (allHaveZero) {
+        html += `<div class="glass rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2 border border-purple-500/20">
+            <span class="text-lg">🎭</span>
+            <div>
+                <p class="text-xs font-bold text-purple-300">模拟讲台 · 按名字首字母排序</p>
+                <p class="text-[10px] text-gray-500">比赛开始后将显示真实积分排名</p>
+            </div>
+        </div>`;
+    }
+
     // ── 总排行榜 ──
-    const top3 = allSorted.slice(0, 3);
     if (allSorted.length >= 3) {
         const [p1uid,p1s] = allSorted[0], [p2uid,p2s] = allSorted[1], [p3uid,p3s] = allSorted[2];
         html += `<div class="grid grid-cols-3 gap-2 mb-3">
