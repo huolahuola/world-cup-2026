@@ -5965,12 +5965,25 @@ window.wizardNext = async function() {
 
         try {
             if (!db) throw new Error('no db');
-            const usersSnap = await get(ref(db, `rooms/${currentRoom}/users`));
+            const [usersSnap, scoresSnap] = await Promise.all([
+                get(ref(db, `rooms/${currentRoom}/users`)),
+                get(ref(db, `rooms/${currentRoom}/scores`)),
+            ]);
             let uid = null, isExisting = false;
             if (usersSnap.exists()) {
                 const users = usersSnap.val();
                 const match = Object.entries(users).find(([,u]) => u.name === name);
                 if (match) { uid = match[0]; isExisting = true; }
+            }
+            // Fallback: look up by name in scores (for accounts created before users table)
+            if (!uid && scoresSnap.exists()) {
+                const scores = scoresSnap.val();
+                const match = Object.entries(scores).find(([,s]) => s.name === name);
+                if (match) {
+                    uid = match[0]; isExisting = true;
+                    // Backfill users table so future logins find it immediately
+                    await set(ref(db, `rooms/${currentRoom}/users/${uid}`), { name, joinedAt: Date.now(), prizePool: wantsPrize, pin });
+                }
             }
             if (isExisting) {
                 const userSnap = await get(ref(db, `rooms/${currentRoom}/users/${uid}`));
