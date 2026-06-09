@@ -1883,7 +1883,7 @@ function renderLeaderboard() {
 }
 
 const CROSS_ROOMS = { dqdm: 'public', public: 'dqdm' };
-const CROSS_ROOM_LABELS = { dqdm: '私密房', public: '公开房' };
+const CROSS_ROOM_LABELS = { dqdm: '懂球弟妹', public: 'Public' };
 let _crossRoomCache = {};   // roomId → { avg, count, ts }
 
 async function _renderCrossRoomCard() {
@@ -1927,7 +1927,7 @@ async function _renderCrossRoomCard() {
     const otherPct = Math.round(otherAvg / barMax * 100);
 
     el.innerHTML = `<div class="glass rounded-2xl p-4 mt-0 border border-white/8">
-        <p class="text-xs text-gray-400 font-bold mb-3">🏟️ 房间对决 · 平均积分</p>
+        <p class="text-xs text-gray-400 font-bold mb-3">🏟️ 懂球弟妹 vs Public · 平均积分</p>
         <div class="space-y-3">
             <div>
                 <div class="flex justify-between text-xs mb-1">
