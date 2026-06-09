@@ -1876,7 +1876,80 @@ function renderLeaderboard() {
         </div>
     </div>`;
 
+    html += `<div id="crossRoomCard" class="mt-3"></div>`;
+
     container.innerHTML = html;
+    _renderCrossRoomCard();
+}
+
+const CROSS_ROOMS = { dqdm: 'public', public: 'dqdm' };
+const CROSS_ROOM_LABELS = { dqdm: '私密房', public: '公开房' };
+let _crossRoomCache = {};   // roomId → { avg, count, ts }
+
+async function _renderCrossRoomCard() {
+    const el = document.getElementById('crossRoomCard');
+    if (!el) return;
+    const otherRoom = CROSS_ROOMS[currentRoom];
+    if (!otherRoom) { el.innerHTML = ''; return; }
+
+    const myLabel    = CROSS_ROOM_LABELS[currentRoom]  || currentRoom;
+    const otherLabel = CROSS_ROOM_LABELS[otherRoom]    || otherRoom;
+
+    // Use cache if fresh (< 60s)
+    const cached = _crossRoomCache[otherRoom];
+    let otherAvg, otherCount;
+    if (cached && Date.now() - cached.ts < 60000) {
+        otherAvg = cached.avg; otherCount = cached.count;
+    } else {
+        el.innerHTML = `<div class="glass rounded-2xl p-3 text-xs text-gray-500 text-center">正在加载对方房间数据…</div>`;
+        try {
+            const snap = await get(ref(db, `rooms/${otherRoom}/scores`));
+            const data = snap.exists() ? snap.val() : {};
+            const vals = Object.values(data).map(s => s.total || 0);
+            otherCount = vals.length;
+            otherAvg = otherCount ? vals.reduce((a, b) => a + b, 0) / otherCount : 0;
+            _crossRoomCache[otherRoom] = { avg: otherAvg, count: otherCount, ts: Date.now() };
+        } catch(e) { el.innerHTML = ''; return; }
+    }
+
+    // My room avg
+    const myEntries = Object.values(_allScoreEntries());
+    const myCount = myEntries.length;
+    const myAvg = myCount ? myEntries.reduce((a, s) => a + (s.total || 0), 0) / myCount : 0;
+
+    const myAvgFmt    = myAvg.toFixed(1);
+    const otherAvgFmt = otherAvg.toFixed(1);
+    const myWin  = myAvg > otherAvg;
+    const tied   = myAvg === otherAvg;
+
+    const barMax = Math.max(myAvg, otherAvg, 1);
+    const myPct    = Math.round(myAvg    / barMax * 100);
+    const otherPct = Math.round(otherAvg / barMax * 100);
+
+    el.innerHTML = `<div class="glass rounded-2xl p-4 mt-0 border border-white/8">
+        <p class="text-xs text-gray-400 font-bold mb-3">🏟️ 房间对决 · 平均积分</p>
+        <div class="space-y-3">
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold ${myWin?'text-yellow-400':tied?'text-gray-300':'text-gray-400'}">${myLabel} <span class="text-gray-500">· ${myCount}人</span></span>
+                    <span class="font-black ${myWin?'text-yellow-400':tied?'text-gray-300':'text-gray-500'}">${myAvgFmt}分</span>
+                </div>
+                <div class="h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div class="h-full rounded-full ${myWin?'bg-yellow-400':tied?'bg-gray-400':'bg-gray-600'} transition-all" style="width:${myPct}%"></div>
+                </div>
+            </div>
+            <div>
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold ${!myWin&&!tied?'text-yellow-400':tied?'text-gray-300':'text-gray-400'}">${otherLabel} <span class="text-gray-500">· ${otherCount}人</span></span>
+                    <span class="font-black ${!myWin&&!tied?'text-yellow-400':tied?'text-gray-300':'text-gray-500'}">${otherAvgFmt}分</span>
+                </div>
+                <div class="h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div class="h-full rounded-full ${!myWin&&!tied?'bg-yellow-400':tied?'bg-gray-400':'bg-gray-600'} transition-all" style="width:${otherPct}%"></div>
+                </div>
+            </div>
+        </div>
+        <p class="text-[10px] text-gray-600 mt-2 text-right">每分钟刷新一次</p>
+    </div>`;
 }
 
 window.toggleKoRoundScores = function() {
