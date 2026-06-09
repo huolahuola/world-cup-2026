@@ -1903,9 +1903,15 @@ async function _renderCrossRoomCard() {
     } else {
         el.innerHTML = `<div class="glass rounded-2xl p-3 text-xs text-gray-500 text-center">正在加载对方房间数据…</div>`;
         try {
-            const snap = await get(ref(db, `rooms/${otherRoom}/scores`));
+            const [snap, usersSnap] = await Promise.all([
+                get(ref(db, `rooms/${otherRoom}/scores`)),
+                get(ref(db, `rooms/${otherRoom}/users`)),
+            ]);
             const data = snap.exists() ? snap.val() : {};
-            const vals = Object.values(data).map(s => s.total || 0);
+            const otherUsers = usersSnap.exists() ? usersSnap.val() : {};
+            const vals = Object.entries(data)
+                .filter(([uid]) => !otherUsers[uid]?.isTest)
+                .map(([, s]) => s.total || 0);
             otherCount = vals.length;
             otherAvg = otherCount ? vals.reduce((a, b) => a + b, 0) / otherCount : 0;
             _crossRoomCache[otherRoom] = { avg: otherAvg, count: otherCount, ts: Date.now() };
@@ -2277,7 +2283,8 @@ function _xThirdPicks(uid) { return thirdPicksData[uid]?.picks || []; }
 function _allScoreEntries() {
     if (!Object.keys(usersTableData).length) return { ...scoresData };
     const result = {};
-    for (const uid of Object.keys(usersTableData)) {
+    for (const [uid, u] of Object.entries(usersTableData)) {
+        if (u.isTest) continue; // exclude test/debug accounts
         if (scoresData[uid]) result[uid] = scoresData[uid];
     }
     return result;
