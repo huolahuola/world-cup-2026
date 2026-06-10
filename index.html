@@ -114,9 +114,14 @@
         .deadline-chip.ok { background:rgba(34,197,94,0.1); border-color:rgba(34,197,94,0.3); color:#86efac; }
         .outstanding-glow { box-shadow: 0 0 0 2px rgba(247,201,72,0.5), 0 0 20px rgba(247,201,72,0.12); animation: outlineGlow 2s ease-in-out infinite; }
         @keyframes outlineGlow { 0%,100%{box-shadow:0 0 0 2px rgba(247,201,72,0.5),0 0 20px rgba(247,201,72,0.12)} 50%{box-shadow:0 0 0 2px rgba(247,201,72,0.9),0 0 28px rgba(247,201,72,0.25)} }
+        @keyframes danmakuScroll { from { transform: translateX(105vw); } to { transform: translateX(-100%); } }
+        .danmaku-msg { position:absolute; white-space:nowrap; font-size:15px; font-weight:700; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,0.8); pointer-events:none; will-change:transform; }
     </style>
 </head>
 <body class="text-white">
+<!-- ══════════ DANMAKU OVERLAY ══════════ -->
+<div id="danmakuOverlay" style="position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:25;"></div>
+
 <script>
 // If Firebase module fails to load in 12 seconds, show error
 window._appReady = false;
@@ -595,6 +600,17 @@ setTimeout(function() {
                 <button onclick="generatePredCard('full')" class="flex-1 glass border border-white/20 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">📋 完整存档</button>
                 <button onclick="generatePredCard('share')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
             </div>
+            <!-- One-liner for danmaku -->
+            <div class="glass rounded-2xl p-4 mb-3">
+                <p class="text-xs text-yellow-400 font-bold mb-2">💬 一句话预测（弹幕展示）</p>
+                <div class="flex gap-2">
+                    <input id="oneLineInput" type="text" maxlength="40" placeholder="用一句话描述本届世界杯走向…"
+                        class="flex-1 glass-dark rounded-xl px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                        onkeypress="if(event.key==='Enter')submitOneLiner()">
+                    <button onclick="submitOneLiner()" class="gold text-black font-black px-4 rounded-xl text-sm active:scale-95 transition-transform">发送</button>
+                </div>
+                <p id="oneLineStatus" class="text-xs text-gray-500 mt-1.5"></p>
+            </div>
             <div id="myPredsContainer" class="space-y-2">
                 <div class="text-center py-8 text-gray-400">暂无预测</div>
             </div>
@@ -946,6 +962,7 @@ let predsData = {};
 let scoresData = {};
 let avatarsData = {};
 let usersTableData = {}; // uid → user record from rooms/.../users
+let oneLinersData = {};
 let wantsPrize = true;
 // Knockout stage
 let koMatchesData  = {};
@@ -1190,6 +1207,11 @@ function startApp() {
             renderLeaderboard();
             _refreshHeaderAvatar();
             if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/oneLiners`), snap => {
+            oneLinersData = snap.exists() ? snap.val() : {};
+            _updateOneLineStatus();
+            startDanmaku();
         });
 
         // ── Knockout stage listeners ──
@@ -6475,6 +6497,72 @@ window.lpLogin = async function() {
         btn.disabled = false;
     }
 };
+
+// ─── Danmaku ──────────────────────────────────────────────
+let _danmakuTimer = null;
+let _danmakuQueue = [];
+let _danmakuIdx = 0;
+
+function _updateOneLineStatus() {
+    const el = document.getElementById('oneLineStatus');
+    const inp = document.getElementById('oneLineInput');
+    if (!el) return;
+    const mine = oneLinersData[currentUser?.id];
+    if (mine) {
+        el.textContent = '已发送：' + mine.text;
+        if (inp) inp.value = mine.text;
+    } else {
+        el.textContent = '';
+    }
+}
+
+window.submitOneLiner = async function() {
+    const inp = document.getElementById('oneLineInput');
+    const text = (inp?.value || '').trim();
+    if (!text) { toast('请输入一句话', 'error'); return; }
+    if (!currentUser?.id || demoMode) { toast('请先登录', 'error'); return; }
+    try {
+        await set(ref(db, `rooms/${currentRoom}/oneLiners/${currentUser.id}`), {
+            name: currentUser.name,
+            text,
+            at: Date.now()
+        });
+        toast('弹幕已发送！', 'success');
+    } catch(e) {
+        toast('发送失败', 'error');
+    }
+};
+
+function spawnDanmaku(name, text) {
+    const overlay = document.getElementById('danmakuOverlay');
+    if (!overlay) return;
+    const msg = document.createElement('div');
+    msg.className = 'danmaku-msg';
+    const colors = ['#facc15','#34d399','#60a5fa','#f472b6','#fb923c','#a78bfa','#fff'];
+    msg.style.color = colors[Math.floor(Math.random() * colors.length)];
+    msg.style.top = (5 + Math.random() * 82) + '%';
+    const dur = 9 + Math.random() * 8;
+    msg.style.animation = `danmakuScroll ${dur.toFixed(1)}s linear forwards`;
+    msg.textContent = `${name}：${text}`;
+    overlay.appendChild(msg);
+    msg.addEventListener('animationend', () => msg.remove(), { once: true });
+}
+
+function startDanmaku() {
+    const msgs = Object.values(oneLinersData).filter(e => e.text);
+    if (!msgs.length) return;
+    _danmakuQueue = [...msgs].sort(() => Math.random() - 0.5);
+    if (_danmakuTimer) return; // already running
+    function tick() {
+        if (!_danmakuQueue.length) { _danmakuTimer = null; return; }
+        const entry = _danmakuQueue[_danmakuIdx % _danmakuQueue.length];
+        _danmakuIdx++;
+        spawnDanmaku(entry.name, entry.text);
+        const next = 3000 + Math.random() * 4000;
+        _danmakuTimer = setTimeout(tick, next);
+    }
+    tick();
+}
 
 // ─── Start ────────────────────────────────────────────────
 bootstrap();
