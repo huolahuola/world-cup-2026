@@ -281,6 +281,7 @@ setTimeout(function() {
                         oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
                         onkeypress="if(event.key==='Enter')lpLogin()">
                     <p class="text-xs text-gray-600 text-center">换设备时输入相同昵称+房间号+PIN即可找回账号</p>
+                    <p class="text-xs text-gray-600 text-center">登录不成功？建议清理浏览器缓存后再试</p>
                     <button id="lpLoginBtn" onclick="lpLogin()"
                         class="w-full gold text-black font-black py-4 rounded-2xl text-lg active:scale-95 transition-transform">
                         加入游戏 →
@@ -396,8 +397,8 @@ setTimeout(function() {
                 </button>
                 <div class="hidden px-4 pb-4">
                     <div class="glass-dark rounded-xl p-3 text-xs space-y-1.5 text-gray-300">
-                        <p>🏆 <b class="text-yellow-400">冠军预测</b> 截止6月10日 CET 23:59，可随时修改，猜中 <b class="text-white">+20~250分（按赔率）</b></p>
-                        <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月10日 CET 23:59，锁定后不可改，猜中 <b class="text-white">按赔率（10~100分）</b></p>
+                        <p>🏆 <b class="text-yellow-400">冠军预测</b> 截止6月11日 20:59 CET，可随时修改，猜中 <b class="text-white">+20~250分（按赔率）</b></p>
+                        <p>⚽ <b class="text-yellow-400">最佳射手</b> 截止6月11日 20:59 CET，锁定后不可改，猜中 <b class="text-white">按赔率（10~100分）</b></p>
                         <p>🎯 <b class="text-blue-300">半程冠军</b> 7月4日淘汰赛起开放，7月9日截止，完全独立计分：</p>
                         <p>· 原始冠军猜对 → <b class="text-yellow-400">+赔率积分（20~250分）</b></p>
                         <p>· 半程冠军猜对 → <b class="text-blue-300">+赔率×0.5分</b>（独立，不影响原始）</p>
@@ -413,7 +414,7 @@ setTimeout(function() {
                     <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">20–250分</span>
                 </div>
                 <div class="flex items-center gap-2 mb-3">
-                    <span id="champDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
+                    <span id="champDeadlineChip" class="deadline-chip">⏰ 截止 6月11日 20:59 CET</span>
                     <span id="champLockHint" class="text-xs text-gray-500">截止前可随时修改</span>
                 </div>
                 <div id="champSection1"><div class="shimmer rounded-xl h-16"></div></div>
@@ -438,7 +439,7 @@ setTimeout(function() {
         <div id="content-topScorer" class="hidden">
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 规则说明</p>
-                <p>· <b class="text-white">小组赛最佳射手</b>：截止 6月10日 23:59 CET，截止前可随时修改，猜中得分按赔率（10~100分）</p>
+                <p>· <b class="text-white">小组赛最佳射手</b>：截止 6月11日 20:59 CET，截止前可随时修改，猜中得分按赔率（10~100分）</p>
                 <p class="text-gray-500">　↳ 进球数第一；若并列则按助攻数排，助攻也相同则同为最佳射手，均视为猜中</p>
                 <p>· <b class="text-white">金靴奖</b>：小组赛结束后（约6月27日）开放，截止7月18日 23:59 CET，猜中得分按赔率（10~100分）</p>
                 <p>· 越冷门赔率越高，热门球员+10分，冷门球员最高+100分，名单外球员+50分</p>
@@ -450,7 +451,7 @@ setTimeout(function() {
                     <span class="text-xs bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold">按赔率</span>
                 </div>
                 <div class="flex items-center gap-2 mb-3">
-                    <span id="scorerDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
+                    <span id="scorerDeadlineChip" class="deadline-chip">⏰ 截止 6月11日 20:59 CET</span>
                     <span id="scorerLockHint" class="text-xs text-red-400 font-bold">截止前可随时修改</span>
                 </div>
                 <div id="champSection2"><div class="shimmer rounded-xl h-12"></div></div>
@@ -474,7 +475,7 @@ setTimeout(function() {
                 <p class="font-black gold-text">🏅 小组出线竞猜</p>
                 <p class="text-xs text-gray-400 mt-0.5">出线且名次正确 <span class="text-yellow-400 font-bold">+2分</span> · 出线但名次错误 <span class="text-green-400 font-bold">+1分</span> · 第三名出线 <span class="text-orange-400 font-bold">+1分/队</span></p>
                 <div class="flex justify-center mt-2">
-                    <span id="groupDeadlineChip" class="deadline-chip">⏰ 截止 6月10日 23:59 CET</span>
+                    <span id="groupDeadlineChip" class="deadline-chip">⏰ 截止 6月11日 20:59 CET</span>
                 </div>
             </div>
 
@@ -896,6 +897,21 @@ setTimeout(function() {
                 <button onclick="changePassword()" class="w-full glass border border-white/20 text-white font-bold py-2.5 rounded-xl text-sm">
                     修改密码
                 </button>
+            </div>
+
+            <!-- Delete User -->
+            <div class="glass rounded-2xl p-4 border border-orange-500/20">
+                <h3 class="font-bold text-orange-400 mb-1">🗑️ 删除用户</h3>
+                <p class="text-xs text-gray-400 mb-3">从指定房间删除用户及其所有预测数据（不可恢复）</p>
+                <div class="space-y-2">
+                    <input type="text" id="delUserRoom" placeholder="房间号（如 dqdm）"
+                        class="w-full glass-dark rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                        oninput="loadRoomUsersForDelete()">
+                    <select id="delUserSel" class="w-full glass-dark rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-1 focus:ring-orange-400">
+                        <option value="">— 先输入房间号 —</option>
+                    </select>
+                    <button onclick="deleteRoomUser()" class="w-full bg-orange-950/60 border border-orange-500/40 text-orange-300 font-bold py-2.5 rounded-xl text-sm">删除该用户</button>
+                </div>
             </div>
 
             <!-- Reset -->
@@ -1677,6 +1693,52 @@ window.clearPublicRoom = async function() {
         toast('✅ 公共房间数据已清除');
     } catch(e) {
         toast('❌ 清除失败: ' + e.message, 'error');
+    }
+};
+
+let _delUserTimer = null;
+window.loadRoomUsersForDelete = function() {
+    clearTimeout(_delUserTimer);
+    _delUserTimer = setTimeout(async () => {
+        const room = document.getElementById('delUserRoom').value.trim();
+        const sel = document.getElementById('delUserSel');
+        sel.innerHTML = '<option value="">— 加载中... —</option>';
+        if (!room || demoMode || !db) { sel.innerHTML = '<option value="">— 先输入房间号 —</option>'; return; }
+        try {
+            const snap = await get(ref(db, `rooms/${room}/users`));
+            if (!snap.exists()) { sel.innerHTML = '<option value="">— 该房间无用户 —</option>'; return; }
+            const users = snap.val();
+            sel.innerHTML = '<option value="">— 选择要删除的用户 —</option>' +
+                Object.entries(users).map(([uid, u]) => `<option value="${uid}">${u.name}</option>`).join('');
+        } catch(e) {
+            sel.innerHTML = '<option value="">— 加载失败 —</option>';
+        }
+    }, 600);
+};
+
+window.deleteRoomUser = async function() {
+    if (!adminAuthed) return;
+    const room = document.getElementById('delUserRoom').value.trim();
+    const sel = document.getElementById('delUserSel');
+    const uid = sel.value;
+    const name = sel.options[sel.selectedIndex]?.text || uid;
+    if (!room || !uid) { toast('请先填写房间号并选择用户', 'error'); return; }
+    if (!confirm(`确认从房间「${room}」删除用户「${name}」？\n将同时删除其所有预测记录，不可恢复！`)) return;
+    try {
+        const updates = {};
+        updates[`rooms/${room}/users/${uid}`] = null;
+        updates[`rooms/${room}/scores/${uid}`] = null;
+        const predsSnap = await get(ref(db, `rooms/${room}/predictions`));
+        if (predsSnap.exists()) {
+            Object.keys(predsSnap.val()).forEach(mid => {
+                updates[`rooms/${room}/predictions/${mid}/${uid}`] = null;
+            });
+        }
+        await update(ref(db, '/'), updates);
+        toast(`✅ 已删除用户「${name}」及其所有数据`);
+        loadRoomUsersForDelete();
+    } catch(e) {
+        toast('❌ 删除失败: ' + e.message, 'error');
     }
 };
 
@@ -3018,9 +3080,9 @@ let champPredsData = {};
 let champPendingPick = null;   // section 1 pending
 let midwayPendingPick = null;  // section 3 pending
 
-const CHAMPION_DEADLINE     = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — re-editable until then
-const TOP_SCORER_DEADLINE   = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — permanent lock
-const GROUP_DEADLINE        = new Date('2026-06-10T21:59:00Z'); // June 10 23:59 CEST — group picks lock
+const CHAMPION_DEADLINE     = new Date('2026-06-11T19:59:00Z'); // June 11 20:59 CET — first match kickoff
+const TOP_SCORER_DEADLINE   = new Date('2026-06-11T19:59:00Z'); // June 11 20:59 CET — first match kickoff
+const GROUP_DEADLINE        = new Date('2026-06-11T19:59:00Z'); // June 11 20:59 CET — first match kickoff
 const GOLDEN_BOOT_OPEN      = new Date('2026-06-27T22:00:00Z'); // group stage ends ~June 27 — golden boot opens
 const GOLDEN_BOOT_DEADLINE  = new Date('2026-07-18T21:59:00Z'); // July 18 23:59 CEST — day before final
 const MIDWAY_OPEN         = new Date('2026-07-04T00:00:00Z'); // July 4 08:00 CST — knockout stage starts
@@ -3452,7 +3514,7 @@ function renderChampSection2(myPred, now) {
     </div>
     <div id="scorerPreview" class="text-xs text-gray-500 mb-2"></div>
     <button onclick="submitTopScorer()" class="w-full gold text-black font-black py-3 rounded-xl text-sm active:scale-95">确认预测 ✓</button>
-    <p class="text-xs text-gray-500 mt-2 text-center">截止 6月10日 CET 23:59 前可随时修改</p>`;
+    <p class="text-xs text-gray-500 mt-2 text-center">截止 6月11日 20:59 CET 前可随时修改</p>`;
 }
 
 function renderChampSection3(myPred, now) {
@@ -4539,12 +4601,14 @@ async function loadGroups() {
     });
     onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
         groupPredsData = snap.exists() ? snap.val() : {};
+        cleanupThirdPickConflicts();
         renderGroups();
         updateTabDots();
         if (document.getElementById('content-myPreds').classList.contains('hidden') === false) renderMyPreds();
     });
     onValue(ref(db, `rooms/${currentRoom}/thirdPicks`), snap => {
         thirdPicksData = snap.exists() ? snap.val() : {};
+        cleanupThirdPickConflicts();
         renderGroups();
         updateTabDots();
         if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
@@ -4566,6 +4630,10 @@ window.inlinePickTeam = function(gid, name) {
         st.selected = st.selected.filter(n => n !== name);
         if (st.winner === name) st.winner = null;
     } else if (st.selected.length < 2) {
+        if ((thirdPicksData[currentUser.id]?.picks || []).includes(name)) {
+            toast('该球队已押注最佳第三名，请先取消第三名押注再选为出线队', 'error');
+            return;
+        }
         st.selected.push(name);
     } else {
         toast('已选满 2 支，先点击已选的球队取消', 'error');
@@ -4641,6 +4709,35 @@ async function saveInlineGroupPred(gid) {
     toast('✓ 预测已保存');
 }
 
+let _cleanupTimer = null;
+function cleanupThirdPickConflicts() {
+    if (!currentUser) return;
+    const uid = currentUser.id;
+    const tp = thirdPicksData[uid];
+    if (!tp?.picks?.length) return;
+    const conflictGroups = [];
+    Object.entries(groupPredsData).forEach(([key, pred]) => {
+        if (!key.startsWith(uid + '_')) return;
+        const clash = (pred.qualified || []).filter(n => tp.picks.includes(n));
+        if (clash.length) conflictGroups.push({ key, clash });
+    });
+    if (!conflictGroups.length) return;
+    clearTimeout(_cleanupTimer);
+    _cleanupTimer = setTimeout(async () => {
+        const conflictNames = conflictGroups.flatMap(c => c.clash);
+        const updatedTp = { ...tp, picks: tp.picks.filter(n => !conflictNames.includes(n)) };
+        thirdPicksData[uid] = updatedTp;
+        _thirdEditPicks = null;
+        conflictGroups.forEach(({ key }) => { delete groupPredsData[key]; });
+        const updates = {};
+        updates[`rooms/${currentRoom}/thirdPicks/${uid}`] = updatedTp;
+        conflictGroups.forEach(({ key }) => { updates[`rooms/${currentRoom}/groupPreds/${key}`] = null; });
+        try { if (!demoMode && db) await update(ref(db, '/'), updates); } catch(e) {}
+        toast(`⚠️ ${conflictNames.join('、')} 同时出现在出线和第三名预测中，相关选择已清空，请重新选择`, 'error');
+        renderGroups();
+    }, 300);
+}
+
 function renderGroups() {
     const container = document.getElementById('groupsContainer');
     if (!groupsData || !Object.keys(groupsData).length) {
@@ -4659,7 +4756,7 @@ function renderGroups() {
         // Teams predicted to qualify (top 2) from this group
         const qualifiedTeams = myPred?.qualified || [];
         // Third-place picks from this group
-        const thirdFromGroup = myThirdPicks.filter(name => teams.some(t => t.name === name));
+        const thirdFromGroup = myThirdPicks.filter(name => teams.some(t => t.name === name) && !qualifiedTeams.includes(name));
 
         // Inline edit state (if user is actively editing this group)
         const editSt = !isFinished ? (_inlineGroupEdits[gid] || null) : null;
@@ -4925,6 +5022,8 @@ window.toggleThirdPick = function(name) {
         _thirdEditPicks = _thirdEditPicks.filter(n => n !== name);
     } else {
         if (_thirdEditPicks.length >= 8) return;
+        const isAlreadyTop2 = gids.some(gid => (groupPredsData[`${uid}_${gid}`]?.qualified || []).includes(name));
+        if (isAlreadyTop2) { toast('该球队已预测为小组前二出线，无法同时押注第三名', 'error'); return; }
         if (teamGroupId) {
             const pool = [];
             gids.forEach(gid => {
@@ -5091,6 +5190,17 @@ window.submitGroupPrediction = async function() {
             else s.wrong = (s.wrong||0) + 1;
             await set(ref(db, `rooms/${currentRoom}/scores/${currentUser.id}`), s);
         }
+    }
+    // If any newly-qualified team was also in third picks, remove it
+    const uid = currentUser.id;
+    const existingThird = thirdPicksData[uid]?.picks || [];
+    const conflict = pred.qualified.filter(n => existingThird.includes(n));
+    if (conflict.length > 0) {
+        const tp = thirdPicksData[uid];
+        const cleaned = { ...tp, picks: existingThird.filter(n => !conflict.includes(n)) };
+        thirdPicksData[uid] = cleaned;
+        _thirdEditPicks = null;
+        if (!demoMode && db) await set(ref(db, `rooms/${currentRoom}/thirdPicks/${uid}`), cleaned);
     }
     hide('groupPredModal');
     toast('🎯 出线预测已提交！');
@@ -5707,7 +5817,7 @@ window.wizTogglePrize = function(val) {
     _wizPrize = val;
     document.getElementById('wizPrizeYes').className = `flex-1 border-2 ${val?'border-yellow-400/40 bg-yellow-400/10 text-yellow-300':'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
     document.getElementById('wizPrizeNo').className = `flex-1 border-2 ${!val?'border-yellow-400/40 bg-yellow-400/10 text-yellow-300':'glass border-white/10 text-gray-400'} font-bold py-2 rounded-xl text-sm`;
-    document.getElementById('wizRoomRow').style.display = val ? '' : 'none';
+    // Room input always visible — required regardless of prize choice
 };
 
 function _buildWizSteps() {
@@ -6103,13 +6213,9 @@ window.wizardNext = async function() {
 
         nextBtn.textContent = '加入中...';
         nextBtn.disabled = true;
-        if (_wizPrize) {
-            const roomInput = (document.getElementById('wiz-room')?.value || '').trim();
-            if (!roomInput) { toast('请输入专属房间号', 'error'); nextBtn.textContent = '加入游戏 →'; nextBtn.disabled = false; return; }
-            currentRoom = roomInput;
-        } else {
-            currentRoom = PRIZE_ROOM;
-        }
+        const roomInput = (document.getElementById('wiz-room')?.value || '').trim();
+        if (!roomInput) { toast('请输入房间号', 'error'); nextBtn.textContent = '加入游戏 →'; nextBtn.disabled = false; return; }
+        currentRoom = roomInput;
         wantsPrize = _wizPrize;
 
         try {
@@ -6306,9 +6412,10 @@ window.lpTogglePrize = function(val) {
 
 window.lpLogin = async function() {
     const name = document.getElementById('lp-name').value.trim();
-    const room = (document.getElementById('lp-room')?.value || '').trim() || PRIZE_ROOM;
+    const room = (document.getElementById('lp-room')?.value || '').trim();
     const pin  = document.getElementById('lp-pin').value.trim();
     if (!name) { toast('请输入昵称', 'error'); return; }
+    if (!room) { toast('请输入房间号', 'error'); document.getElementById('lp-room').focus(); return; }
     if (!pin || pin.length < 4) { toast('请设置4位数字PIN码', 'error'); return; }
 
     const btn = document.getElementById('lpLoginBtn');
