@@ -2347,8 +2347,8 @@ function _allScoreEntries() {
     if (!Object.keys(usersTableData).length) return { ...scoresData };
     const result = {};
     for (const [uid, u] of Object.entries(usersTableData)) {
-        if (u.isTest) continue; // exclude test/debug accounts
-        if (scoresData[uid]) result[uid] = scoresData[uid];
+        if (u.isTest) continue;
+        result[uid] = scoresData[uid] || { name: u.name, total: 0, exact: 0, correct: 0, wrong: 0 };
     }
     return result;
 }
