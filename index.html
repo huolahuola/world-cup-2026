@@ -600,17 +600,6 @@ setTimeout(function() {
                 <button onclick="generatePredCard('full')" class="flex-1 glass border border-white/20 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">📋 完整存档</button>
                 <button onclick="generatePredCard('share')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
             </div>
-            <!-- One-liner for danmaku -->
-            <div class="glass rounded-2xl p-4 mb-3">
-                <p class="text-xs text-yellow-400 font-bold mb-2">💬 一句话预测（弹幕展示）</p>
-                <div class="flex gap-2">
-                    <input id="oneLineInput" type="text" maxlength="40" placeholder="用一句话描述本届世界杯走向…"
-                        class="flex-1 glass-dark rounded-xl px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-yellow-400"
-                        onkeypress="if(event.key==='Enter')submitOneLiner()">
-                    <button onclick="submitOneLiner()" class="gold text-black font-black px-4 rounded-xl text-sm active:scale-95 transition-transform">发送</button>
-                </div>
-                <p id="oneLineStatus" class="text-xs text-gray-500 mt-1.5"></p>
-            </div>
             <div id="myPredsContainer" class="space-y-2">
                 <div class="text-center py-8 text-gray-400">暂无预测</div>
             </div>
@@ -962,7 +951,6 @@ let predsData = {};
 let scoresData = {};
 let avatarsData = {};
 let usersTableData = {}; // uid → user record from rooms/.../users
-let oneLinersData = {};
 let wantsPrize = true;
 // Knockout stage
 let koMatchesData  = {};
@@ -1208,11 +1196,6 @@ function startApp() {
             _refreshHeaderAvatar();
             if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
-        onValue(ref(db, `rooms/${currentRoom}/oneLiners`), snap => {
-            oneLinersData = snap.exists() ? snap.val() : {};
-            _updateOneLineStatus();
-            startDanmaku();
-        });
 
         // ── Knockout stage listeners ──
         onValue(ref(db, `rooms/${currentRoom}/ko/matches`), snap => {
@@ -1250,6 +1233,7 @@ function startApp() {
             _updateOnlineCount();
         });
         _scheduleAmbientNotif();
+        _fetchCrossRoomSentences();
     }
 }
 
@@ -3231,6 +3215,7 @@ function loadChampPreds() {
         renderMyPreds();
         updateTabDots();
         _scheduleWizard();
+        startDanmaku();
     });
 }
 
@@ -6500,68 +6485,62 @@ window.lpLogin = async function() {
 
 // ─── Danmaku ──────────────────────────────────────────────
 let _danmakuTimer = null;
-let _danmakuQueue = [];
-let _danmakuIdx = 0;
+let _danmakuCrossRoomSentences = [];
+let _danmakuStarted = false;
 
-function _updateOneLineStatus() {
-    const el = document.getElementById('oneLineStatus');
-    const inp = document.getElementById('oneLineInput');
-    if (!el) return;
-    const mine = oneLinersData[currentUser?.id];
-    if (mine) {
-        el.textContent = '已发送：' + mine.text;
-        if (inp) inp.value = mine.text;
-    } else {
-        el.textContent = '';
-    }
-}
-
-window.submitOneLiner = async function() {
-    const inp = document.getElementById('oneLineInput');
-    const text = (inp?.value || '').trim();
-    if (!text) { toast('请输入一句话', 'error'); return; }
-    if (!currentUser?.id || demoMode) { toast('请先登录', 'error'); return; }
-    try {
-        await set(ref(db, `rooms/${currentRoom}/oneLiners/${currentUser.id}`), {
-            name: currentUser.name,
-            text,
-            at: Date.now()
-        });
-        toast('弹幕已发送！', 'success');
-    } catch(e) {
-        toast('发送失败', 'error');
-    }
-};
-
-function spawnDanmaku(name, text) {
+function spawnDanmaku(text) {
     const overlay = document.getElementById('danmakuOverlay');
     if (!overlay) return;
     const msg = document.createElement('div');
     msg.className = 'danmaku-msg';
-    const colors = ['#facc15','#34d399','#60a5fa','#f472b6','#fb923c','#a78bfa','#fff'];
+    const colors = ['#facc15','#34d399','#60a5fa','#f472b6','#fb923c','#a78bfa','#ffffff'];
     msg.style.color = colors[Math.floor(Math.random() * colors.length)];
     msg.style.top = (5 + Math.random() * 82) + '%';
-    const dur = 9 + Math.random() * 8;
+    const dur = 10 + Math.random() * 8;
     msg.style.animation = `danmakuScroll ${dur.toFixed(1)}s linear forwards`;
-    msg.textContent = `${name}：${text}`;
+    msg.textContent = text;
     overlay.appendChild(msg);
     msg.addEventListener('animationend', () => msg.remove(), { once: true });
 }
 
+function _buildDanmakuPool() {
+    const seen = new Set();
+    const pool = [];
+    Object.values(champPredsData).forEach(p => {
+        const s = p.wcSentence?.trim();
+        if (s && !seen.has(s)) { seen.add(s); pool.push(s); }
+    });
+    _danmakuCrossRoomSentences.forEach(s => {
+        if (s && !seen.has(s)) { seen.add(s); pool.push(s); }
+    });
+    return pool;
+}
+
 function startDanmaku() {
-    const msgs = Object.values(oneLinersData).filter(e => e.text);
-    if (!msgs.length) return;
-    _danmakuQueue = [...msgs].sort(() => Math.random() - 0.5);
-    if (_danmakuTimer) return; // already running
+    const pool = _buildDanmakuPool();
+    if (!pool.length) return;
+    if (_danmakuStarted) return;
+    _danmakuStarted = true;
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    let i = 0;
     function tick() {
-        if (!_danmakuQueue.length) { _danmakuTimer = null; return; }
-        const entry = _danmakuQueue[_danmakuIdx % _danmakuQueue.length];
-        _danmakuIdx++;
-        spawnDanmaku(entry.name, entry.text);
-        const next = 3000 + Math.random() * 4000;
-        _danmakuTimer = setTimeout(tick, next);
+        spawnDanmaku(shuffled[i % shuffled.length]);
+        i++;
+        _danmakuTimer = setTimeout(tick, 4000 + Math.random() * 5000);
     }
     tick();
+}
+
+async function _fetchCrossRoomSentences() {
+    const otherRoom = (CROSS_ROOMS || {})[currentRoom];
+    if (!otherRoom || demoMode) return;
+    try {
+        const snap = await get(ref(db, `rooms/${otherRoom}/champPreds`));
+        if (snap.exists()) {
+            _danmakuCrossRoomSentences = Object.values(snap.val())
+                .map(p => p.wcSentence?.trim()).filter(Boolean);
+        }
+    } catch(e) {}
 }
 
 // ─── Start ────────────────────────────────────────────────
