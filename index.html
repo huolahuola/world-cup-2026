@@ -1845,7 +1845,7 @@ function renderLeaderboard() {
     }
     const allHaveZero = allEntries.every(([,s]) => !s.total);
     const allSorted = allHaveZero
-        ? [...allEntries].sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||'', 'zh-CN', { sensitivity: 'base' }))
+        ? [...allEntries].sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||'', 'zh-CN', { sensitivity: 'base', collation: 'pinyin' }))
         : [...allEntries].sort(_lbSort);
 
     let html = '';
