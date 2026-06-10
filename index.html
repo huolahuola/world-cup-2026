@@ -1814,7 +1814,7 @@ function _lbSort([aUid, aS], [bUid, bS]) {
     if (bScore !== aScore) return bScore - aScore;
     const aCnt = _countPreds(aUid).total, bCnt = _countPreds(bUid).total;
     if (bCnt !== aCnt) return bCnt - aCnt;
-    return (aS.name || '').localeCompare(bS.name || '', 'zh-CN');
+    return (aS.name || '').localeCompare(bS.name || '', 'zh-CN', { sensitivity: 'base' });
 }
 
 function _podiumCard(uid, s, rank, isMe, size) {
@@ -1845,7 +1845,7 @@ function renderLeaderboard() {
     }
     const allHaveZero = allEntries.every(([,s]) => !s.total);
     const allSorted = allHaveZero
-        ? [...allEntries].sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||'', 'zh-CN'))
+        ? [...allEntries].sort(([,a],[,b]) => (a.name||'').localeCompare(b.name||'', 'zh-CN', { sensitivity: 'base' }))
         : [...allEntries].sort(_lbSort);
 
     let html = '';
