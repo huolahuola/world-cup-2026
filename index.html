@@ -6524,9 +6524,10 @@ function startDanmaku() {
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
     let i = 0;
     function tick() {
-        spawnDanmaku(shuffled[i % shuffled.length]);
+        if (i >= shuffled.length) return;
+        spawnDanmaku(shuffled[i]);
         i++;
-        _danmakuTimer = setTimeout(tick, 4000 + Math.random() * 5000);
+        if (i < shuffled.length) _danmakuTimer = setTimeout(tick, 4000 + Math.random() * 5000);
     }
     tick();
 }
