@@ -6677,7 +6677,7 @@ function _ciCard(m, c, showGroup) {
         ? `<span class="ci-group-badge">${m.group}组</span>`
         : `<span class="ci-date-badge">6月${m.day}日</span>`;
     return `<div class="ci-match-card ${w?'checkin-watched':''}">
-      <span class="text-xl leading-none flex-shrink-0">${m.home[1]}</span>
+      <span class="text-xl leading-none flex-shrink-0">${m.home[1]}${m.away[1]}</span>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1 text-sm leading-snug">
           <span class="font-bold truncate">${m.home[0]}</span>
