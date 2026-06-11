@@ -116,6 +116,19 @@
         @keyframes outlineGlow { 0%,100%{box-shadow:0 0 0 2px rgba(247,201,72,0.5),0 0 20px rgba(247,201,72,0.12)} 50%{box-shadow:0 0 0 2px rgba(247,201,72,0.9),0 0 28px rgba(247,201,72,0.25)} }
         @keyframes danmakuScroll { from { transform: translateX(105vw); } to { transform: translateX(-100%); } }
         .danmaku-msg { position:absolute; white-space:nowrap; font-size:15px; font-weight:700; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,0.8); pointer-events:none; will-change:transform; }
+        /* ── 看球打卡 ─────────────────────────────────────── */
+        @media (max-width: 1023px) {
+            #mainTabs { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            #mainTabs::-webkit-scrollbar { display: none; }
+            #mainTabs .tab-btn { flex: 0 0 auto; min-width: 52px !important; }
+        }
+        .cfilter-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
+        .checkin-watched { background: rgba(34,197,94,0.07) !important; border: 1px solid rgba(34,197,94,0.3) !important; }
+        .checkin-watched .ci-btn { background:rgba(34,197,94,0.2); border-color:rgba(34,197,94,0.6); color:#4ade80; }
+        .ci-btn { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:900; flex-shrink:0; transition:all 0.15s; border:1.5px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); color:#6b7280; cursor:pointer; }
+        .ci-btn:active { transform: scale(0.88); }
+        .ci-note-btn { background:none; border:none; font-size:15px; cursor:pointer; transition:opacity 0.15s; padding:2px 4px; }
+        .ci-note-btn:active { transform:scale(0.85); }
     </style>
 </head>
 <body class="text-white">
@@ -386,6 +399,7 @@ setTimeout(function() {
         <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🥊<span>淘汰赛</span></button>
         <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行</span></button>
         <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📝<span>我的</span></button>
+        <button onclick="switchTab('checkin')" id="tab-checkin" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📺<span>打卡</span></button>
     </div>
 
     <!-- Content -->
@@ -605,6 +619,49 @@ setTimeout(function() {
             </div>
         </div>
 
+        <!-- 看球打卡 -->
+        <div id="content-checkin" class="hidden">
+            <!-- Stats header -->
+            <div class="glass rounded-2xl p-4 mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="font-black text-base gold-text">📺 看球打卡</p>
+                    <span id="ci-stats-text" class="text-xs text-gray-400">0 / 72 场</span>
+                </div>
+                <div class="h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
+                    <div id="ci-progress-bar" class="h-full bg-gradient-to-r from-yellow-400 to-yellow-300 rounded-full transition-all duration-500" style="width:0%"></div>
+                </div>
+                <div class="flex justify-between text-[10px] text-gray-600">
+                    <span id="ci-notes-text">笔记 0 篇</span>
+                    <span id="ci-pct-text">0%</span>
+                </div>
+            </div>
+            <!-- Group filter -->
+            <div id="ci-filter-wrap" class="flex gap-1.5 overflow-x-auto pb-1 mb-4" style="scrollbar-width:none">
+                <button onclick="ciFilter('all')" id="cfilter-all" class="cfilter-btn cf-active flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full glass border border-white/20 text-black">全部</button>
+            </div>
+            <!-- Match list -->
+            <div id="ci-list"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ══════════ 看球打卡笔记 Modal ══════════ -->
+<div id="ciNoteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-40 hidden p-4">
+    <div class="glass rounded-3xl p-6 max-w-sm w-full slide-up">
+        <div class="flex items-center justify-between mb-1">
+            <h3 class="font-black text-lg">📝 看球笔记</h3>
+            <button onclick="ciNoteClose()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+        </div>
+        <p id="ciNoteMatchLabel" class="text-sm text-gray-400 mb-4"></p>
+        <textarea id="ciNoteTextarea" rows="5"
+            class="w-full bg-black/40 text-white text-sm p-3 rounded-xl border border-white/10 resize-none focus:outline-none focus:border-yellow-400 mb-4"
+            placeholder="精彩进球、最佳球员、你的感受……任何都行 ⚽"></textarea>
+        <div class="flex gap-2">
+            <button onclick="ciNoteSave()" class="flex-[2] gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">保存笔记</button>
+            <button onclick="ciNoteClear()" class="flex-1 glass border border-white/20 text-gray-400 font-bold py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">清除</button>
+        </div>
+        <input type="hidden" id="ciNoteMatchId">
     </div>
 </div>
 
@@ -4144,7 +4201,7 @@ window.submitPrediction = async function() {
 
 // ─── Tab Switching ────────────────────────────────────────
 window.switchTab = function(tab) {
-    ['champion','topScorer','groups','knockout','leaderboard','myPreds'].forEach(t => {
+    ['champion','topScorer','groups','knockout','leaderboard','myPreds','checkin'].forEach(t => {
         const el = document.getElementById(`content-${t}`);
         if (el) el.classList.add('hidden');
         const btn = document.getElementById(`tab-${t}`);
@@ -4160,6 +4217,7 @@ window.switchTab = function(tab) {
     if (tab === 'champion') renderChampion();
     if (tab === 'topScorer') renderChampSection2(champPredsData[currentUser?.id] || {}, new Date());
     if (tab === 'knockout') renderKnockout();
+    if (tab === 'checkin') ciRender();
 };
 
 // ─── Phase 1 Lock ────────────────────────────────────────
@@ -6543,6 +6601,174 @@ async function _fetchCrossRoomSentences() {
         }
     } catch(e) {}
 }
+
+// ══════════════════════════════════════════════════════════
+// 看球打卡  Check-in Feature
+// ══════════════════════════════════════════════════════════
+
+const CI_GROUPS = {
+    A: { label: '小组 A', teams: [['墨西哥','🇲🇽'],['厄瓜多尔','🇪🇨'],['德国','🇩🇪'],['摩洛哥','🇲🇦']] },
+    B: { label: '小组 B', teams: [['美国','🇺🇸'],['哥伦比亚','🇨🇴'],['法国','🇫🇷'],['塞内加尔','🇸🇳']] },
+    C: { label: '小组 C', teams: [['加拿大','🇨🇦'],['巴西','🇧🇷'],['西班牙','🇪🇸'],['喀麦隆','🇨🇲']] },
+    D: { label: '小组 D', teams: [['牙买加','🇯🇲'],['阿根廷','🇦🇷'],['英格兰','🏴󠁧󠁢󠁥󠁮󠁧󠁿'],['日本','🇯🇵']] },
+    E: { label: '小组 E', teams: [['巴拿马','🇵🇦'],['乌拉圭','🇺🇾'],['荷兰','🇳🇱'],['埃及','🇪🇬']] },
+    F: { label: '小组 F', teams: [['洪都拉斯','🇭🇳'],['智利','🇨🇱'],['葡萄牙','🇵🇹'],['韩国','🇰🇷']] },
+    G: { label: '小组 G', teams: [['委内瑞拉','🇻🇪'],['比利时','🇧🇪'],['尼日利亚','🇳🇬'],['沙特阿拉伯','🇸🇦']] },
+    H: { label: '小组 H', teams: [['巴拉圭','🇵🇾'],['意大利','🇮🇹'],['加纳','🇬🇭'],['伊朗','🇮🇷']] },
+    I: { label: '小组 I', teams: [['克罗地亚','🇭🇷'],['塞尔维亚','🇷🇸'],['阿尔及利亚','🇩🇿'],['澳大利亚','🇦🇺']] },
+    J: { label: '小组 J', teams: [['土耳其','🇹🇷'],['瑞士','🇨🇭'],['南非','🇿🇦'],['中国','🇨🇳']] },
+    K: { label: '小组 K', teams: [['波兰','🇵🇱'],['乌克兰','🇺🇦'],['科特迪瓦','🇨🇮'],['印度尼西亚','🇮🇩']] },
+    L: { label: '小组 L', teams: [['丹麦','🇩🇰'],['奥地利','🇦🇹'],['约旦','🇯🇴'],['新西兰','🇳🇿']] },
+};
+
+// Generate all 72 group stage matches (round-robin, 6 per group)
+// Matchday order: MD1→[0v1,2v3], MD2→[0v2,1v3], MD3→[0v3,1v2]
+const CI_MATCH_PAIRS = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]];
+const CI_MATCHES = {};
+for (const [gId, gData] of Object.entries(CI_GROUPS)) {
+    CI_MATCH_PAIRS.forEach(([h,a], i) => {
+        const id = `${gId}${i+1}`;
+        CI_MATCHES[id] = { id, group: gId, md: Math.floor(i/2)+1, home: gData.teams[h], away: gData.teams[a] };
+    });
+}
+
+function ciKey() { return `wc2026_ci_${currentUser?.id || 'local'}`; }
+function ciLoad() { try { return JSON.parse(localStorage.getItem(ciKey()) || '{}'); } catch(e) { return {}; } }
+function ciSave(d) { localStorage.setItem(ciKey(), JSON.stringify(d)); }
+
+let _ciFilter = 'all';
+
+// Build group filter buttons once
+function _ciInitFilter() {
+    const wrap = document.getElementById('ci-filter-wrap');
+    if (wrap.querySelectorAll('.cfilter-grp').length > 0) return;
+    for (const gId of Object.keys(CI_GROUPS)) {
+        const b = document.createElement('button');
+        b.className = 'cfilter-grp cfilter-btn flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full glass border border-white/20 text-gray-400';
+        b.id = `cfilter-${gId}`;
+        b.textContent = gId;
+        b.onclick = () => ciFilter(gId);
+        wrap.appendChild(b);
+    }
+}
+
+window.ciRender = function() {
+    _ciInitFilter();
+    const data = ciLoad();
+    const total = Object.keys(CI_MATCHES).length;
+    const watched = Object.values(data).filter(v => v.w).length;
+    const notes = Object.values(data).filter(v => v.note?.trim()).length;
+    const pct = total ? Math.round(watched/total*100) : 0;
+
+    document.getElementById('ci-stats-text').textContent = `已看 ${watched} / ${total} 场`;
+    document.getElementById('ci-notes-text').textContent = `笔记 ${notes} 篇`;
+    document.getElementById('ci-pct-text').textContent = `${pct}%`;
+    document.getElementById('ci-progress-bar').style.width = `${pct}%`;
+
+    // Filter buttons active state
+    document.querySelectorAll('.cfilter-btn').forEach(b => {
+        b.classList.remove('cf-active','text-black');
+        b.classList.add('text-gray-400');
+    });
+    const ab = document.getElementById(`cfilter-${_ciFilter}`);
+    if (ab) { ab.classList.add('cf-active','text-black'); ab.classList.remove('text-gray-400'); }
+
+    const groups = _ciFilter === 'all' ? Object.keys(CI_GROUPS) : [_ciFilter];
+    let html = '';
+    for (const gId of groups) {
+        const gData = CI_GROUPS[gId];
+        const gMatches = Object.values(CI_MATCHES).filter(m => m.group === gId);
+        const gWatched = gMatches.filter(m => data[m.id]?.w).length;
+        html += `<div class="mb-5">
+          <div class="flex items-center justify-between mb-2 px-1">
+            <span class="font-black text-sm gold-text">${gData.label}</span>
+            <span class="text-xs ${gWatched===6?'text-green-400 font-bold':'text-gray-500'}">${gWatched}/6 场</span>
+          </div>`;
+        for (let md = 1; md <= 3; md++) {
+            const mdM = gMatches.filter(m => m.md === md);
+            html += `<div class="mb-1.5"><p class="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-1 mb-1.5">第${md}轮</p>`;
+            for (const m of mdM) {
+                const c = data[m.id] || {};
+                const w = !!c.w;
+                const hasNote = !!c.note?.trim();
+                html += `<div class="glass rounded-xl p-2.5 mb-1.5 flex items-center gap-2 ${w?'checkin-watched':''}">
+                  <span class="text-xl leading-none flex-shrink-0">${m.home[1]}</span>
+                  <div class="flex-1 flex items-center gap-1 min-w-0 text-sm">
+                    <span class="font-bold truncate">${m.home[0]}</span>
+                    <span class="text-gray-600 flex-shrink-0 text-xs mx-0.5">vs</span>
+                    <span class="font-bold truncate">${m.away[0]}</span>
+                  </div>
+                  <span class="text-xl leading-none flex-shrink-0">${m.away[1]}</span>
+                  <button onclick="ciNoteOpen('${m.id}')"
+                    class="ci-note-btn ${w?'opacity-80 hover:opacity-100':'opacity-25'}"
+                    title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'🖊️'}</button>
+                  <button onclick="ciToggle('${m.id}')" class="ci-btn ${w?'checkin-watched':''}" title="${w?'取消打卡':'标记已看'}">
+                    ${w?'✓':'○'}
+                  </button>
+                </div>`;
+            }
+            html += `</div>`;
+        }
+        html += `</div>`;
+    }
+    document.getElementById('ci-list').innerHTML = html;
+};
+
+window.ciFilter = function(gId) {
+    _ciFilter = gId;
+    ciRender();
+};
+
+window.ciToggle = function(matchId) {
+    const data = ciLoad();
+    if (data[matchId]?.w) {
+        const note = data[matchId]?.note?.trim();
+        if (note) {
+            data[matchId] = { w: false, note };
+        } else {
+            delete data[matchId];
+        }
+        toast('已取消打卡');
+    } else {
+        data[matchId] = { w: true, ts: Date.now(), note: data[matchId]?.note || '' };
+        toast('✅ 打卡成功！');
+    }
+    ciSave(data);
+    ciRender();
+};
+
+window.ciNoteOpen = function(matchId) {
+    const m = CI_MATCHES[matchId];
+    const data = ciLoad();
+    document.getElementById('ciNoteMatchLabel').textContent =
+        `${m.home[1]} ${m.home[0]}  vs  ${m.away[0]} ${m.away[1]}`;
+    document.getElementById('ciNoteTextarea').value = data[matchId]?.note || '';
+    document.getElementById('ciNoteMatchId').value = matchId;
+    document.getElementById('ciNoteModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('ciNoteTextarea').focus(), 80);
+};
+
+window.ciNoteClose = function() {
+    document.getElementById('ciNoteModal').classList.add('hidden');
+};
+
+window.ciNoteSave = function() {
+    const matchId = document.getElementById('ciNoteMatchId').value;
+    const note = document.getElementById('ciNoteTextarea').value.trim();
+    const data = ciLoad();
+    if (!data[matchId]) data[matchId] = { w: false, ts: Date.now() };
+    data[matchId].note = note;
+    // If writing a note on an unwatched match, auto-check it
+    if (note && !data[matchId].w) { data[matchId].w = true; data[matchId].ts = Date.now(); }
+    ciSave(data);
+    ciNoteClose();
+    ciRender();
+    toast(note ? '笔记已保存 📝' : '笔记已清除');
+};
+
+window.ciNoteClear = function() {
+    document.getElementById('ciNoteTextarea').value = '';
+};
 
 // ─── Start ────────────────────────────────────────────────
 bootstrap();
