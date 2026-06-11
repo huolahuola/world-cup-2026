@@ -123,12 +123,15 @@
             #mainTabs .tab-btn { flex: 0 0 auto; min-width: 52px !important; }
         }
         .cfilter-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
-        .checkin-watched { background: rgba(34,197,94,0.07) !important; border: 1px solid rgba(34,197,94,0.3) !important; }
-        .checkin-watched .ci-btn { background:rgba(34,197,94,0.2); border-color:rgba(34,197,94,0.6); color:#4ade80; }
-        .ci-btn { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:900; flex-shrink:0; transition:all 0.15s; border:1.5px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); color:#6b7280; cursor:pointer; }
-        .ci-btn:active { transform: scale(0.88); }
-        .ci-note-btn { background:none; border:none; font-size:15px; cursor:pointer; transition:opacity 0.15s; padding:2px 4px; }
-        .ci-note-btn:active { transform:scale(0.85); }
+        .checkin-watched { background: rgba(34,197,94,0.09) !important; border: 1px solid rgba(34,197,94,0.4) !important; }
+        .ci-match-card { display:flex; align-items:center; gap:10px; padding:11px 13px; margin-bottom:8px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
+        .ci-btn { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:900; flex-shrink:0; transition:all 0.15s; border:2px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.07); color:#9ca3af; cursor:pointer; }
+        .ci-btn:active { transform: scale(0.84); }
+        .ci-btn-watched { background:rgba(34,197,94,0.28) !important; border-color:rgba(34,197,94,0.75) !important; color:#4ade80 !important; }
+        .ci-note-btn { background:none; border:none; font-size:17px; cursor:pointer; transition:opacity 0.15s; padding:3px 4px; }
+        .ci-note-btn:active { transform:scale(0.84); }
+        .ci-group-badge { font-size:10px; font-weight:800; color:#f7c948; background:rgba(247,201,72,0.12); border:1px solid rgba(247,201,72,0.3); border-radius:6px; padding:1px 6px; flex-shrink:0; line-height:1.6; }
+        .ci-date-badge { font-size:10px; font-weight:700; color:#6b7280; display:block; margin-top:2px; }
     </style>
 </head>
 <body class="text-white">
@@ -641,6 +644,14 @@ setTimeout(function() {
             </div>
             <!-- Match list -->
             <div id="ci-list"></div>
+            <!-- Notes display area -->
+            <div id="ci-notes-section" class="hidden">
+                <div class="h-px bg-white/10 my-5 mx-1"></div>
+                <div class="flex items-center gap-2 mb-3 px-1">
+                    <span class="font-black text-sm gold-text">📝 我的笔记</span>
+                </div>
+                <div id="ci-notes-list"></div>
+            </div>
         </div>
 
     </div>
@@ -6623,12 +6634,19 @@ const CI_GROUPS = {
 
 // Generate all 72 group stage matches (round-robin, 6 per group)
 // Matchday order: MD1→[0v1,2v3], MD2→[0v2,1v3], MD3→[0v3,1v2]
+const CI_MATCH_DATES = {
+    A:[11,11,18,18,24,24], B:[12,13,18,18,24,24], C:[13,13,19,19,24,24],
+    D:[12,13,19,19,25,25], E:[14,14,20,20,25,25], F:[14,14,20,20,25,25],
+    G:[15,15,21,21,26,26], H:[15,15,21,21,26,26], I:[16,16,22,22,26,26],
+    J:[16,16,22,22,27,27], K:[17,17,23,23,27,27], L:[17,17,23,23,27,27],
+};
 const CI_MATCH_PAIRS = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]];
 const CI_MATCHES = {};
 for (const [gId, gData] of Object.entries(CI_GROUPS)) {
     CI_MATCH_PAIRS.forEach(([h,a], i) => {
         const id = `${gId}${i+1}`;
-        CI_MATCHES[id] = { id, group: gId, md: Math.floor(i/2)+1, home: gData.teams[h], away: gData.teams[a] };
+        const day = CI_MATCH_DATES[gId][i];
+        CI_MATCHES[id] = { id, group: gId, md: Math.floor(i/2)+1, home: gData.teams[h], away: gData.teams[a], day };
     });
 }
 
@@ -6652,20 +6670,41 @@ function _ciInitFilter() {
     }
 }
 
+function _ciCard(m, c, showGroup) {
+    const w = !!c?.w;
+    const hasNote = !!c?.note?.trim();
+    const sub = showGroup
+        ? `<span class="ci-group-badge">${m.group}组</span>`
+        : `<span class="ci-date-badge">6月${m.day}日</span>`;
+    return `<div class="ci-match-card ${w?'checkin-watched':''}">
+      <span class="text-xl leading-none flex-shrink-0">${m.home[1]}</span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1 text-sm leading-snug">
+          <span class="font-bold truncate">${m.home[0]}</span>
+          <span class="text-gray-500 flex-shrink-0 text-[11px]">vs</span>
+          <span class="font-bold truncate">${m.away[0]}</span>
+        </div>
+        ${sub}
+      </div>
+      <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-80':'opacity-25'}" title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'✏️'}</button>
+      <button onclick="ciToggle('${m.id}')" class="ci-btn${w?' ci-btn-watched':''}" title="${w?'取消打卡':'标记已看'}">${w?'✓':'○'}</button>
+    </div>`;
+}
+
 window.ciRender = function() {
     _ciInitFilter();
     const data = ciLoad();
-    const total = Object.keys(CI_MATCHES).length;
-    const watched = Object.values(data).filter(v => v.w).length;
-    const notes = Object.values(data).filter(v => v.note?.trim()).length;
+    const allMatches = Object.values(CI_MATCHES);
+    const total = allMatches.length;
+    const watched = allMatches.filter(m => data[m.id]?.w).length;
+    const noteCount = allMatches.filter(m => data[m.id]?.note?.trim()).length;
     const pct = total ? Math.round(watched/total*100) : 0;
 
     document.getElementById('ci-stats-text').textContent = `已看 ${watched} / ${total} 场`;
-    document.getElementById('ci-notes-text').textContent = `笔记 ${notes} 篇`;
+    document.getElementById('ci-notes-text').textContent = `笔记 ${noteCount} 篇`;
     document.getElementById('ci-pct-text').textContent = `${pct}%`;
     document.getElementById('ci-progress-bar').style.width = `${pct}%`;
 
-    // Filter buttons active state
     document.querySelectorAll('.cfilter-btn').forEach(b => {
         b.classList.remove('cf-active','text-black');
         b.classList.add('text-gray-400');
@@ -6673,45 +6712,64 @@ window.ciRender = function() {
     const ab = document.getElementById(`cfilter-${_ciFilter}`);
     if (ab) { ab.classList.add('cf-active','text-black'); ab.classList.remove('text-gray-400'); }
 
-    const groups = _ciFilter === 'all' ? Object.keys(CI_GROUPS) : [_ciFilter];
     let html = '';
-    for (const gId of groups) {
-        const gData = CI_GROUPS[gId];
-        const gMatches = Object.values(CI_MATCHES).filter(m => m.group === gId);
-        const gWatched = gMatches.filter(m => data[m.id]?.w).length;
-        html += `<div class="mb-5">
-          <div class="flex items-center justify-between mb-2 px-1">
-            <span class="font-black text-sm gold-text">${gData.label}</span>
-            <span class="text-xs ${gWatched===6?'text-green-400 font-bold':'text-gray-500'}">${gWatched}/6 场</span>
-          </div>`;
-        for (let md = 1; md <= 3; md++) {
-            const mdM = gMatches.filter(m => m.md === md);
-            html += `<div class="mb-1.5"><p class="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-1 mb-1.5">第${md}轮</p>`;
-            for (const m of mdM) {
-                const c = data[m.id] || {};
-                const w = !!c.w;
-                const hasNote = !!c.note?.trim();
-                html += `<div class="glass rounded-xl p-2.5 mb-1.5 flex items-center gap-2 ${w?'checkin-watched':''}">
-                  <span class="text-xl leading-none flex-shrink-0">${m.home[1]}</span>
-                  <div class="flex-1 flex items-center gap-1 min-w-0 text-sm">
-                    <span class="font-bold truncate">${m.home[0]}</span>
-                    <span class="text-gray-600 flex-shrink-0 text-xs mx-0.5">vs</span>
-                    <span class="font-bold truncate">${m.away[0]}</span>
-                  </div>
-                  <span class="text-xl leading-none flex-shrink-0">${m.away[1]}</span>
-                  <button onclick="ciNoteOpen('${m.id}')"
-                    class="ci-note-btn ${w?'opacity-80 hover:opacity-100':'opacity-25'}"
-                    title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'🖊️'}</button>
-                  <button onclick="ciToggle('${m.id}')" class="ci-btn ${w?'checkin-watched':''}" title="${w?'取消打卡':'标记已看'}">
-                    ${w?'✓':'○'}
-                  </button>
-                </div>`;
-            }
+    if (_ciFilter === 'all') {
+        // Sort all matches by date, group by day
+        const byDay = {};
+        for (const m of [...allMatches].sort((a,b) => a.day - b.day)) {
+            (byDay[m.day] = byDay[m.day] || []).push(m);
+        }
+        for (const day of Object.keys(byDay).map(Number).sort((a,b)=>a-b)) {
+            const ms = byDay[day];
+            const dw = ms.filter(m => data[m.id]?.w).length;
+            html += `<div class="mb-4">
+              <div class="flex items-center gap-2 mb-2 px-1">
+                <span class="font-black text-sm gold-text">6月${day}日</span>
+                <span class="text-xs text-gray-600">${dw}/${ms.length}</span>
+              </div>`;
+            for (const m of ms) html += _ciCard(m, data[m.id], true);
             html += `</div>`;
         }
-        html += `</div>`;
+    } else {
+        const gData = CI_GROUPS[_ciFilter];
+        const gMatches = allMatches.filter(m => m.group === _ciFilter);
+        const gWatched = gMatches.filter(m => data[m.id]?.w).length;
+        html += `<div class="flex items-center justify-between mb-3 px-1">
+          <span class="font-black text-sm gold-text">${gData.label}</span>
+          <span class="text-xs ${gWatched===6?'text-green-400 font-bold':'text-gray-500'}">${gWatched}/6 场</span>
+        </div>`;
+        for (let md = 1; md <= 3; md++) {
+            const mdMs = gMatches.filter(m => m.md === md);
+            html += `<div class="mb-3"><p class="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-1 mb-2">第${md}轮</p>`;
+            for (const m of mdMs) html += _ciCard(m, data[m.id], false);
+            html += `</div>`;
+        }
     }
     document.getElementById('ci-list').innerHTML = html;
+
+    // Notes display area
+    const noteMatches = allMatches.filter(m => data[m.id]?.note?.trim())
+        .sort((a,b) => a.day - b.day);
+    const nsec = document.getElementById('ci-notes-section');
+    if (noteMatches.length === 0) {
+        nsec.classList.add('hidden');
+    } else {
+        nsec.classList.remove('hidden');
+        let nhtml = '';
+        for (const m of noteMatches) {
+            const note = data[m.id].note.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            nhtml += `<div class="glass rounded-2xl p-4 mb-3">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-lg leading-none flex-shrink-0">${m.home[1]}</span>
+                <span class="font-bold text-sm flex-1 min-w-0 truncate">${m.home[0]} <span class="text-gray-500 font-normal text-xs">vs</span> ${m.away[0]}</span>
+                <span class="ci-group-badge">${m.group}组</span>
+                <span class="text-[10px] text-gray-600 flex-shrink-0">6/${m.day}</span>
+              </div>
+              <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">${note}</p>
+            </div>`;
+        }
+        document.getElementById('ci-notes-list').innerHTML = nhtml;
+    }
 };
 
 window.ciFilter = function(gId) {
