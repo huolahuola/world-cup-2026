@@ -129,7 +129,10 @@
         .ci-btn:active { transform: scale(0.84); }
         .ci-btn-watched { background:rgba(34,197,94,0.28) !important; border-color:rgba(34,197,94,0.75) !important; color:#4ade80 !important; }
         .checkin-half { background: rgba(251,146,60,0.08) !important; border: 1px solid rgba(251,146,60,0.35) !important; }
-        .ci-btn-half-on { background:rgba(251,146,60,0.25) !important; border-color:rgba(251,146,60,0.7) !important; color:#fb923c !important; }
+        .ci-pill { font-size:11px; font-weight:800; padding:5px 9px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.2); flex-shrink:0; transition:all 0.15s; cursor:pointer; background:none; color:#6b7280; white-space:nowrap; }
+        .ci-pill:active { transform:scale(0.88); }
+        .ci-pill-full.on { color:#4ade80; border-color:rgba(34,197,94,0.7); background:rgba(34,197,94,0.2); }
+        .ci-pill-half.on { color:#fb923c; border-color:rgba(251,146,60,0.7); background:rgba(251,146,60,0.2); }
         .ci-note-btn { background:none; border:none; font-size:17px; cursor:pointer; transition:opacity 0.15s; padding:3px 4px; }
         .ci-note-btn:active { transform:scale(0.84); }
         .ci-group-badge { font-size:10px; font-weight:800; color:#f7c948; background:rgba(247,201,72,0.12); border:1px solid rgba(247,201,72,0.3); border-radius:6px; padding:1px 6px; flex-shrink:0; line-height:1.6; }
@@ -6715,8 +6718,8 @@ function _ciCard(m, c, showGroup) {
         ${sub}
       </div>
       <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-20'}" title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'✏️'}</button>
-      <button onclick="ciToggle('${m.id}','half')" class="ci-btn${wHalf?' ci-btn-half-on':''}" title="迷糊看了">≈</button>
-      <button onclick="ciToggle('${m.id}','full')" class="ci-btn${wFull?' ci-btn-watched':''}" title="认真看了">${wFull?'✓':'○'}</button>
+      <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half${wHalf?' on':''}">迷糊看了</button>
+      <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full${wFull?' on':''}">认真看了</button>
     </div>`;
 }
 
