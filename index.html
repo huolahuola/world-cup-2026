@@ -129,10 +129,12 @@
         .ci-btn:active { transform: scale(0.84); }
         .ci-btn-watched { background:rgba(34,197,94,0.28) !important; border-color:rgba(34,197,94,0.75) !important; color:#4ade80 !important; }
         .checkin-half { background: rgba(251,146,60,0.08) !important; border: 1px solid rgba(251,146,60,0.35) !important; }
-        .ci-pill { font-size:11px; font-weight:800; padding:5px 9px; border-radius:20px; border:1.5px solid rgba(255,255,255,0.2); flex-shrink:0; transition:all 0.15s; cursor:pointer; background:none; color:#6b7280; white-space:nowrap; }
+        .checkin-skip { background: rgba(248,113,113,0.06) !important; border: 1px solid rgba(248,113,113,0.25) !important; }
+        .ci-pill { font-size:11px; font-weight:800; padding:6px 4px; border-radius:16px; border:1.5px solid rgba(255,255,255,0.2); transition:all 0.15s; cursor:pointer; background:none; color:#6b7280; white-space:nowrap; text-align:center; }
         .ci-pill:active { transform:scale(0.88); }
         .ci-pill-full.on { color:#4ade80; border-color:rgba(34,197,94,0.7); background:rgba(34,197,94,0.2); }
         .ci-pill-half.on { color:#fb923c; border-color:rgba(251,146,60,0.7); background:rgba(251,146,60,0.2); }
+        .ci-pill-skip.on { color:#f87171; border-color:rgba(248,113,113,0.6); background:rgba(248,113,113,0.15); }
         .ci-note-btn { background:none; border:none; font-size:17px; cursor:pointer; transition:opacity 0.15s; padding:3px 4px; }
         .ci-note-btn:active { transform:scale(0.84); }
         .ci-group-badge { font-size:10px; font-weight:800; color:#f7c948; background:rgba(247,201,72,0.12); border:1px solid rgba(247,201,72,0.3); border-radius:6px; padding:1px 6px; flex-shrink:0; line-height:1.6; }
@@ -6702,24 +6704,31 @@ function _ciCard(m, c, showGroup) {
     const wv = c?.w;
     const wFull = wv === 'full' || wv === true;
     const wHalf = wv === 'half';
+    const wSkip = wv === 'skip';
     const hasNote = !!c?.note?.trim();
-    const stateClass = wFull ? 'checkin-watched' : wHalf ? 'checkin-half' : '';
+    const stateClass = wFull ? 'checkin-watched' : wHalf ? 'checkin-half' : wSkip ? 'checkin-skip' : '';
     const sub = showGroup
         ? `<span class="ci-group-badge">${m.group}组</span>`
         : `<span class="ci-date-badge">6月${m.day}日</span>`;
     return `<div class="ci-match-card ${stateClass}">
-      <span class="text-xl leading-none flex-shrink-0">${m.home[1]}${m.away[1]}</span>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-1 text-sm leading-snug">
-          <span class="font-bold truncate">${m.home[0]}</span>
-          <span class="text-gray-500 flex-shrink-0 text-[11px]">vs</span>
-          <span class="font-bold truncate">${m.away[0]}</span>
+      <div class="flex items-center gap-2 mb-2.5">
+        <span class="text-xl leading-none flex-shrink-0">${m.home[1]}${m.away[1]}</span>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1 text-sm leading-snug">
+            <span class="font-bold truncate">${m.home[0]}</span>
+            <span class="text-gray-500 flex-shrink-0 text-[11px]">vs</span>
+            <span class="font-bold truncate">${m.away[0]}</span>
+          </div>
+          ${sub}
         </div>
-        ${sub}
+        <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-20'}" title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'✏️'}</button>
       </div>
-      <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-20'}" title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'✏️'}</button>
-      <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half${wHalf?' on':''}">迷糊看了</button>
-      <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full${wFull?' on':''}">认真看了</button>
+      <div class="flex gap-1.5">
+        <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half flex-1${wHalf?' on':''}">迷糊看了</button>
+        <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full flex-1${wFull?' on':''}">认真看了</button>
+        <button onclick="ciToggle('${m.id}','skip')" class="ci-pill ci-pill-skip flex-1${wSkip?' on':''}">看都不看</button>
+        <button onclick="ciNoteOpen('${m.id}',true)" class="ci-pill flex-1">查看笔记</button>
+      </div>
     </div>`;
 }
 
@@ -6730,11 +6739,12 @@ window.ciRender = function() {
     const total = allMatches.length;
     const full = allMatches.filter(m => { const w = data[m.id]?.w; return w === 'full' || w === true; }).length;
     const half = allMatches.filter(m => data[m.id]?.w === 'half').length;
+    const skip = allMatches.filter(m => data[m.id]?.w === 'skip').length;
     const watched = full + half;
     const noteCount = allMatches.filter(m => data[m.id]?.note?.trim()).length;
     const pct = total ? Math.round(watched/total*100) : 0;
 
-    document.getElementById('ci-stats-text').textContent = `认真 ${full} · 迷糊 ${half} / ${total} 场`;
+    document.getElementById('ci-stats-text').textContent = `认真${full}场，迷糊${half}场/${total}场`;
     document.getElementById('ci-notes-text').textContent = `笔记 ${noteCount} 篇`;
     document.getElementById('ci-pct-text').textContent = `${pct}%`;
     document.getElementById('ci-progress-bar').style.width = `${pct}%`;
@@ -6814,18 +6824,22 @@ window.ciFilter = function(gId) {
 window.ciToggle = function(matchId, mode) {
     const data = ciLoad();
     const cur = data[matchId]?.w;
-    const isSame = (mode === 'full' && (cur === 'full' || cur === true)) || (mode === 'half' && cur === 'half');
+    const isSame = (mode === 'full' && (cur === 'full' || cur === true)) ||
+                   (mode === 'half' && cur === 'half') ||
+                   (mode === 'skip' && cur === 'skip');
     if (isSame) {
         const note = data[matchId]?.note?.trim();
         if (note) { data[matchId] = { w: false, note }; } else { delete data[matchId]; }
-        ciSave(data); ciRender(); toast('已取消打卡');
+        ciSave(data); ciRender(); toast('已取消');
     } else {
         data[matchId] = { ...(data[matchId] || {}), w: mode, ts: Date.now() };
-        ciSave(data); ciRender(); ciNoteOpen(matchId);
+        ciSave(data); ciRender();
+        if (mode !== 'skip') ciNoteOpen(matchId);
+        else toast('已记录：看都不看');
     }
 };
 
-window.ciNoteOpen = function(matchId) {
+window.ciNoteOpen = function(matchId, readOnly) {
     const m = CI_MATCHES[matchId];
     const data = ciLoad();
     const label = `${m.home[1]}${m.away[1]}  ${m.home[0]} vs ${m.away[0]}`;
@@ -6833,10 +6847,15 @@ window.ciNoteOpen = function(matchId) {
     document.getElementById('ciNoteSocialLabel').textContent = label;
     document.getElementById('ciNoteTextarea').value = data[matchId]?.note || '';
     document.getElementById('ciNoteMatchId').value = matchId;
-    document.getElementById('ciNoteWrite').classList.remove('hidden');
-    document.getElementById('ciNoteSocial').classList.add('hidden');
     document.getElementById('ciNoteModal').classList.remove('hidden');
-    setTimeout(() => document.getElementById('ciNoteTextarea').focus(), 80);
+    if (readOnly) {
+        document.getElementById('ciNoteWrite').classList.add('hidden');
+        _ciShowSocial(matchId);
+    } else {
+        document.getElementById('ciNoteWrite').classList.remove('hidden');
+        document.getElementById('ciNoteSocial').classList.add('hidden');
+        setTimeout(() => document.getElementById('ciNoteTextarea').focus(), 80);
+    }
 };
 
 window.ciNoteClose = function() {
@@ -6872,24 +6891,36 @@ async function _ciShowSocial(matchId) {
     document.getElementById('ciNoteSocial').classList.remove('hidden');
     const listEl = document.getElementById('ciNoteSocialList');
     listEl.innerHTML = '<p class="text-center text-gray-500 text-sm py-6">加载中…</p>';
+
+    const myNote = ciLoad()[matchId]?.note?.trim();
+    const myNoteHtml = myNote
+        ? `<div class="bg-white/5 rounded-xl p-3 mb-3">
+               <p class="text-xs font-bold text-yellow-400 mb-1.5">我的笔记</p>
+               <p class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">${myNote.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+           </div>` : '';
+
     try {
         const snap = await get(ref(db, `rooms/${currentRoom}/ciNotes/${matchId}`));
         const notes = snap.val() || {};
         const others = Object.entries(notes)
             .filter(([uid]) => uid !== currentUser?.id)
             .sort(([,a],[,b]) => (b.ts||0) - (a.ts||0));
-        if (others.length === 0) {
-            listEl.innerHTML = '<p class="text-center text-gray-500 text-sm py-8">还没有人写笔记<br><span class="text-gray-600 text-xs mt-1 block">成为第一个分享的人！</span></p>';
-        } else {
-            listEl.innerHTML = others.map(([,d]) =>
+
+        const divider = (myNote && others.length > 0)
+            ? `<div class="flex items-center gap-2 my-3"><div class="flex-1 h-px bg-white/10"></div><span class="text-[10px] text-gray-600 font-bold">大家的笔记</span><div class="flex-1 h-px bg-white/10"></div></div>`
+            : '';
+
+        const othersHtml = others.length > 0
+            ? others.map(([,d]) =>
                 `<div class="bg-white/5 rounded-xl p-3 mb-2">
-                    <p class="text-xs font-bold text-yellow-400/80 mb-1.5">${(d.name||'').replace(/</g,'&lt;')}</p>
+                    <p class="text-xs font-bold text-yellow-400/70 mb-1.5">${(d.name||'').replace(/</g,'&lt;')}</p>
                     <p class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">${(d.note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
-                </div>`
-            ).join('');
-        }
+                </div>`).join('')
+            : (!myNote ? '<p class="text-center text-gray-500 text-sm py-8">还没有人写笔记<br><span class="text-gray-600 text-xs mt-1 block">成为第一个分享的人！</span></p>' : '');
+
+        listEl.innerHTML = myNoteHtml + divider + othersHtml;
     } catch(e) {
-        listEl.innerHTML = '<p class="text-center text-gray-500 text-sm py-6">加载失败，请稍后重试</p>';
+        listEl.innerHTML = myNoteHtml || '<p class="text-center text-gray-500 text-sm py-6">加载失败，请稍后重试</p>';
     }
 }
 
