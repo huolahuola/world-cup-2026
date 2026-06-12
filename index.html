@@ -55,7 +55,7 @@
 
             /* Sidebar */
             #mainTabs { grid-area: sidebar;
-                display: flex; flex-direction: column;
+                display: flex !important; flex-direction: column !important;
                 border-right: 1px solid rgba(255,255,255,0.07);
                 border-bottom: none !important;
                 background: rgba(3,6,16,0.55);
@@ -64,16 +64,25 @@
                 max-height: calc(100vh - var(--header-h, 72px)); overflow-y: auto; }
 
             /* Sidebar user card: shown on desktop */
-            #sidebarHeader { display: block !important; width: 100%; }
+            #sidebarHeader { display: block !important; width: 100%; order: 0; }
 
-            /* Mega-tab row: vertical on desktop */
-            #megaTabRow { flex-direction: column !important; border-bottom: none !important; }
+            /* Dissolve megaTabRow so its buttons become direct flex children of mainTabs.
+               This lets us use CSS order to interleave sub-navs correctly. */
+            #megaTabRow { display: contents !important; }
 
-            /* Prediction sub-nav: vertical indented */
-            #predSubnav, #lbSubnav { border-bottom: 1px solid rgba(255,255,255,0.05); }
-            #predSubnav > .flex, #lbSubnav > .flex { flex-direction: column !important; }
-            #predSubnav > button, #lbSubnav > div > button,
-            #predSubnav button, #lbSubnav button { /* indented sub-items */ }
+            /* Order: sidebarHeader(0) 预测(1) predSubnav(2) 排行/结果(3) lbSubnav(4) 打卡(5) 我的(6) */
+            #megatab-preds { order: 1; }
+            #predSubnav { order: 2; }
+            #megatab-lb { order: 3; }
+            #lbSubnav { order: 4; }
+            #megatab-checkin { order: 5; }
+            #megatab-my { order: 6; }
+
+            /* Sub-navs: vertical column on desktop */
+            #predSubnav { flex-direction: column !important; }
+            #lbSubnav > div { flex-direction: column !important; }
+            /* lbSubnav when shown: display:flex */
+            #lbSubnav:not(.hidden) { display: block !important; }
 
             /* Nav items */
             #mainTabs .tab-btn { flex: none !important; width: 100%;
@@ -88,8 +97,8 @@
                 background: rgba(247,201,72,0.09) !important;
                 color: #f7c948 !important; }
             #mainTabs .tab-btn span { font-size: 13.5px !important; }
-            /* Sub-nav items slightly indented */
-            #predSubnav .tab-btn, #lbSubnav .tab-btn { padding-left: 36px !important; font-size: 12px !important; }
+            /* Sub-nav items: indented */
+            #predSubnav .tab-btn, #lbSubnav .tab-btn { padding-left: 32px !important; font-size: 12px !important; }
             #predSubnav .tab-btn span, #lbSubnav .tab-btn span { font-size: 12px !important; }
 
             /* Content area */
@@ -130,11 +139,13 @@
         .danmaku-msg { position:absolute; white-space:nowrap; font-size:15px; font-weight:700; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,0.8); pointer-events:none; will-change:transform; }
         /* ── 看球打卡 ─────────────────────────────────────── */
         @media (max-width: 1023px) {
-            #megaTabRow { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            #megaTabRow { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-bottom: 1px solid rgba(255,255,255,0.08); }
             #megaTabRow::-webkit-scrollbar { display: none; }
             #megaTabRow .tab-btn { flex: 0 0 auto; min-width: 52px !important; }
-            #predSubnav { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            #predSubnav { display: flex; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; background: rgba(0,0,0,0.18); border-bottom: 1px solid rgba(255,255,255,0.06); }
+            #predSubnav::-webkit-scrollbar { display: none; }
             #predSubnav .tab-btn { flex: 0 0 auto; }
+            #lbSubnav > div { background: rgba(0,0,0,0.18); border-bottom: 1px solid rgba(255,255,255,0.06); }
         }
         .cfilter-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
         .checkin-watched { background: rgba(34,197,94,0.09) !important; border: 1px solid rgba(34,197,94,0.4) !important; }
