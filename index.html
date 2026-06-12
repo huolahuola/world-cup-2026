@@ -2165,15 +2165,18 @@ window.loadSimLeaderboard = async function(forceRefresh) {
     container.innerHTML = _renderSimHtml(result.scores, result.gamesNote, result.scorerNote);
     container.dataset.loaded = '1';
 
-    // Update sidebar rank to show simulation position
-    const rankEl = document.getElementById('sidebarRank');
-    if (rankEl && currentUser?.name) {
+    // Update sidebar score + rank to reflect simulation
+    if (currentUser?.name) {
         const myIdx = result.scores.findIndex(s => s.name === currentUser.name);
         if (myIdx >= 0) {
+            const me = result.scores[myIdx];
             const simRank = myIdx + 1;
             const total = result.scores.length;
             const medals = ['🥇','🥈','🥉'];
-            rankEl.textContent = `${medals[simRank-1]||`#${simRank}`} 模拟第 ${simRank} 名，共 ${total} 人`;
+            const scoreEl = document.getElementById('sidebarScore');
+            const rankEl = document.getElementById('sidebarRank');
+            if (scoreEl) scoreEl.textContent = me.simPts;
+            if (rankEl) rankEl.textContent = `${medals[simRank-1]||`#${simRank}`} 模拟第 ${simRank} 名，共 ${total} 人`;
         }
     }
 };
