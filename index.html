@@ -628,46 +628,64 @@ setTimeout(function() {
         <div id="content-leaderboard" class="hidden">
             <!-- 排行 sub-content -->
             <div id="lb-rank-content">
-                <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
-                    <p class="font-bold text-yellow-400 mb-1">📋 积分来源</p>
-                    <p>· 冠军 <b class="text-yellow-400">按赔率</b>；半程猜对 <b class="text-blue-300">+赔率×0.5</b>；两次选同队 <b class="text-green-400">+25%奖励</b></p>
-                    <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
-                    <p>· 小组赛：出线且名次正确 <b class="text-yellow-400">+2分</b>，出线但名次错误 <b class="text-green-400">+1分</b>；第三名出线每队 <b class="text-orange-400">+1分</b></p>
-                    <p>· 淘汰赛：精确比分 <b class="text-yellow-400">+5分</b>，猜中胜平负 <b class="text-green-400">+2分</b>，首个进球者 <b class="text-orange-400">+8分</b></p>
-                    <p>· 比分未出结果前，预测数越多排名越高</p>
-                </div>
-                <div class="glass rounded-2xl p-3 mb-3 text-center">
-                    <p class="font-black text-xl gold-text">积分排行榜</p>
-                    <p class="text-xs text-gray-400 mt-0.5">实时更新 · 结果公布后自动计算</p>
-                </div>
-                <div id="leaderboardContainer" class="space-y-2">
-                    <div class="text-center py-8 text-gray-400">加载中...</div>
-                </div>
-                <!-- Real-time simulation section -->
-                <div id="simLbSection" class="mt-4">
-                    <button onclick="loadSimLeaderboard()" id="simLbBtn" class="w-full glass border border-yellow-400/30 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-95 transition-transform">
-                        <span class="text-xl">🔴</span>
-                        <div class="flex-1 text-left">
-                            <p class="font-bold text-sm text-yellow-400">实时模拟积分榜</p>
-                            <p class="text-[10px] text-gray-500">根据目前已赛完的比赛，按规则模拟计分</p>
+                <!-- ① Simulation leaderboard (top, auto-loads) -->
+                <div id="simLbSection" class="mb-2">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg leading-none">🔴</span>
+                            <div>
+                                <p class="font-black text-base gold-text">实时模拟积分榜</p>
+                                <p class="text-[10px] text-gray-400">按当前赛果模拟计算（仅小组赛）</p>
+                            </div>
                         </div>
-                        <span class="text-gray-500 text-xs">点击加载 →</span>
+                        <button onclick="loadSimLeaderboard(true)" class="text-[10px] text-gray-500 underline flex-shrink-0">刷新</button>
+                    </div>
+                    <div id="simLbContainer">
+                        <div class="text-center py-6 text-gray-400 text-sm">加载中...</div>
+                    </div>
+                </div>
+
+                <!-- ② Official leaderboard (below, toggleable) -->
+                <div class="border-t border-white/10 mt-2 pt-1">
+                    <button onclick="toggleRealLb()" class="w-full flex items-center justify-between py-3">
+                        <div class="flex items-center gap-2">
+                            <span>📊</span>
+                            <span class="font-bold text-sm text-gray-300">官方积分排行</span>
+                            <span class="text-[10px] text-gray-600">结果公布后自动计算</span>
+                        </div>
+                        <span id="realLbChevron" class="text-gray-500 text-xs">▶ 展开</span>
                     </button>
-                    <div id="simLbContainer" class="hidden mt-3"></div>
+                    <div id="realLbContent" class="hidden">
+                        <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
+                            <p class="font-bold text-yellow-400 mb-1">📋 积分来源</p>
+                            <p>· 冠军 <b class="text-yellow-400">按赔率</b>；半程猜对 <b class="text-blue-300">+赔率×0.5</b>；两次选同队 <b class="text-green-400">+25%奖励</b></p>
+                            <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
+                            <p>· 小组赛：出线且名次正确 <b class="text-yellow-400">+2分</b>，出线但名次错误 <b class="text-green-400">+1分</b>；第三名出线每队 <b class="text-orange-400">+1分</b></p>
+                            <p>· 淘汰赛：精确比分 <b class="text-yellow-400">+5分</b>，猜中胜平负 <b class="text-green-400">+2分</b>，首个进球者 <b class="text-orange-400">+8分</b></p>
+                            <p>· 比分未出结果前，预测数越多排名越高</p>
+                        </div>
+                        <div id="leaderboardContainer" class="space-y-2">
+                            <div class="text-center py-8 text-gray-400">加载中...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <!-- 赛程/积分榜 sub-content -->
             <div id="lb-results-content" class="hidden">
-                <!-- 3 sub-sub-tabs -->
+                <!-- 4 sub-sub-tabs -->
                 <div class="flex border-b border-white/10 mb-0 bg-black/20 sticky top-0 z-10">
                     <button onclick="resultsSubTab('finished')" id="rst-finished" class="flex-1 py-2.5 text-xs font-bold text-yellow-400 border-b-2 border-yellow-400">已结束</button>
                     <button onclick="resultsSubTab('standings')" id="rst-standings" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">积分榜</button>
+                    <button onclick="resultsSubTab('scorer')" id="rst-scorer" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">最佳射手</button>
                     <button onclick="resultsSubTab('upcoming')" id="rst-upcoming" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">即将开赛</button>
                 </div>
                 <div id="rst-finished-content" class="pt-3">
                     <div class="text-center py-8 text-gray-400">加载中...</div>
                 </div>
                 <div id="rst-standings-content" class="hidden pt-3">
+                    <div class="text-center py-8 text-gray-400">加载中...</div>
+                </div>
+                <div id="rst-scorer-content" class="hidden pt-3">
                     <div class="text-center py-8 text-gray-400">加载中...</div>
                 </div>
                 <div id="rst-upcoming-content" class="hidden pt-3">
@@ -2113,42 +2131,61 @@ function renderLeaderboard() {
 
     container.innerHTML = html;
     _renderCrossRoomCard();
+    // Auto-load simulation leaderboard on first render
+    const simC = document.getElementById('simLbContainer');
+    if (simC && !simC.dataset.loaded) loadSimLeaderboard();
 }
 
 // ─── Real-time simulation leaderboard ────────────────────
 window.loadSimLeaderboard = async function(forceRefresh) {
-    const btn = document.getElementById('simLbBtn');
     const container = document.getElementById('simLbContainer');
     if (!container) return;
-    if (btn) btn.style.display = 'none';
-    container.classList.remove('hidden');
     container.innerHTML = '<div class="text-center py-6 text-gray-400 text-sm">正在获取赛果数据...</div>';
 
     if (!_espnCache || forceRefresh) {
-        if (forceRefresh) { _espnCache = null; ['finished','standings','upcoming'].forEach(t => { const el = document.getElementById(`rst-${t}-content`); if (el) el.dataset.loaded = ''; }); }
+        if (forceRefresh) {
+            _espnCache = null;
+            ['finished','standings','scorer','upcoming'].forEach(t => {
+                const el = document.getElementById(`rst-${t}-content`);
+                if (el) el.dataset.loaded = '';
+            });
+        }
         await loadResultsData();
     }
     if (!_espnCache) {
         container.innerHTML = '<div class="text-center py-6 text-red-400 text-sm">加载赛果失败，请检查网络后重试</div>';
-        if (btn) btn.style.display = '';
         return;
     }
 
     const result = _calcSimScores();
     if (!result) {
         container.innerHTML = '<div class="text-center py-6 text-gray-500 text-sm">目前尚无已完赛比赛，模拟计分暂不可用</div>';
-        if (btn) btn.style.display = '';
         return;
     }
-    container.innerHTML = _renderSimHtml(result.scores, result.gamesNote);
+    container.innerHTML = _renderSimHtml(result.scores, result.gamesNote, result.scorerNote);
+    container.dataset.loaded = '1';
+
+    // Update sidebar rank to show simulation position
+    const rankEl = document.getElementById('sidebarRank');
+    if (rankEl && currentUser?.name) {
+        const myIdx = result.scores.findIndex(s => s.name === currentUser.name);
+        if (myIdx >= 0) {
+            const simRank = myIdx + 1;
+            const total = result.scores.length;
+            const medals = ['🥇','🥈','🥉'];
+            rankEl.textContent = `${medals[simRank-1]||`#${simRank}`} 模拟第 ${simRank} 名，共 ${total} 人`;
+        }
+    }
 };
+
+const _SIM_EXCLUDE = ['小助手'];
 
 function _calcSimScores() {
     const children = _espnCache?.standData?.children || [];
     if (!children.length) return null;
 
     // Build simulated standings per group
-    const simSt = {}; // gid → [{cn, gp, pts}] sorted
+    const simSt = {};
     children.forEach(g => {
         const m = (g.name||'').match(/Group\s*([A-L])/i);
         if (!m) return;
@@ -2169,28 +2206,33 @@ function _calcSimScores() {
         }));
     });
 
-    // How many groups have played at least one game
     const playedGroups = Object.entries(simSt).filter(([,st])=>st.some(t=>t.gp>0));
     if (!playedGroups.length) return null;
 
-    // Best 8 third-place teams (from groups with ≥1 game)
+    // Best 8 third-place teams
     const thirds = playedGroups
-        .map(([gid,st])=>({cn: st[2]?.cn, pts: st[2]?.pts||0, gid}))
-        .filter(t=>t.cn)
-        .sort((a,b)=>b.pts-a.pts);
+        .map(([,st])=>({cn: st[2]?.cn, pts: st[2]?.pts||0}))
+        .filter(t=>t.cn).sort((a,b)=>b.pts-a.pts);
     const best8Third = new Set(thirds.slice(0,8).map(t=>t.cn));
+
+    // Current top scorer from ESPN leaders (first place in goals category)
+    const goalsCat = (_espnCache?.scorersData?.categories||[]).find(c=>/goal/i.test(c.name||''));
+    const topScorerEng = goalsCat?.leaders?.[0]?.athlete?.displayName || '';
+    const topScorerCN = _playerCN(topScorerEng);
+    const topScorerGoals = +(goalsCat?.leaders?.[0]?.value || 0);
 
     const allUsers = _allScoreEntries();
     const scores = [];
 
     for (const [uid, user] of Object.entries(allUsers)) {
+        if (_SIM_EXCLUDE.includes(user.name)) continue;
         let simPts = 0;
         const breakdown = [];
 
         // Group prediction scoring
         for (const gid of Object.keys(groupsData)) {
             const st = simSt[gid];
-            if (!st?.some(t=>t.gp>0)) continue; // skip groups with no games yet
+            if (!st?.some(t=>t.gp>0)) continue;
             const pred = groupPredsData[`${uid}_${gid}`];
             if (!pred?.qualified?.length) continue;
             let gPts = 0;
@@ -2200,42 +2242,81 @@ function _calcSimScores() {
                 const isQ2 = team === st[1]?.cn;
                 if (isQ1 || isQ2) {
                     const predWinner = team === pred.winner;
-                    if (predWinner === isQ1) gPts += 2; // position correct
-                    else gPts += 1;                     // qualified but wrong position
+                    if (predWinner === isQ1) gPts += 2;
+                    else gPts += 1;
                 }
             });
             if (gPts) { simPts += gPts; breakdown.push(`${gid}组 +${gPts}`); }
         }
 
-        // Third-place picks scoring
+        // Third-place picks
         const myThirds = thirdPicksData[uid]?.picks || [];
         const tPts = myThirds.filter(t => best8Third.has(t)).length;
         if (tPts) { simPts += tPts; breakdown.push(`第三名 +${tPts}`); }
+
+        // Top scorer prediction
+        if (topScorerEng && topScorerGoals > 0) {
+            const cp = champPredsData[uid];
+            const userPick = cp?.topScorer || '';
+            const matches = userPick === topScorerEng || userPick === topScorerCN;
+            if (matches) {
+                const pts = cp?.topScorerMaxPts || 20;
+                simPts += pts;
+                breakdown.push(`射手 +${pts}`);
+            }
+        }
 
         scores.push({ uid, name: user.name, simPts, breakdown });
     }
 
     scores.sort((a,b) => b.simPts - a.simPts || (a.name||'').localeCompare(b.name||'','zh-CN'));
     const gamesNote = `已完成 ${playedGroups.length} 个小组赛事`;
-    return { scores, gamesNote };
+    const scorerNote = topScorerEng ? `· 当前射手榜首 ${topScorerCN}(${topScorerGoals}球)` : '';
+    return { scores, gamesNote, scorerNote };
 }
 
-function _renderSimHtml(scores, gamesNote) {
-    let html = `<div class="glass-dark rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2 border border-yellow-400/20">
-        <span class="text-yellow-400">🔴</span>
-        <div class="flex-1">
-            <p class="text-xs font-bold text-yellow-400">实时模拟积分榜</p>
-            <p class="text-[10px] text-gray-500">${gamesNote} · 仅含小组赛预测积分</p>
-        </div>
-        <button onclick="loadSimLeaderboard(true)" class="text-[10px] text-gray-500 underline flex-shrink-0">刷新</button>
+function _renderSimHtml(scores, gamesNote, scorerNote) {
+    const _simEmpty = (rank) => {
+        const trophies = ['🏆','🥈','🥉'];
+        const colors = ['rank-gold','rank-silver','rank-bronze'];
+        const big = rank === 1;
+        return `<div class="flex flex-col items-center gap-1 ${big?'':'pt-4'}">
+            <div class="${colors[rank-1]} rounded-2xl px-3 py-3 flex flex-col items-center gap-1 w-full opacity-30">
+                <span class="text-2xl">${trophies[rank-1]}</span>
+                <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl">?</div>
+                <p class="${big?'text-sm':'text-xs'} font-bold text-center text-gray-400">虚位以待</p>
+                <p class="${big?'text-3xl':'text-2xl'} font-black">–</p>
+            </div></div>`;
+    };
+
+    let html = `<p class="text-[10px] text-gray-500 mb-3">${gamesNote}${scorerNote ? ' ' + scorerNote : ''}</p>`;
+
+    // Podium (top 3)
+    const p = [scores[0], scores[1], scores[2]];
+    const _simCard = (s, rank) => {
+        if (!s) return _simEmpty(rank);
+        const isMe = s.name === currentUser?.name;
+        const colors = ['rank-gold','rank-silver','rank-bronze'];
+        const trophies = ['🏆','🥈','🥉'];
+        const big = rank === 1;
+        return `<div class="flex flex-col items-center gap-1 ${big?'':'pt-4'}">
+            <div class="${colors[rank-1]} rounded-2xl px-2 py-3 flex flex-col items-center gap-1 w-full ${isMe?'ring-2 ring-white/60':''}">
+                <span class="text-2xl">${trophies[rank-1]}</span>
+                ${_avatarHtml(s.uid, s.name, big?'w-12 h-12':'w-9 h-9', big?'text-xl':'text-base')}
+                <p class="${big?'text-sm':'text-xs'} font-bold text-center truncate max-w-full px-1">${s.name||'?'}${isMe?' 👈':''}</p>
+                <p class="${big?'text-3xl':'text-2xl'} font-black">${s.simPts}<span class="${big?'text-sm':'text-xs'} font-normal opacity-70">分</span></p>
+                <p class="text-[9px] text-center opacity-60 truncate max-w-full px-1">${s.breakdown.slice(0,2).join(' ')}</p>
+            </div></div>`;
+    };
+    html += `<div class="grid grid-cols-3 gap-2 mb-3">
+        ${_simCard(p[1],2)}${_simCard(p[0],1)}${_simCard(p[2],3)}
     </div>`;
 
-    const medals = ['🥇','🥈','🥉'];
-    scores.forEach((s, i) => {
+    // Remaining (4th+)
+    scores.slice(3).forEach((s, i) => {
         const isMe = s.name === currentUser?.name;
-        const rank = i < 3 ? medals[i] : `#${i+1}`;
         html += `<div class="glass rounded-2xl p-3 mb-2 flex items-center gap-3 ${isMe?'ring-2 ring-yellow-400':''}">
-            <span class="w-7 text-center font-black text-sm">${rank}</span>
+            <span class="w-7 text-center font-black text-sm text-gray-400">${i+4}</span>
             ${_avatarHtml(s.uid, s.name, 'w-8 h-8', 'text-base')}
             <div class="flex-1 min-w-0">
                 <div class="font-bold text-sm ${isMe?'text-yellow-400':'text-white'} truncate">${s.name||'?'}${isMe?' 👈':''}</div>
@@ -2392,7 +2473,9 @@ function _updateSidebarUser() {
             avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
         }
     }
-    const all = Object.values(scoresData).sort((a,b) => (b.total||0) - (a.total||0));
+    const all = Object.values(scoresData)
+        .filter(s => !_SIM_EXCLUDE.includes(s.name))
+        .sort((a,b) => (b.total||0) - (a.total||0));
     const my = all.find(s => s.name === currentUser.name);
     if (scoreEl) scoreEl.textContent = my?.total || 0;
     if (rankEl && all.length > 0) {
@@ -2651,6 +2734,7 @@ function _allScoreEntries() {
     const result = {};
     for (const [uid, u] of Object.entries(usersTableData)) {
         if (u.isTest) continue;
+        if (_SIM_EXCLUDE.includes(u.name)) continue;
         result[uid] = scoresData[uid] || { name: u.name, total: 0, exact: 0, correct: 0, wrong: 0 };
     }
     return result;
@@ -4502,10 +4586,14 @@ window.lbSubTab = function(tab) {
         if (btn) { btn.classList.toggle('active', t === tab); btn.classList.toggle('text-gray-400', t !== tab); }
     });
     if (tab === 'results') loadResultsData();
+    if (tab === 'rank') {
+        const c = document.getElementById('simLbContainer');
+        if (c && !c.dataset.loaded) loadSimLeaderboard();
+    }
 };
 
 window.resultsSubTab = function(tab) {
-    ['finished','standings','upcoming'].forEach(t => {
+    ['finished','standings','scorer','upcoming'].forEach(t => {
         document.getElementById(`rst-${t}-content`)?.classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`rst-${t}`);
         if (btn) {
@@ -4514,6 +4602,14 @@ window.resultsSubTab = function(tab) {
         }
     });
     loadResultsData();
+};
+
+window.toggleRealLb = function() {
+    const content = document.getElementById('realLbContent');
+    const chevron = document.getElementById('realLbChevron');
+    if (!content) return;
+    const hidden = content.classList.toggle('hidden');
+    if (chevron) chevron.textContent = hidden ? '▶ 展开' : '▼ 收起';
 };
 
 const _resultsTeamMap = {
@@ -4558,42 +4654,40 @@ let _espnCache = null;
 async function loadResultsData() {
     const now = Date.now();
     if (_espnCache && now - _espnCache.ts < 5 * 60 * 1000) {
-        _renderFinished(); _renderStandings(); _renderUpcoming();
+        _renderFinished(); _renderStandings(); _renderScorers(); _renderUpcoming();
         return;
     }
-    ['finished','standings','upcoming'].forEach(t => {
+    ['finished','standings','scorer','upcoming'].forEach(t => {
         const el = document.getElementById(`rst-${t}-content`);
         if (el && !el.dataset.loaded) el.innerHTML = '<div class="text-center py-8 text-gray-400">加载中...</div>';
     });
     try {
-        // Generate dates from group stage start (June 11) to today
         const tourStart = new Date('2026-06-11');
         const today = new Date();
         const dates = [];
         for (let d = new Date(tourStart); d <= today; d.setDate(d.getDate() + 1)) {
             dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
         }
-        // Fetch standings + current scoreboard + one-per-day scoreboards in parallel
         const allFetches = [
             fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings').then(r=>r.json()).catch(()=>({})),
             fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard').then(r=>r.json()).catch(()=>({events:[]})),
+            fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/leaders').then(r=>r.json()).catch(()=>({})),
             ...dates.map(d => fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${d}`).then(r=>r.json()).catch(()=>({events:[]})))
         ];
-        const [standData, ...scoreResps] = await Promise.all(allFetches);
-        // Merge & deduplicate by event id
+        const [standData, _currentBoard, scorersData, ...scoreResps] = await Promise.all(allFetches);
         const seen = new Set();
-        const events = scoreResps.flatMap(r => r.events || []).filter(e => {
+        const events = [_currentBoard, ...scoreResps].flatMap(r => r.events || []).filter(e => {
             if (seen.has(e.id)) return false; seen.add(e.id); return true;
         });
-        _espnCache = { events, standData, ts: now };
+        _espnCache = { events, standData, scorersData, ts: now };
     } catch(e) {
-        ['finished','standings','upcoming'].forEach(t => {
+        ['finished','standings','scorer','upcoming'].forEach(t => {
             const el = document.getElementById(`rst-${t}-content`);
             if (el && !el.dataset.loaded) el.innerHTML = '<div class="text-center py-8 text-red-400">加载失败，请检查网络</div>';
         });
         return;
     }
-    _renderFinished(); _renderStandings(); _renderUpcoming();
+    _renderFinished(); _renderStandings(); _renderScorers(); _renderUpcoming();
 }
 
 function _renderFinished() {
@@ -4679,6 +4773,82 @@ function _renderStandings() {
         });
         html += '</tbody></table></div>';
     });
+    html += '</div>';
+    container.innerHTML = html;
+    container.dataset.loaded = '1';
+}
+
+const _SCORER_NAME_MAP = {
+    // Common player name translations (CN)
+    'Cristiano Ronaldo':'C罗','Lionel Messi':'梅西','Kylian Mbappé':'姆巴佩','Kylian Mbappe':'姆巴佩',
+    'Erling Haaland':'哈兰德','Harry Kane':'凯恩','Neymar':'内马尔','Lamine Yamal':'亚马尔',
+    'Vinicius Junior':'维尼修斯','Vinícius Jr.':'维尼修斯','Vinícius Júnior':'维尼修斯',
+    'Karim Benzema':'本泽马','Bukayo Saka':'萨卡','Phil Foden':'福登',
+    'Jude Bellingham':'贝林厄姆','Pedri':'佩德里','Gavi':'加维',
+    'Robert Lewandowski':'莱万','Rafael Leão':'莱昂','Rafael Leao':'莱昂',
+    'Victor Osimhen':'奥西梅恩','Marcus Rashford':'拉什福德',
+    'Bruno Fernandes':'B费','Mo Salah':'萨拉赫','Mohamed Salah':'萨拉赫',
+    'Son Heung-min':'孙兴慜','Sadio Mané':'马内','Sadio Mane':'马内',
+};
+function _playerCN(name) { return _SCORER_NAME_MAP[name] || name; }
+
+function _renderScorers() {
+    const container = document.getElementById('rst-scorer-content');
+    if (!container || container.dataset.loaded) return;
+    const cats = _espnCache?.scorersData?.categories || [];
+    const goalsCat = cats.find(c => /goal/i.test(c.name||'') || /goal/i.test(c.displayName||''));
+    const assistsCat = cats.find(c => /assist/i.test(c.name||'') || /assist/i.test(c.displayName||''));
+
+    if (!goalsCat?.leaders?.length) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无射手数据</div>';
+        container.dataset.loaded = '1'; return;
+    }
+
+    // Build assists lookup by athlete id
+    const assistMap = {};
+    (assistsCat?.leaders || []).forEach(l => {
+        const id = l.athlete?.id || l.athlete?.displayName;
+        if (id) assistMap[id] = +(l.value||l.displayValue||0);
+    });
+
+    // What did each user predict?
+    const allUsers = _allScoreEntries();
+    const userPredMap = {}; // cn name → [userName, ...]
+    for (const [uid, user] of Object.entries(allUsers)) {
+        const pred = champPredsData[uid]?.topScorer;
+        if (pred) {
+            if (!userPredMap[pred]) userPredMap[pred] = [];
+            userPredMap[pred].push({ name: user.name, uid, isMe: user.name === currentUser?.name });
+        }
+    }
+
+    let html = '<div class="glass rounded-2xl p-4">';
+    html += `<p class="text-xs font-bold text-yellow-400 mb-3">⚽ 小组赛进球榜（实时）</p>`;
+    html += `<div class="space-y-2">`;
+
+    goalsCat.leaders.slice(0, 15).forEach((l, i) => {
+        const athlete = l.athlete || {};
+        const engName = athlete.displayName || athlete.fullName || '';
+        const cnName = _playerCN(engName);
+        const goals = +(l.value || l.displayValue || 0);
+        const athleteId = athlete.id || engName;
+        const assists = assistMap[athleteId] || 0;
+        const teamName = _toCN(athlete.team?.displayName || athlete.team?.shortDisplayName || '');
+        const pickers = userPredMap[engName] || userPredMap[cnName] || [];
+        const myPick = pickers.find(p => p.isMe);
+
+        html += `<div class="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0 ${myPick ? 'text-yellow-300' : 'text-gray-200'}">
+            <span class="w-5 text-center text-xs font-bold ${i===0?'text-yellow-400':i<3?'text-gray-400':'text-gray-600'}">${i+1}</span>
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm truncate">${cnName}${myPick ? ' 👈' : ''}${pickers.filter(p=>!p.isMe).length ? ` <span class="text-[10px] text-blue-400">${pickers.filter(p=>!p.isMe).map(p=>p.name).join(' ')}</span>` : ''}</div>
+                <div class="text-[10px] text-gray-500">${teamName}${assists ? ` · ${assists}助攻` : ''}</div>
+            </div>
+            <div class="font-black text-lg ${i===0?'text-yellow-400':'text-gray-300'}">${goals}<span class="text-[10px] font-normal opacity-60">球</span></div>
+        </div>`;
+    });
+
+    html += '</div>';
+    html += `<div class="text-center text-[10px] text-gray-600 pt-3">ESPN数据 · <button onclick="_espnCache=null;document.querySelectorAll('[id^=rst-][id\$=-content]').forEach(el=>el.dataset.loaded='');loadResultsData()" class="underline">刷新</button></div>`;
     html += '</div>';
     container.innerHTML = html;
     container.dataset.loaded = '1';
