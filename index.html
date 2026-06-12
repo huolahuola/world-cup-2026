@@ -124,7 +124,7 @@
         }
         .cfilter-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
         .checkin-watched { background: rgba(34,197,94,0.09) !important; border: 1px solid rgba(34,197,94,0.4) !important; }
-        .ci-match-card { display:flex; align-items:center; gap:10px; padding:11px 13px; margin-bottom:8px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
+        .ci-match-card { display:flex; align-items:center; gap:5px; padding:10px 11px; margin-bottom:8px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
         .ci-btn { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:900; flex-shrink:0; transition:all 0.15s; border:2px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.07); color:#9ca3af; cursor:pointer; }
         .ci-btn:active { transform: scale(0.84); }
         .ci-btn-watched { background:rgba(34,197,94,0.28) !important; border-color:rgba(34,197,94,0.75) !important; color:#4ade80 !important; }
@@ -6711,24 +6711,21 @@ function _ciCard(m, c, showGroup) {
         ? `<span class="ci-group-badge">${m.group}组</span>`
         : `<span class="ci-date-badge">6月${m.day}日</span>`;
     return `<div class="ci-match-card ${stateClass}">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-xl leading-none flex-shrink-0">${m.home[1]}${m.away[1]}</span>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-1 text-sm leading-snug">
-            <span class="font-bold truncate">${m.home[0]}</span>
-            <span class="text-gray-500 flex-shrink-0 text-[11px]">vs</span>
-            <span class="font-bold truncate">${m.away[0]}</span>
-          </div>
-          ${sub}
+      <span class="text-xl leading-none flex-shrink-0">${m.home[1]}${m.away[1]}</span>
+      <div class="flex-1 min-w-0 mr-1">
+        <div class="flex items-center gap-1 text-sm leading-snug">
+          <span class="font-bold truncate">${m.home[0]}</span>
+          <span class="text-gray-500 flex-shrink-0 text-[11px]">vs</span>
+          <span class="font-bold truncate">${m.away[0]}</span>
         </div>
-        <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-20'}">${hasNote?'📝':'✏️'}</button>
-        <button onclick="ciNoteOpen('${m.id}',true)" class="ci-pill">查看笔记</button>
+        ${sub}
       </div>
-      <div class="flex justify-end gap-1.5 pt-2 border-t border-white/10">
-        <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half${wHalf?' on':''}">迷糊看了</button>
-        <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full${wFull?' on':''}">认真看了</button>
-        <button onclick="ciToggle('${m.id}','skip')" class="ci-pill ci-pill-skip${wSkip?' on':''}">看都不看</button>
-      </div>
+      <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half${wHalf?' on':''}">迷糊看了</button>
+      <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full${wFull?' on':''}">认真看了</button>
+      <button onclick="ciToggle('${m.id}','skip')" class="ci-pill ci-pill-skip${wSkip?' on':''}">看都不看</button>
+      <div class="w-px h-4 bg-white/20 flex-shrink-0 mx-0.5"></div>
+      <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn flex-shrink-0 ${hasNote?'opacity-70':'opacity-25'}">${hasNote?'📝':'✏️'}</button>
+      <button onclick="ciNoteOpen('${m.id}',true)" class="ci-pill flex-shrink-0">查看笔记</button>
     </div>`;
 }
 
