@@ -124,13 +124,13 @@
         }
         .cfilter-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
         .checkin-watched { background: rgba(34,197,94,0.09) !important; border: 1px solid rgba(34,197,94,0.4) !important; }
-        .ci-match-card { display:flex; align-items:center; gap:5px; padding:10px 11px; margin-bottom:8px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
-        .ci-btn { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:900; flex-shrink:0; transition:all 0.15s; border:2px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.07); color:#9ca3af; cursor:pointer; }
+        .ci-match-card { display:flex; align-items:center; gap:4px; padding:9px 10px; margin-bottom:7px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); flex-wrap:nowrap; }
+        .ci-btn { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:900; flex-shrink:0; transition:all 0.15s; border:2px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.07); color:#9ca3af; cursor:pointer; }
         .ci-btn:active { transform: scale(0.84); }
         .ci-btn-watched { background:rgba(34,197,94,0.28) !important; border-color:rgba(34,197,94,0.75) !important; color:#4ade80 !important; }
         .checkin-half { background: rgba(251,146,60,0.08) !important; border: 1px solid rgba(251,146,60,0.35) !important; }
         .checkin-skip { background: rgba(248,113,113,0.06) !important; border: 1px solid rgba(248,113,113,0.25) !important; }
-        .ci-pill { font-size:11px; font-weight:800; padding:6px 4px; border-radius:16px; border:1.5px solid rgba(255,255,255,0.2); transition:all 0.15s; cursor:pointer; background:none; color:#6b7280; white-space:nowrap; text-align:center; }
+        .ci-pill { font-size:10px; font-weight:800; padding:5px 6px; border-radius:14px; border:1.5px solid rgba(255,255,255,0.2); transition:all 0.15s; cursor:pointer; background:none; color:#6b7280; white-space:nowrap; text-align:center; flex-shrink:0; }
         .ci-pill:active { transform:scale(0.88); }
         .ci-pill-full.on { color:#4ade80; border-color:rgba(34,197,94,0.7); background:rgba(34,197,94,0.2); }
         .ci-pill-half.on { color:#fb923c; border-color:rgba(251,146,60,0.7); background:rgba(251,146,60,0.2); }
@@ -1251,6 +1251,7 @@ function startApp() {
         document.documentElement.style.setProperty('--header-h', h + 'px');
     });
     document.getElementById('headerName').textContent = currentUser.name;
+    ciSyncFromFirebase().then(updated => { if (updated && !document.getElementById('content-checkin').classList.contains('hidden')) ciRender(); });
     const roomLabel = currentRoom === PRIZE_ROOM ? '懂球弟妹' : currentRoom;
     document.getElementById('headerRoom').textContent = `${roomLabel}${demoMode ? ' (演示)' : ''}`;
     _refreshHeaderAvatar();
@@ -6696,6 +6697,12 @@ async function ciSyncFromFirebase() {
         if (fbData) {
             localStorage.setItem(ciKey(), JSON.stringify(fbData));
             return true;
+        } else {
+            // Firebase empty — push any existing local data up
+            const localData = ciLoad();
+            if (Object.keys(localData).length > 0) {
+                await set(ref(db, `rooms/${currentRoom}/checkin/${currentUser.id}`), localData);
+            }
         }
     } catch(e) {}
     return false;
