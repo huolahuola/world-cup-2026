@@ -4258,7 +4258,7 @@ window.switchTab = function(tab) {
     if (tab === 'champion') renderChampion();
     if (tab === 'topScorer') renderChampSection2(champPredsData[currentUser?.id] || {}, new Date());
     if (tab === 'knockout') renderKnockout();
-    if (tab === 'checkin') ciRender();
+    if (tab === 'checkin') { ciRender(); ciSyncFromFirebase().then(updated => { if (updated) ciRender(); }); }
 };
 
 // ─── Phase 1 Lock ────────────────────────────────────────
@@ -6682,7 +6682,24 @@ for (const [gId, gData] of Object.entries(CI_GROUPS)) {
 
 function ciKey() { return `wc2026_ci_${currentUser?.id || 'local'}`; }
 function ciLoad() { try { return JSON.parse(localStorage.getItem(ciKey()) || '{}'); } catch(e) { return {}; } }
-function ciSave(d) { localStorage.setItem(ciKey(), JSON.stringify(d)); }
+function ciSave(d) {
+    localStorage.setItem(ciKey(), JSON.stringify(d));
+    if (currentUser && !currentUser.id.startsWith('demo_') && currentRoom) {
+        set(ref(db, `rooms/${currentRoom}/checkin/${currentUser.id}`), d || null).catch(() => {});
+    }
+}
+async function ciSyncFromFirebase() {
+    if (!currentUser || currentUser.id.startsWith('demo_') || !currentRoom) return false;
+    try {
+        const snap = await get(ref(db, `rooms/${currentRoom}/checkin/${currentUser.id}`));
+        const fbData = snap.val();
+        if (fbData) {
+            localStorage.setItem(ciKey(), JSON.stringify(fbData));
+            return true;
+        }
+    } catch(e) {}
+    return false;
+}
 
 let _ciFilter = 'all';
 
