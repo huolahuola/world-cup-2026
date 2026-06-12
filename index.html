@@ -55,7 +55,7 @@
 
             /* Sidebar */
             #mainTabs { grid-area: sidebar;
-                flex-direction: column !important;
+                display: flex; flex-direction: column;
                 border-right: 1px solid rgba(255,255,255,0.07);
                 border-bottom: none !important;
                 background: rgba(3,6,16,0.55);
@@ -65,6 +65,15 @@
 
             /* Sidebar user card: shown on desktop */
             #sidebarHeader { display: block !important; width: 100%; }
+
+            /* Mega-tab row: vertical on desktop */
+            #megaTabRow { flex-direction: column !important; border-bottom: none !important; }
+
+            /* Prediction sub-nav: vertical indented */
+            #predSubnav, #lbSubnav { border-bottom: 1px solid rgba(255,255,255,0.05); }
+            #predSubnav > .flex, #lbSubnav > .flex { flex-direction: column !important; }
+            #predSubnav > button, #lbSubnav > div > button,
+            #predSubnav button, #lbSubnav button { /* indented sub-items */ }
 
             /* Nav items */
             #mainTabs .tab-btn { flex: none !important; width: 100%;
@@ -79,6 +88,9 @@
                 background: rgba(247,201,72,0.09) !important;
                 color: #f7c948 !important; }
             #mainTabs .tab-btn span { font-size: 13.5px !important; }
+            /* Sub-nav items slightly indented */
+            #predSubnav .tab-btn, #lbSubnav .tab-btn { padding-left: 36px !important; font-size: 12px !important; }
+            #predSubnav .tab-btn span, #lbSubnav .tab-btn span { font-size: 12px !important; }
 
             /* Content area */
             #mainContent { grid-area: content; padding: 28px 40px 48px !important; }
@@ -118,9 +130,11 @@
         .danmaku-msg { position:absolute; white-space:nowrap; font-size:15px; font-weight:700; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,0.8); pointer-events:none; will-change:transform; }
         /* ── 看球打卡 ─────────────────────────────────────── */
         @media (max-width: 1023px) {
-            #mainTabs { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-            #mainTabs::-webkit-scrollbar { display: none; }
-            #mainTabs .tab-btn { flex: 0 0 auto; min-width: 52px !important; }
+            #megaTabRow { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            #megaTabRow::-webkit-scrollbar { display: none; }
+            #megaTabRow .tab-btn { flex: 0 0 auto; min-width: 52px !important; }
+            #predSubnav { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            #predSubnav .tab-btn { flex: 0 0 auto; }
         }
         .cfilter-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
         .checkin-watched { background: rgba(34,197,94,0.09) !important; border: 1px solid rgba(34,197,94,0.4) !important; }
@@ -385,7 +399,7 @@ setTimeout(function() {
     </header>
 
     <!-- Tabs -->
-    <div id="mainTabs" class="flex border-b border-white/8 bg-black/20">
+    <div id="mainTabs" class="border-b border-white/8 bg-black/20">
 
         <!-- Desktop-only sidebar header -->
         <div id="sidebarHeader">
@@ -403,13 +417,27 @@ setTimeout(function() {
             <p class="text-[10px] font-bold tracking-widest text-gray-600 uppercase px-5 pt-4 pb-1">导航</p>
         </div>
 
-        <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active flex-1 py-3 font-bold text-xs whitespace-nowrap relative flex flex-col items-center gap-0.5">🏆<span>冠军</span></button>
-        <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">⚽<span>射手</span></button>
-        <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">🏅<span>出线</span></button>
-        <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🥊<span>淘汰赛</span></button>
-        <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行</span></button>
-        <button onclick="switchTab('checkin')" id="tab-checkin" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📺<span>打卡</span></button>
-        <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📝<span>我的</span></button>
+        <!-- Mega-tab row -->
+        <div id="megaTabRow" class="flex border-b border-white/8">
+            <button onclick="switchMegaTab('preds')" id="megatab-preds" class="tab-btn active flex-1 py-3 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">🎯<span>预测</span></button>
+            <button onclick="switchMegaTab('lb')" id="megatab-lb" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行/结果</span></button>
+            <button onclick="switchMegaTab('checkin')" id="megatab-checkin" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📺<span>打卡</span></button>
+            <button onclick="switchMegaTab('my')" id="megatab-my" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📝<span>我的</span></button>
+        </div>
+        <!-- Prediction sub-nav -->
+        <div id="predSubnav" class="flex">
+            <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active flex-1 py-2.5 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">🏆<span>冠军</span></button>
+            <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">⚽<span>射手</span></button>
+            <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🏅<span>出线</span></button>
+            <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🥊<span>淘汰赛</span></button>
+        </div>
+        <!-- Leaderboard/Results sub-nav (hidden until lb mega-tab active) -->
+        <div id="lbSubnav" class="hidden">
+            <div class="flex">
+                <button onclick="lbSubTab('rank')" id="lbt-rank" class="tab-btn active flex-1 py-2.5 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行</span></button>
+                <button onclick="lbSubTab('results')" id="lbt-results" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🏆<span>比分/排名</span></button>
+            </div>
+        </div>
     </div>
 
     <!-- Content -->
@@ -586,20 +614,29 @@ setTimeout(function() {
 
         <!-- Leaderboard -->
         <div id="content-leaderboard" class="hidden">
-            <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
-                <p class="font-bold text-yellow-400 mb-1">📋 积分来源</p>
-                <p>· 冠军 <b class="text-yellow-400">按赔率</b>；半程猜对 <b class="text-blue-300">+赔率×0.5</b>；两次选同队 <b class="text-green-400">+25%奖励</b></p>
-                <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
-                <p>· 小组赛：出线且名次正确 <b class="text-yellow-400">+2分</b>，出线但名次错误 <b class="text-green-400">+1分</b>；第三名出线每队 <b class="text-orange-400">+1分</b></p>
-                <p>· 淘汰赛：精确比分 <b class="text-yellow-400">+5分</b>，猜中胜平负 <b class="text-green-400">+2分</b>，首个进球者 <b class="text-orange-400">+8分</b></p>
-                <p>· 比分未出结果前，预测数越多排名越高</p>
+            <!-- 排行 sub-content -->
+            <div id="lb-rank-content">
+                <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
+                    <p class="font-bold text-yellow-400 mb-1">📋 积分来源</p>
+                    <p>· 冠军 <b class="text-yellow-400">按赔率</b>；半程猜对 <b class="text-blue-300">+赔率×0.5</b>；两次选同队 <b class="text-green-400">+25%奖励</b></p>
+                    <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
+                    <p>· 小组赛：出线且名次正确 <b class="text-yellow-400">+2分</b>，出线但名次错误 <b class="text-green-400">+1分</b>；第三名出线每队 <b class="text-orange-400">+1分</b></p>
+                    <p>· 淘汰赛：精确比分 <b class="text-yellow-400">+5分</b>，猜中胜平负 <b class="text-green-400">+2分</b>，首个进球者 <b class="text-orange-400">+8分</b></p>
+                    <p>· 比分未出结果前，预测数越多排名越高</p>
+                </div>
+                <div class="glass rounded-2xl p-3 mb-3 text-center">
+                    <p class="font-black text-xl gold-text">积分排行榜</p>
+                    <p class="text-xs text-gray-400 mt-0.5">实时更新 · 结果公布后自动计算</p>
+                </div>
+                <div id="leaderboardContainer" class="space-y-2">
+                    <div class="text-center py-8 text-gray-400">加载中...</div>
+                </div>
             </div>
-            <div class="glass rounded-2xl p-3 mb-3 text-center">
-                <p class="font-black text-xl gold-text">积分排行榜</p>
-                <p class="text-xs text-gray-400 mt-0.5">实时更新 · 结果公布后自动计算</p>
-            </div>
-            <div id="leaderboardContainer" class="space-y-2">
-                <div class="text-center py-8 text-gray-400">加载中...</div>
+            <!-- 比分/排名 sub-content -->
+            <div id="lb-results-content" class="hidden">
+                <div id="resultsContainer">
+                    <div class="text-center py-12 text-gray-400">加载中...</div>
+                </div>
             </div>
         </div>
 
@@ -662,14 +699,6 @@ setTimeout(function() {
             </div>
             <!-- Match list -->
             <div id="ci-list"></div>
-            <!-- Notes display area -->
-            <div id="ci-notes-section" class="hidden">
-                <div class="h-px bg-white/10 my-5 mx-1"></div>
-                <div class="flex items-center gap-2 mb-3 px-1">
-                    <span class="font-black text-sm gold-text">📝 我的笔记</span>
-                </div>
-                <div id="ci-notes-list"></div>
-            </div>
         </div>
 
     </div>
@@ -3314,7 +3343,7 @@ function loadChampPreds() {
         renderMyPreds();
         updateTabDots();
         _scheduleWizard();
-        startDanmaku();
+        // startDanmaku(); // disabled
     });
 }
 
@@ -4242,6 +4271,11 @@ window.submitPrediction = async function() {
 };
 
 // ─── Tab Switching ────────────────────────────────────────
+const _MEGA_MAP = {
+    champion: 'preds', topScorer: 'preds', groups: 'preds', knockout: 'preds',
+    leaderboard: 'lb', checkin: 'checkin', myPreds: 'my'
+};
+
 window.switchTab = function(tab) {
     ['champion','topScorer','groups','knockout','leaderboard','myPreds','checkin'].forEach(t => {
         const el = document.getElementById(`content-${t}`);
@@ -4249,11 +4283,24 @@ window.switchTab = function(tab) {
         const btn = document.getElementById(`tab-${t}`);
         if (btn) { btn.classList.remove('active'); btn.classList.add('text-gray-400'); }
     });
-    document.getElementById(`content-${tab}`).classList.remove('hidden');
+    document.getElementById(`content-${tab}`)?.classList.remove('hidden');
     const activeBtn = document.getElementById(`tab-${tab}`);
-    activeBtn.classList.add('active');
-    activeBtn.classList.remove('text-gray-400');
+    if (activeBtn) { activeBtn.classList.add('active'); activeBtn.classList.remove('text-gray-400'); }
     localStorage.setItem('wc2026_tab', tab);
+
+    // Sync mega-tab state
+    const mega = _MEGA_MAP[tab];
+    ['preds','lb','checkin','my'].forEach(m => {
+        const mb = document.getElementById(`megatab-${m}`);
+        if (mb) { mb.classList.toggle('active', m === mega); mb.classList.toggle('text-gray-400', m !== mega); }
+    });
+    const predSubnav = document.getElementById('predSubnav');
+    const lbSubnav = document.getElementById('lbSubnav');
+    if (predSubnav) predSubnav.classList.toggle('hidden', mega !== 'preds');
+    if (lbSubnav) lbSubnav.classList.toggle('hidden', mega !== 'lb');
+    if (['champion','topScorer','groups','knockout'].includes(tab)) {
+        localStorage.setItem('wc2026_pred_sub', tab);
+    }
 
     if (tab === 'myPreds') renderMyPreds();
     if (tab === 'champion') renderChampion();
@@ -4261,6 +4308,183 @@ window.switchTab = function(tab) {
     if (tab === 'knockout') renderKnockout();
     if (tab === 'checkin') { ciRender(); ciSyncFromFirebase().then(updated => { if (updated) ciRender(); }); }
 };
+
+window.switchMegaTab = function(mega) {
+    if (mega === 'preds') {
+        const last = localStorage.getItem('wc2026_pred_sub') || 'champion';
+        switchTab(last);
+    } else if (mega === 'lb') {
+        switchTab('leaderboard');
+    } else if (mega === 'checkin') {
+        switchTab('checkin');
+    } else if (mega === 'my') {
+        switchTab('myPreds');
+    }
+};
+
+// ─── Leaderboard Sub-tabs ────────────────────────────────
+window.lbSubTab = function(tab) {
+    const rankContent = document.getElementById('lb-rank-content');
+    const resultsContent = document.getElementById('lb-results-content');
+    if (rankContent) rankContent.classList.toggle('hidden', tab !== 'rank');
+    if (resultsContent) resultsContent.classList.toggle('hidden', tab !== 'results');
+    ['rank','results'].forEach(t => {
+        const btn = document.getElementById(`lbt-${t}`);
+        if (btn) { btn.classList.toggle('active', t === tab); btn.classList.toggle('text-gray-400', t !== tab); }
+    });
+    if (tab === 'results') loadResults();
+};
+
+const _resultsTeamMap = {
+    'Mexico':'墨西哥','South Africa':'南非','Korea Republic':'韩国','Czechia':'捷克',
+    'Canada':'加拿大','Bosnia and Herzegovina':'波黑','Qatar':'卡塔尔','Switzerland':'瑞士',
+    'Brazil':'巴西','Morocco':'摩洛哥','Haiti':'海地','Scotland':'苏格兰',
+    'United States':'美国','Paraguay':'巴拉圭','Australia':'澳大利亚','Turkey':'土耳其','Türkiye':'土耳其',
+    'Germany':'德国','Curaçao':'库拉索','Ivory Coast':'科特迪瓦',"Côte d'Ivoire":'科特迪瓦','Ecuador':'厄瓜多尔',
+    'Netherlands':'荷兰','Japan':'日本','Sweden':'瑞典','Tunisia':'突尼斯',
+    'Belgium':'比利时','Egypt':'埃及','Iran':'伊朗','New Zealand':'新西兰',
+    'Spain':'西班牙','Cape Verde':'佛得角','Saudi Arabia':'沙特阿拉伯','Uruguay':'乌拉圭',
+    'France':'法国','Senegal':'塞内加尔','Iraq':'伊拉克','Norway':'挪威',
+    'Argentina':'阿根廷','Algeria':'阿尔及利亚','Austria':'奥地利','Jordan':'约旦',
+    'Portugal':'葡萄牙','DR Congo':'刚果(金)','Uzbekistan':'乌兹别克斯坦','Colombia':'哥伦比亚',
+    'England':'英格兰','Croatia':'克罗地亚','Ghana':'加纳','Panama':'巴拿马',
+};
+
+function _toCN(name) { return _resultsTeamMap[name] || name; }
+
+let _resultsLoaded = false;
+async function loadResults() {
+    if (_resultsLoaded) return;
+    const container = document.getElementById('resultsContainer');
+    if (!container) return;
+
+    try {
+        const [scoreRes, standRes] = await Promise.all([
+            fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard'),
+            fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings')
+        ]);
+        const scoreData = await scoreRes.json();
+        const standData = await standRes.json();
+
+        // ── Parse matches ──
+        const events = scoreData.events || [];
+        // Group matches by group name
+        const groupMatches = {};
+        events.forEach(e => {
+            const comp = e.competitions?.[0];
+            const note = comp?.notes?.find(n => n.headline?.startsWith('Group'))?.headline || '';
+            const groupKey = note || '其他';
+            if (!groupMatches[groupKey]) groupMatches[groupKey] = [];
+            const home = comp?.competitors?.find(c => c.homeAway === 'home');
+            const away = comp?.competitors?.find(c => c.homeAway === 'away');
+            const status = e.status?.type;
+            const completed = status?.completed;
+            const inProgress = status?.name === 'STATUS_IN_PROGRESS';
+            const dateObj = new Date(e.date);
+            const dateStr = `${dateObj.getMonth()+1}/${dateObj.getDate()}`;
+            groupMatches[groupKey].push({
+                home: home?.team?.displayName || '',
+                away: away?.team?.displayName || '',
+                homeScore: completed || inProgress ? (home?.score ?? '') : '',
+                awayScore: completed || inProgress ? (away?.score ?? '') : '',
+                completed, inProgress, dateStr, name: e.name
+            });
+        });
+
+        // ── Parse standings ──
+        const groups = standData.children || [];
+
+        let html = '';
+
+        // Standings first
+        if (groups.length) {
+            html += `<div class="glass rounded-2xl p-4 mb-4">
+                <p class="font-black text-base gold-text mb-3">🏆 小组积分榜</p>`;
+            groups.forEach(g => {
+                const gname = g.name || '';
+                const entries = g.standings?.entries || [];
+                if (!entries.length) return;
+                html += `<div class="mb-4">
+                    <p class="text-xs font-bold text-yellow-400 mb-1.5">${gname}</p>
+                    <table class="w-full text-xs">
+                        <thead><tr class="text-gray-500">
+                            <th class="text-left pb-1 font-normal">球队</th>
+                            <th class="text-center pb-1 font-normal w-6">场</th>
+                            <th class="text-center pb-1 font-normal w-6">胜</th>
+                            <th class="text-center pb-1 font-normal w-6">平</th>
+                            <th class="text-center pb-1 font-normal w-6">负</th>
+                            <th class="text-center pb-1 font-normal w-8">净</th>
+                            <th class="text-center pb-1 font-bold text-yellow-400 w-6">分</th>
+                        </tr></thead>
+                        <tbody>`;
+                entries.forEach((entry, idx) => {
+                    const tname = entry.team?.displayName || '';
+                    const stats = {};
+                    (entry.stats || []).forEach(s => { stats[s.abbreviation] = s.displayValue; });
+                    const gp = stats['GP'] || stats['W'] && ((+stats['W']||0)+(+stats['D']||0)+(+stats['L']||0)) || '-';
+                    const w = stats['W'] || '0';
+                    const d = stats['T'] || stats['D'] || '0';
+                    const l = stats['L'] || '0';
+                    const gd = stats['GD'] || stats['DIFF'] || '-';
+                    const pts = stats['PTS'] || stats['P'] || '0';
+                    const isAdvance = entry.note?.color === 'green' || (idx < 2);
+                    html += `<tr class="${isAdvance ? 'text-white' : 'text-gray-400'}">
+                        <td class="py-0.5 font-bold">${_toCN(tname)}</td>
+                        <td class="text-center">${gp}</td>
+                        <td class="text-center">${w}</td>
+                        <td class="text-center">${d}</td>
+                        <td class="text-center">${l}</td>
+                        <td class="text-center">${gd}</td>
+                        <td class="text-center font-black text-yellow-400">${pts}</td>
+                    </tr>`;
+                });
+                html += `</tbody></table></div>`;
+            });
+            html += `</div>`;
+        }
+
+        // Match results
+        const sortedGroups = Object.keys(groupMatches).sort();
+        if (sortedGroups.length) {
+            html += `<div class="glass rounded-2xl p-4 mb-4">
+                <p class="font-black text-base gold-text mb-3">⚽ 赛程 &amp; 比分</p>`;
+            sortedGroups.forEach(gk => {
+                const matches = groupMatches[gk];
+                html += `<div class="mb-4">
+                    <p class="text-xs font-bold text-yellow-400 mb-1.5">${gk}</p>`;
+                matches.forEach(m => {
+                    const homeCN = _toCN(m.home);
+                    const awayCN = _toCN(m.away);
+                    let scoreHtml;
+                    if (m.completed) {
+                        scoreHtml = `<span class="font-black text-white text-base">${m.homeScore} - ${m.awayScore}</span>`;
+                    } else if (m.inProgress) {
+                        scoreHtml = `<span class="font-black text-green-400 text-base animate-pulse">${m.homeScore} - ${m.awayScore}</span>`;
+                    } else {
+                        scoreHtml = `<span class="text-gray-500 text-xs">${m.dateStr}</span>`;
+                    }
+                    html += `<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
+                        <span class="text-sm font-bold flex-1 text-right">${homeCN}</span>
+                        <div class="mx-3 text-center min-w-[60px]">${scoreHtml}</div>
+                        <span class="text-sm font-bold flex-1">${awayCN}</span>
+                    </div>`;
+                });
+                html += `</div>`;
+            });
+            html += `</div>`;
+        }
+
+        if (!html) html = '<div class="text-center py-8 text-gray-400">暂无赛程数据</div>';
+
+        html += `<div class="text-center text-[10px] text-gray-600 pb-2">数据来源: ESPN · <button onclick="_resultsLoaded=false;loadResults()" class="underline">刷新</button></div>`;
+
+        container.innerHTML = html;
+        _resultsLoaded = true;
+    } catch(e) {
+        document.getElementById('resultsContainer').innerHTML =
+            '<div class="text-center py-8 text-red-400">加载失败，请检查网络连接</div>';
+    }
+}
 
 // ─── Phase 1 Lock ────────────────────────────────────────
 function isPhase1Locked() { return !!roomSettingsData?.phase1Locked; }
@@ -6812,29 +7036,6 @@ window.ciRender = function() {
     }
     document.getElementById('ci-list').innerHTML = html;
 
-    // Notes display area
-    const noteMatches = allMatches.filter(m => data[m.id]?.note?.trim())
-        .sort((a,b) => a.day - b.day);
-    const nsec = document.getElementById('ci-notes-section');
-    if (noteMatches.length === 0) {
-        nsec.classList.add('hidden');
-    } else {
-        nsec.classList.remove('hidden');
-        let nhtml = '';
-        for (const m of noteMatches) {
-            const note = data[m.id].note.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            nhtml += `<div class="glass rounded-2xl p-4 mb-3">
-              <div class="flex items-center gap-2 mb-2">
-                <span class="text-lg leading-none flex-shrink-0">${m.home[1]}</span>
-                <span class="font-bold text-sm flex-1 min-w-0 truncate">${m.home[0]} <span class="text-gray-500 font-normal text-xs">vs</span> ${m.away[0]}</span>
-                <span class="ci-group-badge">${m.group}组</span>
-                <span class="text-[10px] text-gray-600 flex-shrink-0">6/${m.day}</span>
-              </div>
-              <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">${note}</p>
-            </div>`;
-        }
-        document.getElementById('ci-notes-list').innerHTML = nhtml;
-    }
 };
 
 window.ciFilter = function(gId) {
