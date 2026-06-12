@@ -128,6 +128,8 @@
         .ci-btn { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:900; flex-shrink:0; transition:all 0.15s; border:2px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.07); color:#9ca3af; cursor:pointer; }
         .ci-btn:active { transform: scale(0.84); }
         .ci-btn-watched { background:rgba(34,197,94,0.28) !important; border-color:rgba(34,197,94,0.75) !important; color:#4ade80 !important; }
+        .checkin-half { background: rgba(251,146,60,0.08) !important; border: 1px solid rgba(251,146,60,0.35) !important; }
+        .ci-btn-half-on { background:rgba(251,146,60,0.25) !important; border-color:rgba(251,146,60,0.7) !important; color:#fb923c !important; }
         .ci-note-btn { background:none; border:none; font-size:17px; cursor:pointer; transition:opacity 0.15s; padding:3px 4px; }
         .ci-note-btn:active { transform:scale(0.84); }
         .ci-group-badge { font-size:10px; font-weight:800; color:#f7c948; background:rgba(247,201,72,0.12); border:1px solid rgba(247,201,72,0.3); border-radius:6px; padding:1px 6px; flex-shrink:0; line-height:1.6; }
@@ -401,8 +403,8 @@ setTimeout(function() {
         <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap relative flex flex-col items-center gap-0.5">🏅<span>出线</span></button>
         <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🥊<span>淘汰赛</span></button>
         <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行</span></button>
-        <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📝<span>我的</span></button>
         <button onclick="switchTab('checkin')" id="tab-checkin" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📺<span>打卡</span></button>
+        <button onclick="switchTab('myPreds')" id="tab-myPreds" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📝<span>我的</span></button>
     </div>
 
     <!-- Content -->
@@ -598,27 +600,38 @@ setTimeout(function() {
 
         <!-- My Predictions -->
         <div id="content-myPreds" class="hidden">
-            <!-- Profile card -->
-            <div class="glass rounded-2xl p-4 mb-4 flex items-center gap-4">
-                <div class="relative flex-shrink-0">
-                    <div id="myAvatarDisplay"
-                        class="w-16 h-16 rounded-full gold flex items-center justify-center text-black font-black text-2xl overflow-hidden"></div>
-                    <button onclick="document.getElementById('avatarFileInput').click()"
-                        class="absolute -bottom-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-black text-xs font-black active:scale-90">✎</button>
-                    <input type="file" id="avatarFileInput" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+            <!-- Sub-tab nav -->
+            <div class="flex mb-4 border-b border-white/10">
+                <button onclick="mySubTab('preds')" id="mst-preds" class="flex-1 py-2.5 text-sm font-black text-yellow-400 border-b-2 border-yellow-400">我的预测</button>
+                <button onclick="mySubTab('notes')" id="mst-notes" class="flex-1 py-2.5 text-sm font-bold text-gray-500 border-b-2 border-transparent">我的笔记</button>
+            </div>
+            <!-- Sub-tab: 我的预测 -->
+            <div id="mst-preds-content">
+                <div class="glass rounded-2xl p-4 mb-4 flex items-center gap-4">
+                    <div class="relative flex-shrink-0">
+                        <div id="myAvatarDisplay"
+                            class="w-16 h-16 rounded-full gold flex items-center justify-center text-black font-black text-2xl overflow-hidden"></div>
+                        <button onclick="document.getElementById('avatarFileInput').click()"
+                            class="absolute -bottom-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-black text-xs font-black active:scale-90">✎</button>
+                        <input type="file" id="avatarFileInput" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-black text-lg truncate" id="myProfileName"></p>
+                        <p class="text-xs text-gray-400" id="myProfileRoom"></p>
+                        <p id="myAvatarStatus" class="text-xs text-gray-500 mt-0.5">点击头像右下角按钮上传照片</p>
+                    </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <p class="font-black text-lg truncate" id="myProfileName"></p>
-                    <p class="text-xs text-gray-400" id="myProfileRoom"></p>
-                    <p id="myAvatarStatus" class="text-xs text-gray-500 mt-0.5">点击头像右下角按钮上传照片</p>
+                <div class="flex gap-2 mb-3">
+                    <button onclick="generatePredCard('full')" class="flex-1 glass border border-white/20 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">📋 完整存档</button>
+                    <button onclick="generatePredCard('share')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
+                </div>
+                <div id="myPredsContainer" class="space-y-2">
+                    <div class="text-center py-8 text-gray-400">暂无预测</div>
                 </div>
             </div>
-            <div class="flex gap-2 mb-3">
-                <button onclick="generatePredCard('full')" class="flex-1 glass border border-white/20 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">📋 完整存档</button>
-                <button onclick="generatePredCard('share')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
-            </div>
-            <div id="myPredsContainer" class="space-y-2">
-                <div class="text-center py-8 text-gray-400">暂无预测</div>
+            <!-- Sub-tab: 我的笔记 -->
+            <div id="mst-notes-content" class="hidden">
+                <div id="myNotesContainer"></div>
             </div>
         </div>
 
@@ -660,17 +673,29 @@ setTimeout(function() {
 <!-- ══════════ 看球打卡笔记 Modal ══════════ -->
 <div id="ciNoteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-40 hidden p-4">
     <div class="glass rounded-3xl p-6 max-w-sm w-full slide-up">
-        <div class="flex items-center justify-between mb-1">
-            <h3 class="font-black text-lg">📝 看球笔记</h3>
-            <button onclick="ciNoteClose()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+        <!-- Phase 1: Write -->
+        <div id="ciNoteWrite">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-black text-lg">📝 看球笔记</h3>
+                <button onclick="ciNoteSkip()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <p id="ciNoteMatchLabel" class="text-sm text-gray-400 mb-3"></p>
+            <textarea id="ciNoteTextarea" rows="4"
+                class="w-full bg-black/40 text-white text-sm p-3 rounded-xl border border-white/10 resize-none focus:outline-none focus:border-yellow-400 mb-3"
+                placeholder="精彩进球、最佳球员、你的感受……任何都行 ⚽"></textarea>
+            <div class="flex gap-2">
+                <button onclick="ciNoteSave()" class="flex-[2] gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">发布笔记</button>
+                <button onclick="ciNoteSkip()" class="flex-1 glass border border-white/20 text-gray-400 font-bold py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">看大家的</button>
+            </div>
         </div>
-        <p id="ciNoteMatchLabel" class="text-sm text-gray-400 mb-4"></p>
-        <textarea id="ciNoteTextarea" rows="5"
-            class="w-full bg-black/40 text-white text-sm p-3 rounded-xl border border-white/10 resize-none focus:outline-none focus:border-yellow-400 mb-4"
-            placeholder="精彩进球、最佳球员、你的感受……任何都行 ⚽"></textarea>
-        <div class="flex gap-2">
-            <button onclick="ciNoteSave()" class="flex-[2] gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">保存笔记</button>
-            <button onclick="ciNoteClear()" class="flex-1 glass border border-white/20 text-gray-400 font-bold py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">清除</button>
+        <!-- Phase 2: Social notes -->
+        <div id="ciNoteSocial" class="hidden">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="font-black text-lg">💬 大家的笔记</h3>
+                <button onclick="ciNoteClose()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <p id="ciNoteSocialLabel" class="text-sm text-gray-400 mb-3"></p>
+            <div id="ciNoteSocialList" class="max-h-64 overflow-y-auto"></div>
         </div>
         <input type="hidden" id="ciNoteMatchId">
     </div>
@@ -6671,12 +6696,15 @@ function _ciInitFilter() {
 }
 
 function _ciCard(m, c, showGroup) {
-    const w = !!c?.w;
+    const wv = c?.w;
+    const wFull = wv === 'full' || wv === true;
+    const wHalf = wv === 'half';
     const hasNote = !!c?.note?.trim();
+    const stateClass = wFull ? 'checkin-watched' : wHalf ? 'checkin-half' : '';
     const sub = showGroup
         ? `<span class="ci-group-badge">${m.group}组</span>`
         : `<span class="ci-date-badge">6月${m.day}日</span>`;
-    return `<div class="ci-match-card ${w?'checkin-watched':''}">
+    return `<div class="ci-match-card ${stateClass}">
       <span class="text-xl leading-none flex-shrink-0">${m.home[1]}${m.away[1]}</span>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1 text-sm leading-snug">
@@ -6686,8 +6714,9 @@ function _ciCard(m, c, showGroup) {
         </div>
         ${sub}
       </div>
-      <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-80':'opacity-25'}" title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'✏️'}</button>
-      <button onclick="ciToggle('${m.id}')" class="ci-btn${w?' ci-btn-watched':''}" title="${w?'取消打卡':'标记已看'}">${w?'✓':'○'}</button>
+      <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-20'}" title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'✏️'}</button>
+      <button onclick="ciToggle('${m.id}','half')" class="ci-btn${wHalf?' ci-btn-half-on':''}" title="迷糊看了">≈</button>
+      <button onclick="ciToggle('${m.id}','full')" class="ci-btn${wFull?' ci-btn-watched':''}" title="认真看了">${wFull?'✓':'○'}</button>
     </div>`;
 }
 
@@ -6696,11 +6725,13 @@ window.ciRender = function() {
     const data = ciLoad();
     const allMatches = Object.values(CI_MATCHES);
     const total = allMatches.length;
-    const watched = allMatches.filter(m => data[m.id]?.w).length;
+    const full = allMatches.filter(m => { const w = data[m.id]?.w; return w === 'full' || w === true; }).length;
+    const half = allMatches.filter(m => data[m.id]?.w === 'half').length;
+    const watched = full + half;
     const noteCount = allMatches.filter(m => data[m.id]?.note?.trim()).length;
     const pct = total ? Math.round(watched/total*100) : 0;
 
-    document.getElementById('ci-stats-text').textContent = `已看 ${watched} / ${total} 场`;
+    document.getElementById('ci-stats-text').textContent = `认真 ${full} · 迷糊 ${half} / ${total} 场`;
     document.getElementById('ci-notes-text').textContent = `笔记 ${noteCount} 篇`;
     document.getElementById('ci-pct-text').textContent = `${pct}%`;
     document.getElementById('ci-progress-bar').style.width = `${pct}%`;
@@ -6777,31 +6808,30 @@ window.ciFilter = function(gId) {
     ciRender();
 };
 
-window.ciToggle = function(matchId) {
+window.ciToggle = function(matchId, mode) {
     const data = ciLoad();
-    if (data[matchId]?.w) {
+    const cur = data[matchId]?.w;
+    const isSame = (mode === 'full' && (cur === 'full' || cur === true)) || (mode === 'half' && cur === 'half');
+    if (isSame) {
         const note = data[matchId]?.note?.trim();
-        if (note) {
-            data[matchId] = { w: false, note };
-        } else {
-            delete data[matchId];
-        }
-        toast('已取消打卡');
+        if (note) { data[matchId] = { w: false, note }; } else { delete data[matchId]; }
+        ciSave(data); ciRender(); toast('已取消打卡');
     } else {
-        data[matchId] = { w: true, ts: Date.now(), note: data[matchId]?.note || '' };
-        toast('✅ 打卡成功！');
+        data[matchId] = { ...(data[matchId] || {}), w: mode, ts: Date.now() };
+        ciSave(data); ciRender(); ciNoteOpen(matchId);
     }
-    ciSave(data);
-    ciRender();
 };
 
 window.ciNoteOpen = function(matchId) {
     const m = CI_MATCHES[matchId];
     const data = ciLoad();
-    document.getElementById('ciNoteMatchLabel').textContent =
-        `${m.home[1]} ${m.home[0]}  vs  ${m.away[0]} ${m.away[1]}`;
+    const label = `${m.home[1]}${m.away[1]}  ${m.home[0]} vs ${m.away[0]}`;
+    document.getElementById('ciNoteMatchLabel').textContent = label;
+    document.getElementById('ciNoteSocialLabel').textContent = label;
     document.getElementById('ciNoteTextarea').value = data[matchId]?.note || '';
     document.getElementById('ciNoteMatchId').value = matchId;
+    document.getElementById('ciNoteWrite').classList.remove('hidden');
+    document.getElementById('ciNoteSocial').classList.add('hidden');
     document.getElementById('ciNoteModal').classList.remove('hidden');
     setTimeout(() => document.getElementById('ciNoteTextarea').focus(), 80);
 };
@@ -6810,23 +6840,91 @@ window.ciNoteClose = function() {
     document.getElementById('ciNoteModal').classList.add('hidden');
 };
 
-window.ciNoteSave = function() {
+window.ciNoteSkip = async function() {
+    await _ciShowSocial(document.getElementById('ciNoteMatchId').value);
+};
+
+window.ciNoteSave = async function() {
     const matchId = document.getElementById('ciNoteMatchId').value;
     const note = document.getElementById('ciNoteTextarea').value.trim();
     const data = ciLoad();
-    if (!data[matchId]) data[matchId] = { w: false, ts: Date.now() };
+    if (!data[matchId]) data[matchId] = { w: 'full', ts: Date.now() };
     data[matchId].note = note;
-    // If writing a note on an unwatched match, auto-check it
-    if (note && !data[matchId].w) { data[matchId].w = true; data[matchId].ts = Date.now(); }
+    if (note && !data[matchId].w) { data[matchId].w = 'full'; data[matchId].ts = Date.now(); }
     ciSave(data);
-    ciNoteClose();
     ciRender();
-    toast(note ? '笔记已保存 📝' : '笔记已清除');
+    if (note && currentUser && !currentUser.id.startsWith('demo_') && currentRoom) {
+        try {
+            await set(ref(db, `rooms/${currentRoom}/ciNotes/${matchId}/${currentUser.id}`), {
+                name: currentUser.name, note, ts: Date.now()
+            });
+        } catch(e) {}
+    }
+    if (note) toast('笔记已发布 📝');
+    await _ciShowSocial(matchId);
 };
 
-window.ciNoteClear = function() {
-    document.getElementById('ciNoteTextarea').value = '';
+async function _ciShowSocial(matchId) {
+    document.getElementById('ciNoteWrite').classList.add('hidden');
+    document.getElementById('ciNoteSocial').classList.remove('hidden');
+    const listEl = document.getElementById('ciNoteSocialList');
+    listEl.innerHTML = '<p class="text-center text-gray-500 text-sm py-6">加载中…</p>';
+    try {
+        const snap = await get(ref(db, `rooms/${currentRoom}/ciNotes/${matchId}`));
+        const notes = snap.val() || {};
+        const others = Object.entries(notes)
+            .filter(([uid]) => uid !== currentUser?.id)
+            .sort(([,a],[,b]) => (b.ts||0) - (a.ts||0));
+        if (others.length === 0) {
+            listEl.innerHTML = '<p class="text-center text-gray-500 text-sm py-8">还没有人写笔记<br><span class="text-gray-600 text-xs mt-1 block">成为第一个分享的人！</span></p>';
+        } else {
+            listEl.innerHTML = others.map(([,d]) =>
+                `<div class="bg-white/5 rounded-xl p-3 mb-2">
+                    <p class="text-xs font-bold text-yellow-400/80 mb-1.5">${(d.name||'').replace(/</g,'&lt;')}</p>
+                    <p class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">${(d.note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+                </div>`
+            ).join('');
+        }
+    } catch(e) {
+        listEl.innerHTML = '<p class="text-center text-gray-500 text-sm py-6">加载失败，请稍后重试</p>';
+    }
+}
+
+window.mySubTab = function(tab) {
+    ['preds','notes'].forEach(t => {
+        const btn = document.getElementById(`mst-${t}`);
+        const con = document.getElementById(`mst-${t}-content`);
+        const active = t === tab;
+        btn.className = `flex-1 py-2.5 text-sm border-b-2 ${active ? 'font-black text-yellow-400 border-yellow-400' : 'font-bold text-gray-500 border-transparent'}`;
+        con.classList.toggle('hidden', !active);
+    });
+    if (tab === 'notes') renderMyNotes();
 };
+
+function renderMyNotes() {
+    const data = ciLoad();
+    const allMatches = Object.values(CI_MATCHES);
+    const noteMatches = allMatches.filter(m => data[m.id]?.note?.trim())
+        .sort((a,b) => a.day - b.day);
+    const container = document.getElementById('myNotesContainer');
+    if (!container) return;
+    if (noteMatches.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-500 py-10">还没有写过笔记<br><span class="text-gray-600 text-xs mt-1 block">看完比赛去打卡记录一下吧 ⚽</span></p>';
+        return;
+    }
+    container.innerHTML = noteMatches.map(m => {
+        const note = (data[m.id].note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<div class="glass rounded-2xl p-4 mb-3">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-lg leading-none">${m.home[1]}${m.away[1]}</span>
+                <span class="font-bold text-sm flex-1 min-w-0 truncate">${m.home[0]} <span class="text-gray-500 font-normal text-xs">vs</span> ${m.away[0]}</span>
+                <span class="ci-group-badge">${m.group}组</span>
+                <span class="text-[10px] text-gray-600 flex-shrink-0">6/${m.day}</span>
+            </div>
+            <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">${note}</p>
+        </div>`;
+    }).join('');
+}
 
 // ─── Start ────────────────────────────────────────────────
 bootstrap();
