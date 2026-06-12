@@ -643,6 +643,18 @@ setTimeout(function() {
                 <div id="leaderboardContainer" class="space-y-2">
                     <div class="text-center py-8 text-gray-400">加载中...</div>
                 </div>
+                <!-- Real-time simulation section -->
+                <div id="simLbSection" class="mt-4">
+                    <button onclick="loadSimLeaderboard()" id="simLbBtn" class="w-full glass border border-yellow-400/30 rounded-2xl px-4 py-3 flex items-center gap-3 active:scale-95 transition-transform">
+                        <span class="text-xl">🔴</span>
+                        <div class="flex-1 text-left">
+                            <p class="font-bold text-sm text-yellow-400">实时模拟积分榜</p>
+                            <p class="text-[10px] text-gray-500">根据目前已赛完的比赛，按规则模拟计分</p>
+                        </div>
+                        <span class="text-gray-500 text-xs">点击加载 →</span>
+                    </button>
+                    <div id="simLbContainer" class="hidden mt-3"></div>
+                </div>
             </div>
             <!-- 赛程/积分榜 sub-content -->
             <div id="lb-results-content" class="hidden">
@@ -2101,6 +2113,139 @@ function renderLeaderboard() {
 
     container.innerHTML = html;
     _renderCrossRoomCard();
+}
+
+// ─── Real-time simulation leaderboard ────────────────────
+window.loadSimLeaderboard = async function(forceRefresh) {
+    const btn = document.getElementById('simLbBtn');
+    const container = document.getElementById('simLbContainer');
+    if (!container) return;
+    if (btn) btn.style.display = 'none';
+    container.classList.remove('hidden');
+    container.innerHTML = '<div class="text-center py-6 text-gray-400 text-sm">正在获取赛果数据...</div>';
+
+    if (!_espnCache || forceRefresh) {
+        if (forceRefresh) { _espnCache = null; ['finished','standings','upcoming'].forEach(t => { const el = document.getElementById(`rst-${t}-content`); if (el) el.dataset.loaded = ''; }); }
+        await loadResultsData();
+    }
+    if (!_espnCache) {
+        container.innerHTML = '<div class="text-center py-6 text-red-400 text-sm">加载赛果失败，请检查网络后重试</div>';
+        if (btn) btn.style.display = '';
+        return;
+    }
+
+    const result = _calcSimScores();
+    if (!result) {
+        container.innerHTML = '<div class="text-center py-6 text-gray-500 text-sm">目前尚无已完赛比赛，模拟计分暂不可用</div>';
+        if (btn) btn.style.display = '';
+        return;
+    }
+    container.innerHTML = _renderSimHtml(result.scores, result.gamesNote);
+};
+
+function _calcSimScores() {
+    const children = _espnCache?.standData?.children || [];
+    if (!children.length) return null;
+
+    // Build simulated standings per group
+    const simSt = {}; // gid → [{cn, gp, pts}] sorted
+    children.forEach(g => {
+        const m = (g.name||'').match(/Group\s*([A-L])/i);
+        if (!m) return;
+        const gid = m[1].toUpperCase();
+        const sorted = [...(g.standings?.entries||[])].sort((a,b) => {
+            const sv = e => Object.fromEntries((e.stats||[]).map(x=>[x.abbreviation,+x.value||0]));
+            const [as,bs] = [sv(a),sv(b)];
+            const [pa,pb] = [as.PTS||as.P||0, bs.PTS||bs.P||0];
+            if (pa!==pb) return pb-pa;
+            const [gda,gdb] = [as.GD||as.DIFF||0, bs.GD||bs.DIFF||0];
+            if (gda!==gdb) return gdb-gda;
+            return (bs.GF||0)-(as.GF||0);
+        });
+        simSt[gid] = sorted.map(e => ({
+            cn: _toCN(e.team?.displayName||''),
+            gp: +(e.stats?.find(s=>s.abbreviation==='GP')?.value||0),
+            pts: +(e.stats?.find(s=>s.abbreviation==='PTS'||s.abbreviation==='P')?.value||0),
+        }));
+    });
+
+    // How many groups have played at least one game
+    const playedGroups = Object.entries(simSt).filter(([,st])=>st.some(t=>t.gp>0));
+    if (!playedGroups.length) return null;
+
+    // Best 8 third-place teams (from groups with ≥1 game)
+    const thirds = playedGroups
+        .map(([gid,st])=>({cn: st[2]?.cn, pts: st[2]?.pts||0, gid}))
+        .filter(t=>t.cn)
+        .sort((a,b)=>b.pts-a.pts);
+    const best8Third = new Set(thirds.slice(0,8).map(t=>t.cn));
+
+    const allUsers = _allScoreEntries();
+    const scores = [];
+
+    for (const [uid, user] of Object.entries(allUsers)) {
+        let simPts = 0;
+        const breakdown = [];
+
+        // Group prediction scoring
+        for (const gid of Object.keys(groupsData)) {
+            const st = simSt[gid];
+            if (!st?.some(t=>t.gp>0)) continue; // skip groups with no games yet
+            const pred = groupPredsData[`${uid}_${gid}`];
+            if (!pred?.qualified?.length) continue;
+            let gPts = 0;
+            (pred.qualified||[]).forEach(team => {
+                if (!team) return;
+                const isQ1 = team === st[0]?.cn;
+                const isQ2 = team === st[1]?.cn;
+                if (isQ1 || isQ2) {
+                    const predWinner = team === pred.winner;
+                    if (predWinner === isQ1) gPts += 2; // position correct
+                    else gPts += 1;                     // qualified but wrong position
+                }
+            });
+            if (gPts) { simPts += gPts; breakdown.push(`${gid}组 +${gPts}`); }
+        }
+
+        // Third-place picks scoring
+        const myThirds = thirdPicksData[uid]?.picks || [];
+        const tPts = myThirds.filter(t => best8Third.has(t)).length;
+        if (tPts) { simPts += tPts; breakdown.push(`第三名 +${tPts}`); }
+
+        scores.push({ uid, name: user.name, simPts, breakdown });
+    }
+
+    scores.sort((a,b) => b.simPts - a.simPts || (a.name||'').localeCompare(b.name||'','zh-CN'));
+    const gamesNote = `已完成 ${playedGroups.length} 个小组赛事`;
+    return { scores, gamesNote };
+}
+
+function _renderSimHtml(scores, gamesNote) {
+    let html = `<div class="glass-dark rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2 border border-yellow-400/20">
+        <span class="text-yellow-400">🔴</span>
+        <div class="flex-1">
+            <p class="text-xs font-bold text-yellow-400">实时模拟积分榜</p>
+            <p class="text-[10px] text-gray-500">${gamesNote} · 仅含小组赛预测积分</p>
+        </div>
+        <button onclick="loadSimLeaderboard(true)" class="text-[10px] text-gray-500 underline flex-shrink-0">刷新</button>
+    </div>`;
+
+    const medals = ['🥇','🥈','🥉'];
+    scores.forEach((s, i) => {
+        const isMe = s.name === currentUser?.name;
+        const rank = i < 3 ? medals[i] : `#${i+1}`;
+        html += `<div class="glass rounded-2xl p-3 mb-2 flex items-center gap-3 ${isMe?'ring-2 ring-yellow-400':''}">
+            <span class="w-7 text-center font-black text-sm">${rank}</span>
+            ${_avatarHtml(s.uid, s.name, 'w-8 h-8', 'text-base')}
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm ${isMe?'text-yellow-400':'text-white'} truncate">${s.name||'?'}${isMe?' 👈':''}</div>
+                <div class="text-[10px] text-gray-500">${s.breakdown.length ? s.breakdown.join(' · ') : '暂无积分'}</div>
+            </div>
+            <div class="text-xl font-black text-white">${s.simPts}<span class="text-xs font-normal opacity-60">分</span></div>
+        </div>`;
+    });
+
+    return html;
 }
 
 const CROSS_ROOMS = { dqdm: 'public', public: 'dqdm' };
