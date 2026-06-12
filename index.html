@@ -445,8 +445,8 @@ setTimeout(function() {
         <!-- Leaderboard/Results sub-nav (hidden until lb mega-tab active) -->
         <div id="lbSubnav" class="hidden">
             <div class="flex">
-                <button onclick="lbSubTab('rank')" id="lbt-rank" class="tab-btn active flex-1 py-2.5 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行</span></button>
-                <button onclick="lbSubTab('results')" id="lbt-results" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🏆<span>比分/排名</span></button>
+                <button onclick="lbSubTab('rank')" id="lbt-rank" class="tab-btn active flex-1 py-2.5 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>预测排行</span></button>
+                <button onclick="lbSubTab('results')" id="lbt-results" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">⚽<span>赛程/积分榜</span></button>
             </div>
         </div>
     </div>
@@ -643,10 +643,22 @@ setTimeout(function() {
                     <div class="text-center py-8 text-gray-400">加载中...</div>
                 </div>
             </div>
-            <!-- 比分/排名 sub-content -->
+            <!-- 赛程/积分榜 sub-content -->
             <div id="lb-results-content" class="hidden">
-                <div id="resultsContainer">
-                    <div class="text-center py-12 text-gray-400">加载中...</div>
+                <!-- 3 sub-sub-tabs -->
+                <div class="flex border-b border-white/10 mb-0 bg-black/20 sticky top-0 z-10">
+                    <button onclick="resultsSubTab('finished')" id="rst-finished" class="flex-1 py-2.5 text-xs font-bold text-yellow-400 border-b-2 border-yellow-400">已结束</button>
+                    <button onclick="resultsSubTab('standings')" id="rst-standings" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">积分榜</button>
+                    <button onclick="resultsSubTab('upcoming')" id="rst-upcoming" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">即将开赛</button>
+                </div>
+                <div id="rst-finished-content" class="pt-3">
+                    <div class="text-center py-8 text-gray-400">加载中...</div>
+                </div>
+                <div id="rst-standings-content" class="hidden pt-3">
+                    <div class="text-center py-8 text-gray-400">加载中...</div>
+                </div>
+                <div id="rst-upcoming-content" class="hidden pt-3">
+                    <div class="text-center py-8 text-gray-400">加载中...</div>
                 </div>
             </div>
         </div>
@@ -4343,158 +4355,218 @@ window.lbSubTab = function(tab) {
         const btn = document.getElementById(`lbt-${t}`);
         if (btn) { btn.classList.toggle('active', t === tab); btn.classList.toggle('text-gray-400', t !== tab); }
     });
-    if (tab === 'results') loadResults();
+    if (tab === 'results') loadResultsData();
+};
+
+window.resultsSubTab = function(tab) {
+    ['finished','standings','upcoming'].forEach(t => {
+        document.getElementById(`rst-${t}-content`)?.classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById(`rst-${t}`);
+        if (btn) {
+            const active = t === tab;
+            btn.className = `flex-1 py-2.5 text-xs font-bold border-b-2 ${active ? 'text-yellow-400 border-yellow-400' : 'text-gray-500 border-transparent'}`;
+        }
+    });
+    loadResultsData();
 };
 
 const _resultsTeamMap = {
-    'Mexico':'墨西哥','South Africa':'南非','Korea Republic':'韩国','Czechia':'捷克',
-    'Canada':'加拿大','Bosnia and Herzegovina':'波黑','Qatar':'卡塔尔','Switzerland':'瑞士',
+    'Mexico':'墨西哥','South Africa':'南非',
+    'Korea Republic':'韩国','South Korea':'韩国',
+    'Czechia':'捷克','Czech Republic':'捷克',
+    'Canada':'加拿大',
+    'Bosnia and Herzegovina':'波黑','Bosnia-Herzegovina':'波黑','Bosnia & Herzegovina':'波黑',
+    'Qatar':'卡塔尔','Switzerland':'瑞士',
     'Brazil':'巴西','Morocco':'摩洛哥','Haiti':'海地','Scotland':'苏格兰',
-    'United States':'美国','Paraguay':'巴拉圭','Australia':'澳大利亚','Turkey':'土耳其','Türkiye':'土耳其',
-    'Germany':'德国','Curaçao':'库拉索','Ivory Coast':'科特迪瓦',"Côte d'Ivoire":'科特迪瓦','Ecuador':'厄瓜多尔',
-    'Netherlands':'荷兰','Japan':'日本','Sweden':'瑞典','Tunisia':'突尼斯',
+    'United States':'美国','USA':'美国',
+    'Paraguay':'巴拉圭','Australia':'澳大利亚',
+    'Turkey':'土耳其','Türkiye':'土耳其',
+    'Germany':'德国',
+    'Curaçao':'库拉索','Curacao':'库拉索',
+    'Ivory Coast':'科特迪瓦',"Côte d'Ivoire":'科特迪瓦',"Cote d'Ivoire":'科特迪瓦',
+    'Ecuador':'厄瓜多尔',
+    'Netherlands':'荷兰','Holland':'荷兰',
+    'Japan':'日本','Sweden':'瑞典','Tunisia':'突尼斯',
     'Belgium':'比利时','Egypt':'埃及','Iran':'伊朗','New Zealand':'新西兰',
-    'Spain':'西班牙','Cape Verde':'佛得角','Saudi Arabia':'沙特阿拉伯','Uruguay':'乌拉圭',
+    'Spain':'西班牙',
+    'Cape Verde':'佛得角','Cabo Verde':'佛得角',
+    'Saudi Arabia':'沙特阿拉伯','Uruguay':'乌拉圭',
     'France':'法国','Senegal':'塞内加尔','Iraq':'伊拉克','Norway':'挪威',
-    'Argentina':'阿根廷','Algeria':'阿尔及利亚','Austria':'奥地利','Jordan':'约旦',
-    'Portugal':'葡萄牙','DR Congo':'刚果(金)','Uzbekistan':'乌兹别克斯坦','Colombia':'哥伦比亚',
+    'Argentina':'阿根廷',
+    'Algeria':'阿尔及利亚','Austria':'奥地利','Jordan':'约旦',
+    'Portugal':'葡萄牙',
+    'DR Congo':'刚果(金)','Congo DR':'刚果(金)','Congo, DR':'刚果(金)','Democratic Republic of Congo':'刚果(金)','Congo (DR)':'刚果(金)',
+    'Uzbekistan':'乌兹别克斯坦','Colombia':'哥伦比亚',
     'England':'英格兰','Croatia':'克罗地亚','Ghana':'加纳','Panama':'巴拿马',
 };
 
 function _toCN(name) { return _resultsTeamMap[name] || name; }
 
-let _resultsLoaded = false;
-async function loadResults() {
-    if (_resultsLoaded) return;
-    const container = document.getElementById('resultsContainer');
-    if (!container) return;
+function _groupNote(comp) {
+    const n = comp?.notes?.find(n => /Group/i.test(n.headline || n.text || ''));
+    return (n?.headline || n?.text || '').replace(/^Group\s*/i, '小组 ');
+}
 
-    try {
-        const [scoreRes, standRes] = await Promise.all([
-            fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard'),
-            fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings')
-        ]);
-        const scoreData = await scoreRes.json();
-        const standData = await standRes.json();
+let _espnCache = null;
 
-        // ── Parse matches ──
-        const events = scoreData.events || [];
-        // Group matches by group name
-        const groupMatches = {};
-        events.forEach(e => {
-            const comp = e.competitions?.[0];
-            const note = comp?.notes?.find(n => n.headline?.startsWith('Group'))?.headline || '';
-            const groupKey = note || '其他';
-            if (!groupMatches[groupKey]) groupMatches[groupKey] = [];
-            const home = comp?.competitors?.find(c => c.homeAway === 'home');
-            const away = comp?.competitors?.find(c => c.homeAway === 'away');
-            const status = e.status?.type;
-            const completed = status?.completed;
-            const inProgress = status?.name === 'STATUS_IN_PROGRESS';
-            const dateObj = new Date(e.date);
-            const dateStr = `${dateObj.getMonth()+1}/${dateObj.getDate()}`;
-            groupMatches[groupKey].push({
-                home: home?.team?.displayName || '',
-                away: away?.team?.displayName || '',
-                homeScore: completed || inProgress ? (home?.score ?? '') : '',
-                awayScore: completed || inProgress ? (away?.score ?? '') : '',
-                completed, inProgress, dateStr, name: e.name
-            });
+async function loadResultsData() {
+    const now = Date.now();
+    if (!_espnCache || now - _espnCache.ts > 5 * 60 * 1000) {
+        const fLoading = document.getElementById('rst-finished-content');
+        const sLoading = document.getElementById('rst-standings-content');
+        const uLoading = document.getElementById('rst-upcoming-content');
+        [fLoading, sLoading, uLoading].forEach(el => {
+            if (el && !el.dataset.loaded) el.innerHTML = '<div class="text-center py-8 text-gray-400">加载中...</div>';
         });
-
-        // ── Parse standings ──
-        const groups = standData.children || [];
-
-        let html = '';
-
-        // Standings first
-        if (groups.length) {
-            html += `<div class="glass rounded-2xl p-4 mb-4">
-                <p class="font-black text-base gold-text mb-3">🏆 小组积分榜</p>`;
-            groups.forEach(g => {
-                const gname = g.name || '';
-                const entries = g.standings?.entries || [];
-                if (!entries.length) return;
-                html += `<div class="mb-4">
-                    <p class="text-xs font-bold text-yellow-400 mb-1.5">${gname}</p>
-                    <table class="w-full text-xs">
-                        <thead><tr class="text-gray-500">
-                            <th class="text-left pb-1 font-normal">球队</th>
-                            <th class="text-center pb-1 font-normal w-6">场</th>
-                            <th class="text-center pb-1 font-normal w-6">胜</th>
-                            <th class="text-center pb-1 font-normal w-6">平</th>
-                            <th class="text-center pb-1 font-normal w-6">负</th>
-                            <th class="text-center pb-1 font-normal w-8">净</th>
-                            <th class="text-center pb-1 font-bold text-yellow-400 w-6">分</th>
-                        </tr></thead>
-                        <tbody>`;
-                entries.forEach((entry, idx) => {
-                    const tname = entry.team?.displayName || '';
-                    const stats = {};
-                    (entry.stats || []).forEach(s => { stats[s.abbreviation] = s.displayValue; });
-                    const gp = stats['GP'] || stats['W'] && ((+stats['W']||0)+(+stats['D']||0)+(+stats['L']||0)) || '-';
-                    const w = stats['W'] || '0';
-                    const d = stats['T'] || stats['D'] || '0';
-                    const l = stats['L'] || '0';
-                    const gd = stats['GD'] || stats['DIFF'] || '-';
-                    const pts = stats['PTS'] || stats['P'] || '0';
-                    const isAdvance = entry.note?.color === 'green' || (idx < 2);
-                    html += `<tr class="${isAdvance ? 'text-white' : 'text-gray-400'}">
-                        <td class="py-0.5 font-bold">${_toCN(tname)}</td>
-                        <td class="text-center">${gp}</td>
-                        <td class="text-center">${w}</td>
-                        <td class="text-center">${d}</td>
-                        <td class="text-center">${l}</td>
-                        <td class="text-center">${gd}</td>
-                        <td class="text-center font-black text-yellow-400">${pts}</td>
-                    </tr>`;
-                });
-                html += `</tbody></table></div>`;
+        try {
+            const [scoreRes, standRes] = await Promise.all([
+                fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard'),
+                fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings')
+            ]);
+            const scoreData = await scoreRes.json();
+            const standData = await standRes.json();
+            _espnCache = { scoreData, standData, ts: now };
+        } catch(e) {
+            ['finished','standings','upcoming'].forEach(t => {
+                const el = document.getElementById(`rst-${t}-content`);
+                if (el && !el.dataset.loaded) el.innerHTML = '<div class="text-center py-8 text-red-400">加载失败，请检查网络</div>';
             });
-            html += `</div>`;
+            return;
         }
-
-        // Match results
-        const sortedGroups = Object.keys(groupMatches).sort();
-        if (sortedGroups.length) {
-            html += `<div class="glass rounded-2xl p-4 mb-4">
-                <p class="font-black text-base gold-text mb-3">⚽ 赛程 &amp; 比分</p>`;
-            sortedGroups.forEach(gk => {
-                const matches = groupMatches[gk];
-                html += `<div class="mb-4">
-                    <p class="text-xs font-bold text-yellow-400 mb-1.5">${gk}</p>`;
-                matches.forEach(m => {
-                    const homeCN = _toCN(m.home);
-                    const awayCN = _toCN(m.away);
-                    let scoreHtml;
-                    if (m.completed) {
-                        scoreHtml = `<span class="font-black text-white text-base">${m.homeScore} - ${m.awayScore}</span>`;
-                    } else if (m.inProgress) {
-                        scoreHtml = `<span class="font-black text-green-400 text-base animate-pulse">${m.homeScore} - ${m.awayScore}</span>`;
-                    } else {
-                        scoreHtml = `<span class="text-gray-500 text-xs">${m.dateStr}</span>`;
-                    }
-                    html += `<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
-                        <span class="text-sm font-bold flex-1 text-right">${homeCN}</span>
-                        <div class="mx-3 text-center min-w-[60px]">${scoreHtml}</div>
-                        <span class="text-sm font-bold flex-1">${awayCN}</span>
-                    </div>`;
-                });
-                html += `</div>`;
-            });
-            html += `</div>`;
-        }
-
-        if (!html) html = '<div class="text-center py-8 text-gray-400">暂无赛程数据</div>';
-
-        html += `<div class="text-center text-[10px] text-gray-600 pb-2">数据来源: ESPN · <button onclick="_resultsLoaded=false;loadResults()" class="underline">刷新</button></div>`;
-
-        container.innerHTML = html;
-        _resultsLoaded = true;
-    } catch(e) {
-        document.getElementById('resultsContainer').innerHTML =
-            '<div class="text-center py-8 text-red-400">加载失败，请检查网络连接</div>';
     }
+    _renderFinished();
+    _renderStandings();
+    _renderUpcoming();
+}
+
+function _renderFinished() {
+    const container = document.getElementById('rst-finished-content');
+    if (!container || container.dataset.loaded) return;
+    const events = (_espnCache.scoreData.events || [])
+        .filter(e => e.status?.type?.completed)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (!events.length) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无已结束比赛</div>';
+        container.dataset.loaded = '1'; return;
+    }
+    let html = '<div class="glass rounded-2xl p-3">';
+    events.forEach(e => {
+        const comp = e.competitions?.[0];
+        const home = comp?.competitors?.find(c => c.homeAway === 'home');
+        const away = comp?.competitors?.find(c => c.homeAway === 'away');
+        const gNote = _groupNote(comp);
+        const d = new Date(e.date);
+        const dateStr = `6月${d.getDate()}日`;
+        html += `<div class="flex items-center gap-1 py-2 border-b border-white/5 last:border-0">
+            <span class="text-[10px] text-gray-500 w-14 flex-shrink-0">${dateStr}</span>
+            <span class="flex-1 text-right text-sm font-bold truncate">${_toCN(home?.team?.displayName||'')}</span>
+            <span class="font-black text-white text-base w-16 text-center flex-shrink-0">${home?.score||0} - ${away?.score||0}</span>
+            <span class="flex-1 text-sm font-bold truncate">${_toCN(away?.team?.displayName||'')}</span>
+            <span class="text-[10px] text-yellow-400/60 w-10 flex-shrink-0 text-right">${gNote}</span>
+        </div>`;
+    });
+    html += `<div class="text-center text-[10px] text-gray-600 pt-2">数据来源: ESPN · <button onclick="_espnCache=null;['finished','standings','upcoming'].forEach(t=>{const el=document.getElementById('rst-'+t+'-content');if(el)el.dataset.loaded='';});loadResultsData()" class="underline">刷新</button></div>`;
+    html += '</div>';
+    container.innerHTML = html;
+    container.dataset.loaded = '1';
+}
+
+function _renderStandings() {
+    const container = document.getElementById('rst-standings-content');
+    if (!container || container.dataset.loaded) return;
+    const groups = _espnCache.standData.children || [];
+
+    if (!groups.length) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无积分数据</div>';
+        container.dataset.loaded = '1'; return;
+    }
+    let html = '<div class="glass rounded-2xl p-4">';
+    groups.forEach(g => {
+        const gname = g.name || '';
+        const entries = [...(g.standings?.entries || [])].sort((a, b) => {
+            const s = e => Object.fromEntries((e.stats||[]).map(s => [s.abbreviation, +s.value||0]));
+            const as = s(a), bs = s(b);
+            const pa = as['PTS']||as['P']||0, pb = bs['PTS']||bs['P']||0;
+            if (pa !== pb) return pb - pa;
+            const gda = as['GD']||as['DIFF']||0, gdb = bs['GD']||bs['DIFF']||0;
+            if (gda !== gdb) return gdb - gda;
+            return (bs['GF']||0) - (as['GF']||0);
+        });
+        if (!entries.length) return;
+        html += `<div class="mb-5"><p class="text-xs font-bold text-yellow-400 mb-1.5">${gname}</p>
+            <table class="w-full text-xs"><thead><tr class="text-gray-500 border-b border-white/5">
+                <th class="text-left pb-1.5 pl-1 font-normal">球队</th>
+                <th class="text-center pb-1.5 font-normal w-7">场</th>
+                <th class="text-center pb-1.5 font-normal w-6">胜</th>
+                <th class="text-center pb-1.5 font-normal w-6">平</th>
+                <th class="text-center pb-1.5 font-normal w-6">负</th>
+                <th class="text-center pb-1.5 font-normal w-8">净</th>
+                <th class="text-center pb-1.5 font-black text-yellow-400 w-6">分</th>
+            </tr></thead><tbody>`;
+        entries.forEach((entry, idx) => {
+            const tname = entry.team?.displayName || '';
+            const stats = {};
+            (entry.stats || []).forEach(s => { stats[s.abbreviation] = s.displayValue; });
+            const noteColor = entry.note?.color;
+            const isAdv = noteColor ? (noteColor === 'green' || noteColor === 'lime') : idx < 2;
+            html += `<tr class="${isAdv ? 'text-white' : 'text-gray-400'}">
+                <td class="py-1 pl-1 font-bold">${_toCN(tname)}</td>
+                <td class="text-center">${stats['GP']||'-'}</td>
+                <td class="text-center">${stats['W']||'0'}</td>
+                <td class="text-center">${stats['T']||stats['D']||'0'}</td>
+                <td class="text-center">${stats['L']||'0'}</td>
+                <td class="text-center">${stats['GD']||stats['DIFF']||'-'}</td>
+                <td class="text-center font-black text-yellow-400">${stats['PTS']||stats['P']||'0'}</td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+    container.dataset.loaded = '1';
+}
+
+function _renderUpcoming() {
+    const container = document.getElementById('rst-upcoming-content');
+    if (!container) return;
+    const todayKey = `wc2026_upcoming_${new Date().toISOString().slice(0,10)}`;
+    if (container.dataset.loaded && localStorage.getItem(todayKey)) return;
+
+    const events = (_espnCache.scoreData.events || [])
+        .filter(e => !e.status?.type?.completed && e.status?.type?.name !== 'STATUS_IN_PROGRESS')
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(0, 2);
+
+    if (!events.length) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无即将开赛比赛</div>';
+        container.dataset.loaded = '1'; localStorage.setItem(todayKey,'1'); return;
+    }
+    let html = '';
+    events.forEach(e => {
+        const comp = e.competitions?.[0];
+        const home = comp?.competitors?.find(c => c.homeAway === 'home');
+        const away = comp?.competitors?.find(c => c.homeAway === 'away');
+        const gNote = _groupNote(comp);
+        const d = new Date(e.date);
+        const dateStr = `6月${d.getDate()}日`;
+        const timeStr = d.toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',hour12:false});
+        html += `<div class="glass rounded-2xl p-4 mb-3">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs text-gray-400">${dateStr} ${timeStr}</span>
+                <span class="text-[10px] text-yellow-400 font-bold">${gNote}</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+                <span class="flex-1 text-right font-black text-base">${_toCN(home?.team?.displayName||'')}</span>
+                <span class="text-gray-500 font-bold text-sm px-1">vs</span>
+                <span class="flex-1 font-black text-base">${_toCN(away?.team?.displayName||'')}</span>
+            </div>
+        </div>`;
+    });
+    html += `<div class="text-center text-[10px] text-gray-600 pb-1">每日更新 · ${new Date().toLocaleDateString('zh-CN')}</div>`;
+    container.innerHTML = html;
+    container.dataset.loaded = '1';
+    localStorage.setItem(todayKey, '1');
 }
 
 // ─── Phase 1 Lock ────────────────────────────────────────
