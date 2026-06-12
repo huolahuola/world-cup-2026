@@ -139,17 +139,18 @@
         .danmaku-msg { position:absolute; white-space:nowrap; font-size:15px; font-weight:700; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,0.8); pointer-events:none; will-change:transform; }
         /* ── 看球打卡 ─────────────────────────────────────── */
         @media (max-width: 1023px) {
-            #megaTabRow { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-bottom: 1px solid rgba(255,255,255,0.08); }
-            #megaTabRow::-webkit-scrollbar { display: none; }
-            #megaTabRow .tab-btn { flex: 0 0 auto; min-width: 52px !important; }
-            #predSubnav { display: flex; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; background: rgba(0,0,0,0.18); border-bottom: 1px solid rgba(255,255,255,0.06); }
-            #predSubnav::-webkit-scrollbar { display: none; }
-            #predSubnav .tab-btn { flex: 0 0 auto; }
-            #lbSubnav > div { background: rgba(0,0,0,0.18); border-bottom: 1px solid rgba(255,255,255,0.06); }
+            #megaTabRow { display: flex; border-bottom: 1px solid rgba(255,255,255,0.08); }
+            #megaTabRow .tab-btn { flex: 1 1 0 !important; min-width: 0 !important; }
+            #predSubnav { display: flex; background: rgba(0,0,0,0.18); border-bottom: 1px solid rgba(255,255,255,0.06); }
+            #predSubnav .tab-btn { flex: 1 1 0 !important; min-width: 0 !important; }
+            #lbSubnav > div { display: flex; background: rgba(0,0,0,0.18); border-bottom: 1px solid rgba(255,255,255,0.06); }
+            #lbSubnav > div > button { flex: 1 1 0; }
         }
         .cfilter-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
         .checkin-watched { background: rgba(34,197,94,0.09) !important; border: 1px solid rgba(34,197,94,0.4) !important; }
-        .ci-match-card { display:flex; align-items:center; gap:4px; padding:9px 10px; margin-bottom:7px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); flex-wrap:nowrap; }
+        .ci-match-card { padding:10px 12px; margin-bottom:8px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
+        .ci-card-top { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .ci-card-bottom { display:flex; align-items:center; gap:5px; }
         .ci-btn { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:900; flex-shrink:0; transition:all 0.15s; border:2px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.07); color:#9ca3af; cursor:pointer; }
         .ci-btn:active { transform: scale(0.84); }
         .ci-btn-watched { background:rgba(34,197,94,0.28) !important; border-color:rgba(34,197,94,0.75) !important; color:#4ade80 !important; }
@@ -4411,38 +4412,49 @@ let _espnCache = null;
 
 async function loadResultsData() {
     const now = Date.now();
-    if (!_espnCache || now - _espnCache.ts > 5 * 60 * 1000) {
-        const fLoading = document.getElementById('rst-finished-content');
-        const sLoading = document.getElementById('rst-standings-content');
-        const uLoading = document.getElementById('rst-upcoming-content');
-        [fLoading, sLoading, uLoading].forEach(el => {
-            if (el && !el.dataset.loaded) el.innerHTML = '<div class="text-center py-8 text-gray-400">加载中...</div>';
-        });
-        try {
-            const [scoreRes, standRes] = await Promise.all([
-                fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard'),
-                fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings')
-            ]);
-            const scoreData = await scoreRes.json();
-            const standData = await standRes.json();
-            _espnCache = { scoreData, standData, ts: now };
-        } catch(e) {
-            ['finished','standings','upcoming'].forEach(t => {
-                const el = document.getElementById(`rst-${t}-content`);
-                if (el && !el.dataset.loaded) el.innerHTML = '<div class="text-center py-8 text-red-400">加载失败，请检查网络</div>';
-            });
-            return;
-        }
+    if (_espnCache && now - _espnCache.ts < 5 * 60 * 1000) {
+        _renderFinished(); _renderStandings(); _renderUpcoming();
+        return;
     }
-    _renderFinished();
-    _renderStandings();
-    _renderUpcoming();
+    ['finished','standings','upcoming'].forEach(t => {
+        const el = document.getElementById(`rst-${t}-content`);
+        if (el && !el.dataset.loaded) el.innerHTML = '<div class="text-center py-8 text-gray-400">加载中...</div>';
+    });
+    try {
+        // Generate dates from group stage start (June 11) to today
+        const tourStart = new Date('2026-06-11');
+        const today = new Date();
+        const dates = [];
+        for (let d = new Date(tourStart); d <= today; d.setDate(d.getDate() + 1)) {
+            dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
+        }
+        // Fetch standings + current scoreboard + one-per-day scoreboards in parallel
+        const allFetches = [
+            fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings').then(r=>r.json()).catch(()=>({})),
+            fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard').then(r=>r.json()).catch(()=>({events:[]})),
+            ...dates.map(d => fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${d}`).then(r=>r.json()).catch(()=>({events:[]})))
+        ];
+        const [standData, ...scoreResps] = await Promise.all(allFetches);
+        // Merge & deduplicate by event id
+        const seen = new Set();
+        const events = scoreResps.flatMap(r => r.events || []).filter(e => {
+            if (seen.has(e.id)) return false; seen.add(e.id); return true;
+        });
+        _espnCache = { events, standData, ts: now };
+    } catch(e) {
+        ['finished','standings','upcoming'].forEach(t => {
+            const el = document.getElementById(`rst-${t}-content`);
+            if (el && !el.dataset.loaded) el.innerHTML = '<div class="text-center py-8 text-red-400">加载失败，请检查网络</div>';
+        });
+        return;
+    }
+    _renderFinished(); _renderStandings(); _renderUpcoming();
 }
 
 function _renderFinished() {
     const container = document.getElementById('rst-finished-content');
     if (!container || container.dataset.loaded) return;
-    const events = (_espnCache.scoreData.events || [])
+    const events = (_espnCache.events || [])
         .filter(e => e.status?.type?.completed)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -4466,7 +4478,7 @@ function _renderFinished() {
             <span class="text-[10px] text-yellow-400/60 w-10 flex-shrink-0 text-right">${gNote}</span>
         </div>`;
     });
-    html += `<div class="text-center text-[10px] text-gray-600 pt-2">数据来源: ESPN · <button onclick="_espnCache=null;['finished','standings','upcoming'].forEach(t=>{const el=document.getElementById('rst-'+t+'-content');if(el)el.dataset.loaded='';});loadResultsData()" class="underline">刷新</button></div>`;
+    html += `<div class="text-center text-[10px] text-gray-600 pt-2">ESPN数据 · <button onclick="_espnCache=null;document.querySelectorAll('[id^=rst-][id\$=-content]').forEach(el=>el.dataset.loaded='');loadResultsData()" class="underline">刷新</button></div>`;
     html += '</div>';
     container.innerHTML = html;
     container.dataset.loaded = '1';
@@ -4475,7 +4487,7 @@ function _renderFinished() {
 function _renderStandings() {
     const container = document.getElementById('rst-standings-content');
     if (!container || container.dataset.loaded) return;
-    const groups = _espnCache.standData.children || [];
+    const groups = (_espnCache.standData.children || _espnCache.standData.seasons?.[0]?.types?.[0]?.groups || []);
 
     if (!groups.length) {
         container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无积分数据</div>';
@@ -4533,7 +4545,7 @@ function _renderUpcoming() {
     const todayKey = `wc2026_upcoming_${new Date().toISOString().slice(0,10)}`;
     if (container.dataset.loaded && localStorage.getItem(todayKey)) return;
 
-    const events = (_espnCache.scoreData.events || [])
+    const events = (_espnCache.events || [])
         .filter(e => !e.status?.type?.completed && e.status?.type?.name !== 'STATUS_IN_PROGRESS')
         .sort((a, b) => new Date(a.date) - new Date(b.date))
         .slice(0, 2);
@@ -7042,21 +7054,21 @@ function _ciCard(m, c, showGroup) {
         ? `<span class="ci-group-badge">${m.group}组</span>`
         : `<span class="ci-date-badge">6月${m.day}日</span>`;
     return `<div class="ci-match-card ${stateClass}">
-      <span class="flex flex-col lg:flex-row items-center flex-shrink-0 leading-none gap-0 lg:gap-0.5 text-base lg:text-xl">${m.home[1]}<span>${m.away[1]}</span></span>
-      <div class="flex-1 min-w-0 mr-1">
-        <div class="flex items-center gap-1 text-sm leading-snug">
-          <span class="font-bold truncate">${m.home[0]}</span>
-          <span class="text-gray-500 flex-shrink-0 text-[11px]">vs</span>
-          <span class="font-bold truncate">${m.away[0]}</span>
+      <div class="ci-card-top">
+        <span class="text-xl flex-shrink-0 leading-none">${m.home[1]} ${m.away[1]}</span>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-sm truncate">${m.home[0]} <span class="text-gray-500 font-normal text-xs">vs</span> ${m.away[0]}</div>
+          ${sub}
         </div>
-        ${sub}
       </div>
-      <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half${wHalf?' on':''}">迷糊看了</button>
-      <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full${wFull?' on':''}">认真看了</button>
-      <button onclick="ciToggle('${m.id}','skip')" class="ci-pill ci-pill-skip${wSkip?' on':''}">看都不看</button>
-      <div class="w-px h-4 bg-white/20 flex-shrink-0 mx-0.5"></div>
-      <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn flex-shrink-0 ${hasNote?'opacity-70':'opacity-25'}">${hasNote?'📝':'✏️'}</button>
-      <button onclick="ciNoteOpen('${m.id}',true)" class="ci-pill flex-shrink-0">查看笔记</button>
+      <div class="ci-card-bottom">
+        <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half${wHalf?' on':''}">迷糊看了</button>
+        <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full${wFull?' on':''}">认真看了</button>
+        <button onclick="ciToggle('${m.id}','skip')" class="ci-pill ci-pill-skip${wSkip?' on':''}">看都不看</button>
+        <div class="flex-1"></div>
+        <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-25'}">${hasNote?'📝':'✏️'}</button>
+        <button onclick="ciNoteOpen('${m.id}',true)" class="ci-pill">查看笔记</button>
+      </div>
     </div>`;
 }
 
