@@ -2215,11 +2215,11 @@ function _calcSimScores() {
         .filter(t=>t.cn).sort((a,b)=>b.pts-a.pts);
     const best8Third = new Set(thirds.slice(0,8).map(t=>t.cn));
 
-    // Current top scorer from ESPN leaders (first place in goals category)
-    const goalsCat = (_espnCache?.scorersData?.categories||[]).find(c=>/goal/i.test(c.name||''));
-    const topScorerEng = goalsCat?.leaders?.[0]?.athlete?.displayName || '';
+    // Current top scorer from event details
+    const scorerList = _extractScorers();
+    const topScorerEng = scorerList[0]?.name || '';
     const topScorerCN = _playerCN(topScorerEng);
-    const topScorerGoals = +(goalsCat?.leaders?.[0]?.value || 0);
+    const topScorerGoals = scorerList[0]?.goals || 0;
 
     const allUsers = _allScoreEntries();
     const scores = [];
@@ -4671,15 +4671,14 @@ async function loadResultsData() {
         const allFetches = [
             fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings').then(r=>r.json()).catch(()=>({})),
             fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard').then(r=>r.json()).catch(()=>({events:[]})),
-            fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/leaders').then(r=>r.json()).catch(()=>({})),
             ...dates.map(d => fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${d}`).then(r=>r.json()).catch(()=>({events:[]})))
         ];
-        const [standData, _currentBoard, scorersData, ...scoreResps] = await Promise.all(allFetches);
+        const [standData, ...scoreResps] = await Promise.all(allFetches);
         const seen = new Set();
-        const events = [_currentBoard, ...scoreResps].flatMap(r => r.events || []).filter(e => {
+        const events = scoreResps.flatMap(r => r.events || []).filter(e => {
             if (seen.has(e.id)) return false; seen.add(e.id); return true;
         });
-        _espnCache = { events, standData, scorersData, ts: now };
+        _espnCache = { events, standData, ts: now };
     } catch(e) {
         ['finished','standings','scorer','upcoming'].forEach(t => {
             const el = document.getElementById(`rst-${t}-content`);
@@ -4779,7 +4778,6 @@ function _renderStandings() {
 }
 
 const _SCORER_NAME_MAP = {
-    // Common player name translations (CN)
     'Cristiano Ronaldo':'C罗','Lionel Messi':'梅西','Kylian Mbappé':'姆巴佩','Kylian Mbappe':'姆巴佩',
     'Erling Haaland':'哈兰德','Harry Kane':'凯恩','Neymar':'内马尔','Lamine Yamal':'亚马尔',
     'Vinicius Junior':'维尼修斯','Vinícius Jr.':'维尼修斯','Vinícius Júnior':'维尼修斯',
@@ -4789,66 +4787,80 @@ const _SCORER_NAME_MAP = {
     'Victor Osimhen':'奥西梅恩','Marcus Rashford':'拉什福德',
     'Bruno Fernandes':'B费','Mo Salah':'萨拉赫','Mohamed Salah':'萨拉赫',
     'Son Heung-min':'孙兴慜','Sadio Mané':'马内','Sadio Mane':'马内',
+    'Julián Quiñones':'基涅内斯','Raúl Jiménez':'希门尼斯','Hwang In-Beom':'黄仁范',
+    'Oh Hyeon-Gyu':'吴贤奎','Ladislav Krejcí':'克雷奇','Ladislav Krejci':'克雷奇',
 };
 function _playerCN(name) { return _SCORER_NAME_MAP[name] || name; }
+
+function _extractScorers() {
+    const scorerMap = {};
+    for (const event of (_espnCache?.events || [])) {
+        if (!event.status?.type?.completed) continue;
+        const comp = event.competitions?.[0];
+        (comp?.details || []).forEach(detail => {
+            const typeText = detail.type?.text || '';
+            const isGoal = /^Goal/i.test(typeText) && !/Own\s*Goal/i.test(typeText);
+            if (!isGoal) return;
+            const athletes = detail.athletesInvolved || [];
+            const scorer = athletes[0];
+            if (!scorer) return;
+            const name = scorer.displayName;
+            const teamId = detail.team?.id;
+            const teamName = comp?.competitors?.find(c => c.team?.id === teamId)?.team?.displayName || '';
+            if (!scorerMap[name]) scorerMap[name] = { name, goals: 0, assists: 0, team: _toCN(teamName) };
+            scorerMap[name].goals++;
+            // Second athlete in detail is often the assister
+            const assister = athletes[1];
+            if (assister) {
+                const an = assister.displayName;
+                if (!scorerMap[an]) scorerMap[an] = { name: an, goals: 0, assists: 0, team: '' };
+                scorerMap[an].assists++;
+            }
+        });
+    }
+    return Object.values(scorerMap).sort((a,b) => b.goals - a.goals || b.assists - a.assists);
+}
 
 function _renderScorers() {
     const container = document.getElementById('rst-scorer-content');
     if (!container || container.dataset.loaded) return;
-    const cats = _espnCache?.scorersData?.categories || [];
-    const goalsCat = cats.find(c => /goal/i.test(c.name||'') || /goal/i.test(c.displayName||''));
-    const assistsCat = cats.find(c => /assist/i.test(c.name||'') || /assist/i.test(c.displayName||''));
 
-    if (!goalsCat?.leaders?.length) {
-        container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无射手数据</div>';
+    const scorers = _extractScorers();
+    if (!scorers.length) {
+        container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无进球数据</div>';
         container.dataset.loaded = '1'; return;
     }
 
-    // Build assists lookup by athlete id
-    const assistMap = {};
-    (assistsCat?.leaders || []).forEach(l => {
-        const id = l.athlete?.id || l.athlete?.displayName;
-        if (id) assistMap[id] = +(l.value||l.displayValue||0);
-    });
-
-    // What did each user predict?
+    // Which users predicted which player
     const allUsers = _allScoreEntries();
-    const userPredMap = {}; // cn name → [userName, ...]
+    const userPredMap = {};
     for (const [uid, user] of Object.entries(allUsers)) {
         const pred = champPredsData[uid]?.topScorer;
-        if (pred) {
-            if (!userPredMap[pred]) userPredMap[pred] = [];
-            userPredMap[pred].push({ name: user.name, uid, isMe: user.name === currentUser?.name });
-        }
+        if (!pred) continue;
+        if (!userPredMap[pred]) userPredMap[pred] = [];
+        userPredMap[pred].push({ name: user.name, isMe: user.name === currentUser?.name });
     }
 
     let html = '<div class="glass rounded-2xl p-4">';
-    html += `<p class="text-xs font-bold text-yellow-400 mb-3">⚽ 小组赛进球榜（实时）</p>`;
-    html += `<div class="space-y-2">`;
+    html += `<p class="text-xs font-bold text-yellow-400 mb-3">⚽ 小组赛进球榜（按赛事统计）</p><div class="space-y-0">`;
 
-    goalsCat.leaders.slice(0, 15).forEach((l, i) => {
-        const athlete = l.athlete || {};
-        const engName = athlete.displayName || athlete.fullName || '';
-        const cnName = _playerCN(engName);
-        const goals = +(l.value || l.displayValue || 0);
-        const athleteId = athlete.id || engName;
-        const assists = assistMap[athleteId] || 0;
-        const teamName = _toCN(athlete.team?.displayName || athlete.team?.shortDisplayName || '');
-        const pickers = userPredMap[engName] || userPredMap[cnName] || [];
+    scorers.slice(0, 15).forEach((s, i) => {
+        const cnName = _playerCN(s.name);
+        const pickers = userPredMap[s.name] || userPredMap[cnName] || [];
         const myPick = pickers.find(p => p.isMe);
-
-        html += `<div class="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0 ${myPick ? 'text-yellow-300' : 'text-gray-200'}">
-            <span class="w-5 text-center text-xs font-bold ${i===0?'text-yellow-400':i<3?'text-gray-400':'text-gray-600'}">${i+1}</span>
+        const others = pickers.filter(p => !p.isMe);
+        html += `<div class="flex items-center gap-2 py-2 border-b border-white/5 last:border-0 ${myPick ? 'bg-yellow-400/5 -mx-1 px-1 rounded-lg' : ''}">
+            <span class="w-5 text-center text-xs font-bold flex-shrink-0 ${i===0?'text-yellow-400':i<3?'text-gray-300':'text-gray-600'}">${i+1}</span>
             <div class="flex-1 min-w-0">
-                <div class="font-bold text-sm truncate">${cnName}${myPick ? ' 👈' : ''}${pickers.filter(p=>!p.isMe).length ? ` <span class="text-[10px] text-blue-400">${pickers.filter(p=>!p.isMe).map(p=>p.name).join(' ')}</span>` : ''}</div>
-                <div class="text-[10px] text-gray-500">${teamName}${assists ? ` · ${assists}助攻` : ''}</div>
+                <div class="font-bold text-sm truncate ${myPick?'text-yellow-300':'text-gray-100'}">${cnName}${myPick?' 👈':''}</div>
+                <div class="text-[10px] text-gray-500 truncate">${s.team}${s.assists ? ` · ${s.assists}助攻` : ''}${others.length ? ` · <span class="text-blue-400">${others.map(p=>p.name).join(' ')}</span>` : ''}</div>
             </div>
-            <div class="font-black text-lg ${i===0?'text-yellow-400':'text-gray-300'}">${goals}<span class="text-[10px] font-normal opacity-60">球</span></div>
+            <div class="font-black text-xl flex-shrink-0 ${i===0?'text-yellow-400':'text-gray-200'}">${s.goals}<span class="text-[10px] font-normal text-gray-500">球</span></div>
         </div>`;
     });
 
     html += '</div>';
-    html += `<div class="text-center text-[10px] text-gray-600 pt-3">ESPN数据 · <button onclick="_espnCache=null;document.querySelectorAll('[id^=rst-][id\$=-content]').forEach(el=>el.dataset.loaded='');loadResultsData()" class="underline">刷新</button></div>`;
+    html += `<div class="text-center text-[10px] text-gray-600 pt-3">ESPN比赛数据 · <button onclick="_espnCache=null;document.querySelectorAll('[id^=rst-][id\$=-content]').forEach(el=>el.dataset.loaded='');loadResultsData()" class="underline">刷新</button></div>`;
     html += '</div>';
     container.innerHTML = html;
     container.dataset.loaded = '1';
