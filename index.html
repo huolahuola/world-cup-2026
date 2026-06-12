@@ -6711,7 +6711,7 @@ function _ciCard(m, c, showGroup) {
         ? `<span class="ci-group-badge">${m.group}组</span>`
         : `<span class="ci-date-badge">6月${m.day}日</span>`;
     return `<div class="ci-match-card ${stateClass}">
-      <div class="flex items-center gap-2 mb-2.5">
+      <div class="flex items-center gap-2 mb-2">
         <span class="text-xl leading-none flex-shrink-0">${m.home[1]}${m.away[1]}</span>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1 text-sm leading-snug">
@@ -6721,13 +6721,13 @@ function _ciCard(m, c, showGroup) {
           </div>
           ${sub}
         </div>
-        <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-20'}" title="${hasNote?'查看/编辑笔记':'添加笔记'}">${hasNote?'📝':'✏️'}</button>
+        <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-20'}">${hasNote?'📝':'✏️'}</button>
+        <button onclick="ciNoteOpen('${m.id}',true)" class="ci-pill">查看笔记</button>
       </div>
-      <div class="flex gap-1.5">
-        <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half flex-1${wHalf?' on':''}">迷糊看了</button>
-        <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full flex-1${wFull?' on':''}">认真看了</button>
-        <button onclick="ciToggle('${m.id}','skip')" class="ci-pill ci-pill-skip flex-1${wSkip?' on':''}">看都不看</button>
-        <button onclick="ciNoteOpen('${m.id}',true)" class="ci-pill flex-1">查看笔记</button>
+      <div class="flex justify-end gap-1.5 pt-2 border-t border-white/10">
+        <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half${wHalf?' on':''}">迷糊看了</button>
+        <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full${wFull?' on':''}">认真看了</button>
+        <button onclick="ciToggle('${m.id}','skip')" class="ci-pill ci-pill-skip${wSkip?' on':''}">看都不看</button>
       </div>
     </div>`;
 }
