@@ -2308,7 +2308,7 @@ function _renderSimHtml(scores, gamesNote, scorerNote) {
                 ${_avatarHtml(s.uid, s.name, big?'w-12 h-12':'w-9 h-9', big?'text-xl':'text-base')}
                 <p class="${big?'text-sm':'text-xs'} font-bold text-center truncate max-w-full px-1">${s.name||'?'}${isMe?' 👈':''}</p>
                 <p class="${big?'text-3xl':'text-2xl'} font-black">${s.simPts}<span class="${big?'text-sm':'text-xs'} font-normal opacity-70">分</span></p>
-                <p class="text-[9px] text-center opacity-60 truncate max-w-full px-1">${s.breakdown.join(' ')}</p>
+                <p class="text-[9px] text-center opacity-60 leading-relaxed max-w-full px-1">${s.breakdown.join(' ')}</p>
             </div></div>`;
     };
     html += `<div class="grid grid-cols-3 gap-2 mb-3">
