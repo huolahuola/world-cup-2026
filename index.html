@@ -2232,8 +2232,8 @@ function _calcSimScores() {
         let simPts = 0;
         const breakdown = [];
 
-        // Group prediction scoring
-        for (const gid of Object.keys(groupsData)) {
+        // Group prediction scoring — iterate ESPN groups, not Firebase groupsData
+        for (const gid of Object.keys(simSt)) {
             const st = simSt[gid];
             if (!st?.some(t=>t.gp>0)) continue;
             const pred = groupPredsData[`${uid}_${gid}`];
@@ -4667,8 +4667,9 @@ async function loadResultsData() {
     try {
         const tourStart = new Date('2026-06-11');
         const today = new Date();
+        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
         const dates = [];
-        for (let d = new Date(tourStart); d <= today; d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(tourStart); d <= tomorrow; d.setDate(d.getDate() + 1)) {
             dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
         }
         const allFetches = [
@@ -4871,18 +4872,22 @@ function _renderScorers() {
 
 function _renderUpcoming() {
     const container = document.getElementById('rst-upcoming-content');
-    if (!container) return;
-    const todayKey = `wc2026_upcoming_${new Date().toISOString().slice(0,10)}`;
-    if (container.dataset.loaded && localStorage.getItem(todayKey)) return;
+    if (!container || container.dataset.loaded) return;
+
+    const now = Date.now();
+    const in24h = now + 24 * 60 * 60 * 1000;
 
     const events = (_espnCache.events || [])
-        .filter(e => !e.status?.type?.completed && e.status?.type?.name !== 'STATUS_IN_PROGRESS')
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .slice(0, 2);
+        .filter(e => {
+            if (e.status?.type?.completed) return false;
+            const t = new Date(e.date).getTime();
+            return t <= in24h; // upcoming or in-progress within next 24h
+        })
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     if (!events.length) {
-        container.innerHTML = '<div class="text-center py-8 text-gray-400">暂无即将开赛比赛</div>';
-        container.dataset.loaded = '1'; localStorage.setItem(todayKey,'1'); return;
+        container.innerHTML = '<div class="text-center py-8 text-gray-400">未来24小时内暂无比赛</div>';
+        container.dataset.loaded = '1'; return;
     }
     let html = '';
     events.forEach(e => {
@@ -4893,22 +4898,28 @@ function _renderUpcoming() {
         const d = new Date(e.date);
         const dateStr = `6月${d.getDate()}日`;
         const timeStr = d.toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',hour12:false});
-        html += `<div class="glass rounded-2xl p-4 mb-3">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-xs text-gray-400">${dateStr} ${timeStr}</span>
-                <span class="text-[10px] text-yellow-400 font-bold">${gNote}</span>
+        const inProgress = e.status?.type?.name === 'STATUS_IN_PROGRESS';
+        const statusBadge = inProgress
+            ? `<span class="text-[10px] font-bold text-green-400 animate-pulse">● 直播中</span>`
+            : `<span class="text-[10px] text-gray-500">${timeStr}</span>`;
+        html += `<div class="glass rounded-2xl p-4 mb-2">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-gray-400">${dateStr}</span>
+                <span class="text-[10px] text-yellow-400/70 font-bold">${gNote}</span>
             </div>
-            <div class="flex items-center justify-between gap-3">
-                <span class="flex-1 text-right font-black text-base">${_toCN(home?.team?.displayName||'')}</span>
-                <span class="text-gray-500 font-bold text-sm px-1">vs</span>
-                <span class="flex-1 font-black text-base">${_toCN(away?.team?.displayName||'')}</span>
+            <div class="flex items-center gap-3">
+                <span class="flex-1 text-right font-black text-sm">${_toCN(home?.team?.displayName||'')}</span>
+                <div class="flex flex-col items-center gap-0.5 flex-shrink-0">
+                    ${statusBadge}
+                    <span class="text-gray-600 font-bold text-xs">vs</span>
+                </div>
+                <span class="flex-1 font-black text-sm">${_toCN(away?.team?.displayName||'')}</span>
             </div>
         </div>`;
     });
-    html += `<div class="text-center text-[10px] text-gray-600 pb-1">每日更新 · ${new Date().toLocaleDateString('zh-CN')}</div>`;
+    html += `<div class="text-center text-[10px] text-gray-600 pb-1 mt-2">接下来24小时 · ${events.length}场比赛</div>`;
     container.innerHTML = html;
     container.dataset.loaded = '1';
-    localStorage.setItem(todayKey, '1');
 }
 
 // ─── Phase 1 Lock ────────────────────────────────────────
