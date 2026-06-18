@@ -4784,6 +4784,7 @@ function _renderStandings() {
 }
 
 const _SCORER_NAME_MAP = {
+    // Full names
     'Cristiano Ronaldo':'C罗','Lionel Messi':'梅西','Kylian Mbappé':'姆巴佩','Kylian Mbappe':'姆巴佩',
     'Erling Haaland':'哈兰德','Harry Kane':'凯恩','Neymar':'内马尔','Lamine Yamal':'亚马尔',
     'Vinicius Junior':'维尼修斯','Vinícius Jr.':'维尼修斯','Vinícius Júnior':'维尼修斯',
@@ -4795,6 +4796,13 @@ const _SCORER_NAME_MAP = {
     'Son Heung-min':'孙兴慜','Sadio Mané':'马内','Sadio Mane':'马内',
     'Julián Quiñones':'基涅内斯','Raúl Jiménez':'希门尼斯','Hwang In-Beom':'黄仁范',
     'Oh Hyeon-Gyu':'吴贤奎','Ladislav Krejcí':'克雷奇','Ladislav Krejci':'克雷奇',
+    'Erling Braut Haaland':'哈兰德',
+    // ESPN abbreviated forms (e.g. "H. Kane")
+    'H. Kane':'凯恩','E. Haaland':'哈兰德','L. Messi':'梅西','C. Ronaldo':'C罗',
+    'K. Mbappé':'姆巴佩','K. Mbappe':'姆巴佩','V. Jr.':'维尼修斯',
+    'J. Bellingham':'贝林厄姆','B. Saka':'萨卡','P. Foden':'福登',
+    'M. Rashford':'拉什福德','M. Salah':'萨拉赫','R. Lewandowski':'莱万',
+    'L. Yamal':'亚马尔','S. Son':'孙兴慜',
 };
 function _playerCN(name) { return _SCORER_NAME_MAP[name] || name; }
 
@@ -4811,7 +4819,7 @@ function _extractScorers() {
             const athletes = detail.athletesInvolved || [];
             const scorer = athletes[0];
             if (!scorer) return;
-            const name = scorer.displayName;
+            const name = scorer.fullName || scorer.displayName;
             const teamId = detail.team?.id;
             const teamName = comp?.competitors?.find(c => c.team?.id === teamId)?.team?.displayName || '';
             if (!scorerMap[name]) scorerMap[name] = { name, goals: 0, assists: 0, team: _toCN(teamName) };
@@ -4853,7 +4861,7 @@ function _renderScorers() {
 
     scorers.slice(0, 15).forEach((s, i) => {
         const cnName = _playerCN(s.name);
-        const pickers = userPredMap[s.name] || userPredMap[cnName] || [];
+        const pickers = userPredMap[s.name] || userPredMap[cnName] || userPredMap[_playerCN(s.name)] || [];
         const myPick = pickers.find(p => p.isMe);
         const others = pickers.filter(p => !p.isMe);
         html += `<div class="flex items-center gap-2 py-2 border-b border-white/5 last:border-0 ${myPick ? 'bg-yellow-400/5 -mx-1 px-1 rounded-lg' : ''}">
