@@ -155,11 +155,13 @@
         .ci-btn:active { transform: scale(0.84); }
         .ci-btn-watched { background:rgba(34,197,94,0.28) !important; border-color:rgba(34,197,94,0.75) !important; color:#4ade80 !important; }
         .checkin-half { background: rgba(251,146,60,0.08) !important; border: 1px solid rgba(251,146,60,0.35) !important; }
+        .checkin-clips { background: rgba(96,165,250,0.07) !important; border: 1px solid rgba(96,165,250,0.3) !important; }
         .checkin-skip { background: rgba(248,113,113,0.06) !important; border: 1px solid rgba(248,113,113,0.25) !important; }
         .ci-pill { font-size:10px; font-weight:800; padding:5px 6px; border-radius:14px; border:1.5px solid rgba(255,255,255,0.2); transition:all 0.15s; cursor:pointer; background:none; color:#6b7280; white-space:nowrap; text-align:center; flex-shrink:0; }
         .ci-pill:active { transform:scale(0.88); }
         .ci-pill-full.on { color:#4ade80; border-color:rgba(34,197,94,0.7); background:rgba(34,197,94,0.2); }
         .ci-pill-half.on { color:#fb923c; border-color:rgba(251,146,60,0.7); background:rgba(251,146,60,0.2); }
+        .ci-pill-clips.on { color:#60a5fa; border-color:rgba(96,165,250,0.7); background:rgba(96,165,250,0.2); }
         .ci-pill-skip.on { color:#f87171; border-color:rgba(248,113,113,0.6); background:rgba(248,113,113,0.15); }
         .ci-note-btn { background:none; border:none; font-size:17px; cursor:pointer; transition:opacity 0.15s; padding:3px 4px; }
         .ci-note-btn:active { transform:scale(0.84); }
@@ -4803,7 +4805,8 @@ function _extractScorers() {
         const comp = event.competitions?.[0];
         (comp?.details || []).forEach(detail => {
             const typeText = detail.type?.text || '';
-            const isGoal = /^Goal/i.test(typeText) && !/Own\s*Goal/i.test(typeText);
+            const isGoal = (/^Goal/i.test(typeText) && !/Own\s*Goal/i.test(typeText)) ||
+                           /Penalty\s*-\s*Scored/i.test(typeText);
             if (!isGoal) return;
             const athletes = detail.athletesInvolved || [];
             const scorer = athletes[0];
@@ -7388,9 +7391,10 @@ function _ciCard(m, c, showGroup) {
     const wv = c?.w;
     const wFull = wv === 'full' || wv === true;
     const wHalf = wv === 'half';
+    const wClips = wv === 'clips';
     const wSkip = wv === 'skip';
     const hasNote = !!c?.note?.trim();
-    const stateClass = wFull ? 'checkin-watched' : wHalf ? 'checkin-half' : wSkip ? 'checkin-skip' : '';
+    const stateClass = wFull ? 'checkin-watched' : wHalf ? 'checkin-half' : wClips ? 'checkin-clips' : wSkip ? 'checkin-skip' : '';
     const sub = showGroup
         ? `<span class="ci-group-badge">${m.group}组</span>`
         : `<span class="ci-date-badge">6月${m.day}日</span>`;
@@ -7405,6 +7409,7 @@ function _ciCard(m, c, showGroup) {
       <div class="ci-card-bottom">
         <button onclick="ciToggle('${m.id}','half')" class="ci-pill ci-pill-half${wHalf?' on':''}">迷糊看了</button>
         <button onclick="ciToggle('${m.id}','full')" class="ci-pill ci-pill-full${wFull?' on':''}">认真看了</button>
+        <button onclick="ciToggle('${m.id}','clips')" class="ci-pill ci-pill-clips${wClips?' on':''}">集锦看了</button>
         <button onclick="ciToggle('${m.id}','skip')" class="ci-pill ci-pill-skip${wSkip?' on':''}">看都不看</button>
         <div class="flex-1"></div>
         <button onclick="ciNoteOpen('${m.id}')" class="ci-note-btn ${hasNote?'opacity-70':'opacity-25'}">${hasNote?'📝':'✏️'}</button>
@@ -7420,12 +7425,13 @@ window.ciRender = function() {
     const total = allMatches.length;
     const full = allMatches.filter(m => { const w = data[m.id]?.w; return w === 'full' || w === true; }).length;
     const half = allMatches.filter(m => data[m.id]?.w === 'half').length;
+    const clips = allMatches.filter(m => data[m.id]?.w === 'clips').length;
     const skip = allMatches.filter(m => data[m.id]?.w === 'skip').length;
-    const watched = full + half;
+    const watched = full + half + clips;
     const noteCount = allMatches.filter(m => data[m.id]?.note?.trim()).length;
     const pct = total ? Math.round(watched/total*100) : 0;
 
-    document.getElementById('ci-stats-text').textContent = `认真${full}场，迷糊${half}场/${total}场`;
+    document.getElementById('ci-stats-text').textContent = `认真${full}，迷糊${half}，集锦${clips}/${total}场`;
     document.getElementById('ci-notes-text').textContent = `笔记 ${noteCount} 篇`;
     document.getElementById('ci-pct-text').textContent = `${pct}%`;
     document.getElementById('ci-progress-bar').style.width = `${pct}%`;
@@ -7484,6 +7490,7 @@ window.ciToggle = function(matchId, mode) {
     const cur = data[matchId]?.w;
     const isSame = (mode === 'full' && (cur === 'full' || cur === true)) ||
                    (mode === 'half' && cur === 'half') ||
+                   (mode === 'clips' && cur === 'clips') ||
                    (mode === 'skip' && cur === 'skip');
     if (isSame) {
         const note = data[matchId]?.note?.trim();
@@ -7492,7 +7499,8 @@ window.ciToggle = function(matchId, mode) {
     } else {
         data[matchId] = { ...(data[matchId] || {}), w: mode, ts: Date.now() };
         ciSave(data); ciRender();
-        if (mode !== 'skip') ciNoteOpen(matchId);
+        if (mode === 'full' || mode === 'half') ciNoteOpen(matchId);
+        else if (mode === 'clips') toast('📽️ 已记录：集锦看了');
         else toast('已记录：看都不看');
     }
 };
