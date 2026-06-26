@@ -606,7 +606,7 @@ setTimeout(function() {
         <div id="content-knockout" class="hidden">
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 淘汰赛规则</p>
-                <p>· 猜中<b class="text-white">90分钟胜平负</b>（站主队视角） → <b class="text-green-400">+2分</b></p>
+                <p>· 猜中<b class="text-white">90分钟胜平负</b>（站主队视角） → <b class="text-green-400">+5分</b></p>
                 <p>· 猜中<b class="text-white">最终晋级球队</b>（含加时/点球） → <b class="text-yellow-400">+5分</b></p>
                 <p>· 猜中<b class="text-white">首个进球者</b>（90分钟内） → <b class="text-orange-400">+8分</b>（独立计分）</p>
                 <p>· 每场开球前可随时修改，开球后锁定</p>
@@ -1653,7 +1653,7 @@ function renderKoMatchCard(matchId, match) {
         }).join('');
         predForm = `<div class="mt-3 pt-3 border-t border-white/10">
             <input type="hidden" id="ko-r90-${matchId}" value="${curR90}">
-            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="text-green-400 font-bold">+2分</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="text-green-400 font-bold">+5分</span></p>
             <div class="flex gap-2 mb-3">${r90Btns}</div>
             <p class="text-xs text-gray-500 mb-1.5">⬆️ 最终晋级球队 <span class="text-yellow-400 font-bold">+5分</span></p>
             <select id="ko-advance-${matchId}" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none">
@@ -1731,7 +1731,7 @@ function calcKoPts(pred, result) {
     let pts = 0;
     if (pred.result90) {
         // New format: W/D/L + advance + scorer
-        if (pred.result90 === result.outcome_90) pts += 2;
+        if (pred.result90 === result.outcome_90) pts += 5;
         if (pred.advance && result.advance && pred.advance === result.advance) pts += 5;
     } else if (pred.homeScore != null) {
         // Legacy format: exact score gives +5, W/D/L gives +2
