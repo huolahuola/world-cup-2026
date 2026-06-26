@@ -630,6 +630,8 @@ setTimeout(function() {
         <div id="content-leaderboard" class="hidden">
             <!-- 排行 sub-content -->
             <div id="lb-rank-content">
+                <!-- KO prediction completion status -->
+                <div id="koCompletionSection" class="mb-3"></div>
                 <!-- ① Simulation leaderboard (top, auto-loads) -->
                 <div id="simLbSection" class="mb-2">
                     <div class="flex items-center justify-between mb-3">
@@ -1391,6 +1393,7 @@ function startApp() {
             koMatchesData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden')) renderKnockout();
             refreshKoAdmin();
+            renderKoCompletionStatus();
         });
         onValue(ref(db, `rooms/${currentRoom}/ko/players`), snap => {
             koPlayersData = snap.exists() ? snap.val() : {};
@@ -1399,6 +1402,7 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/ko/preds/${currentUser.id}`), snap => {
             koPredsData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden')) renderKnockout();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
             koAllPredsData = snap.exists() ? snap.val() : {};
@@ -2103,7 +2107,34 @@ function _podiumCard(uid, s, rank, isMe, size) {
     </div>`;
 }
 
+function renderKoCompletionStatus() {
+    const el = document.getElementById('koCompletionSection');
+    if (!el) return;
+    const matches = Object.entries(koMatchesData).sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
+    if (!matches.length) { el.innerHTML = ''; return; }
+    const totalUsers = Object.keys(_allScoreEntries()).length;
+    const rows = matches.map(([mid, m]) => {
+        const count = Object.values(koAllPredsData).filter(u => u[mid]).length;
+        const allDone = totalUsers > 0 && count >= totalUsers;
+        const badge = allDone
+            ? `<span class="text-green-400 font-bold text-xs">✅ ${count}/${totalUsers}人</span>`
+            : `<span class="text-yellow-400 font-bold text-xs">${count}/${totalUsers}人</span>`;
+        const label = KO_LABELS[m.round] ? `<span class="text-[10px] text-gray-600 mr-1">${KO_LABELS[m.round]}</span>` : '';
+        return `<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
+            <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                ${label}<span class="text-xs text-gray-300 truncate">${m.homeFlag||'🏳️'} ${m.home} vs ${m.awayFlag||'🏳️'} ${m.away}</span>
+            </div>
+            ${badge}
+        </div>`;
+    }).join('');
+    el.innerHTML = `<div class="glass rounded-2xl p-4">
+        <p class="text-xs font-bold text-gray-400 mb-2">⚡ 淘汰赛预测完成情况</p>
+        ${rows}
+    </div>`;
+}
+
 function renderLeaderboard() {
+    renderKoCompletionStatus();
     const container = document.getElementById('leaderboardContainer');
     const allScores = _allScoreEntries();
     const allEntries = Object.entries(allScores);
@@ -3535,6 +3566,38 @@ function renderMyPreds() {
                     ${resultLine}
                 </div>
                 ${ptsBadge}
+            </div>`;
+        });
+    }
+
+    // KO predictions (new system)
+    const myKoPredEntries = Object.entries(koMatchesData).filter(([mid]) => koPredsData[mid]);
+    if (myKoPredEntries.length) {
+        html += `<p class="text-xs text-gray-500 font-bold pt-2 pb-1">⚡ 淘汰赛预测</p>`;
+        myKoPredEntries.sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
+        myKoPredEntries.forEach(([mid, match]) => {
+            const pred = koPredsData[mid];
+            const pts = pred.points;
+            let ptsBadge;
+            if (pts !== null && pts !== undefined) {
+                const cls = pts >= 13 ? 'bg-orange-500 text-white' : pts >= 5 ? 'bg-yellow-500 text-black' : pts >= 2 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+                ptsBadge = `<span class="${cls} text-xs px-2 py-0.5 rounded-full font-bold">+${pts}分</span>`;
+            } else {
+                ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full">待揭晓</span>`;
+            }
+            const r90map = { W: `${match.home}胜`, D: '平局', L: `${match.away}胜` };
+            const r90label = pred.result90 ? (r90map[pred.result90] || pred.result90)
+                : (pred.homeScore != null ? `${pred.homeScore}:${pred.awayScore}` : '?');
+            html += `<div class="glass rounded-xl p-3 mb-1">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs text-gray-400">${match.homeFlag||'🏳️'} ${match.home} vs ${match.awayFlag||'🏳️'} ${match.away}</span>
+                    ${ptsBadge}
+                </div>
+                <div class="text-xs flex flex-wrap gap-x-3 gap-y-1">
+                    <span class="text-gray-400">⏱️ <b class="text-blue-300">${r90label}</b></span>
+                    ${pred.advance ? `<span class="text-gray-400">⬆️ <b class="text-green-300">${pred.advance}</b></span>` : ''}
+                    ${pred.scorer ? `<span class="text-gray-400">⚽ <b class="text-orange-300">${pred.scorer}</b></span>` : ''}
+                </div>
             </div>`;
         });
     }
