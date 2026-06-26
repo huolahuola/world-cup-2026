@@ -606,9 +606,9 @@ setTimeout(function() {
         <div id="content-knockout" class="hidden">
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 淘汰赛规则</p>
-                <p>· 猜中<b class="text-white">精确比分</b>（90分钟内） → <b class="text-yellow-400">+5分</b></p>
-                <p>· 猜中<b class="text-white">胜平负结果</b>（比分不同） → <b class="text-green-400">+2分</b></p>
-                <p>· 猜中<b class="text-white">首个进球者</b> → <b class="text-orange-400">+8分</b>（独立计分）</p>
+                <p>· 猜中<b class="text-white">90分钟胜平负</b>（站主队视角） → <b class="text-green-400">+2分</b></p>
+                <p>· 猜中<b class="text-white">最终晋级球队</b>（含加时/点球） → <b class="text-yellow-400">+5分</b></p>
+                <p>· 猜中<b class="text-white">首个进球者</b>（90分钟内） → <b class="text-orange-400">+8分</b>（独立计分）</p>
                 <p>· 每场开球前可随时修改，开球后锁定</p>
             </div>
             <!-- Round tabs -->
@@ -888,7 +888,8 @@ setTimeout(function() {
             <!-- KO: Manage Matches -->
             <div class="glass rounded-2xl p-6">
                 <h3 class="font-bold text-yellow-400 mb-3">🥊 淘汰赛对阵管理</h3>
-                <p class="text-xs text-gray-400 mb-3">添加淘汰赛对阵（球队待确定时填 TBD）</p>
+                <button onclick="initR32Matches()" class="w-full mb-3 bg-green-900/40 border border-green-500/40 text-green-300 font-bold py-2 rounded-xl text-sm">⚡ 一键添加4场已确认R32对阵</button>
+                <p class="text-xs text-gray-400 mb-3">手动添加对阵（球队待确定时填 TBD）</p>
                 <div class="grid grid-cols-2 gap-2 mb-3">
                     <div>
                         <p class="text-xs text-gray-400 mb-1">轮次</p>
@@ -962,7 +963,11 @@ setTimeout(function() {
                             <input type="number" id="koResAwayScore" min="0" max="99" placeholder="0" class="score-input w-full rounded-xl text-center">
                         </div>
                     </div>
-                    <p class="text-xs text-gray-400 mb-1">首个进球者</p>
+                    <p class="text-xs text-gray-400 mb-1 mt-3">最终晋级球队</p>
+                    <select id="koResAdvance" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-2 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                        <option value="">— 选择晋级球队 —</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mb-1">首个进球者（90分钟内）</p>
                     <div id="koScorerInputWrap"></div>
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
@@ -1616,9 +1621,13 @@ function renderKoMatchCard(matchId, match) {
         } else {
             ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full">待揭晓</span>`;
         }
+        const r90map = { W: `${match.home}胜`, D: '平局', L: `${match.away}胜` };
+        const r90label = myPred.result90 ? (r90map[myPred.result90] || myPred.result90)
+            : (myPred.homeScore != null ? `${myPred.homeScore}:${myPred.awayScore}` : '?');
         predBlock = `<div class="mt-2 pt-2 border-t border-white/10 text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
             <span>我预测：</span>
-            <span class="font-bold text-blue-300">${myPred.homeScore ?? '?'} : ${myPred.awayScore ?? '?'}</span>
+            <span class="font-bold text-blue-300">${r90label}</span>
+            ${myPred.advance ? `<span class="text-green-300">⬆️ ${myPred.advance}</span>` : ''}
             ${myPred.scorer ? `<span class="text-orange-300">⚽ ${myPred.scorer}</span>` : ''}
             ${ptsBadge}
         </div>`;
@@ -1631,22 +1640,32 @@ function renderKoMatchCard(matchId, match) {
             ? players.map(p => `<option value="${p}" ${myPred?.scorer===p?'selected':''}>${p}</option>`).join('')
             : '';
 
+        const curR90 = myPred?.result90 || '';
+        const r90Btns = [
+            { v:'W', label:`${match.home||'主队'}胜` },
+            { v:'D', label:'平局' },
+            { v:'L', label:`${match.away||'客队'}胜` },
+        ].map(({v,label}) => {
+            const sel = curR90 === v;
+            return `<button onclick="selectKoResult('${matchId}','${v}')" id="ko-r90-${matchId}-${v}"
+                class="flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${sel ? 'bg-blue-500/30 border-blue-400/70 text-blue-300' : 'glass border-white/10 text-gray-400'}"
+                >${label}</button>`;
+        }).join('');
         predForm = `<div class="mt-3 pt-3 border-t border-white/10">
-            <p class="text-xs text-gray-500 mb-1.5">🎯 精确比分（90分钟内）</p>
-            <div class="flex items-center gap-3 mb-3">
-                <input type="number" id="ko-hs-${matchId}" min="0" max="99" placeholder="0"
-                    value="${myPred?.homeScore ?? ''}"
-                    class="score-input flex-1 rounded-xl text-center">
-                <span class="text-gray-500 font-black text-xl">:</span>
-                <input type="number" id="ko-as-${matchId}" min="0" max="99" placeholder="0"
-                    value="${myPred?.awayScore ?? ''}"
-                    class="score-input flex-1 rounded-xl text-center">
-            </div>
-            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者 <span class="text-orange-400 font-bold">+8分</span></p>
+            <input type="hidden" id="ko-r90-${matchId}" value="${curR90}">
+            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="text-green-400 font-bold">+2分</span></p>
+            <div class="flex gap-2 mb-3">${r90Btns}</div>
+            <p class="text-xs text-gray-500 mb-1.5">⬆️ 最终晋级球队 <span class="text-yellow-400 font-bold">+5分</span></p>
+            <select id="ko-advance-${matchId}" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none">
+                <option value="">— 选择晋级球队 —</option>
+                <option value="${match.home||'TBD'}" ${myPred?.advance===match.home?'selected':''}>${match.homeFlag||''} ${match.home||'TBD'}</option>
+                <option value="${match.away||'TBD'}" ${myPred?.advance===match.away?'selected':''}>${match.awayFlag||''} ${match.away||'TBD'}</option>
+            </select>
+            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者（90分钟内） <span class="text-orange-400 font-bold">+8分</span></p>
             <select id="ko-scorer-${matchId}" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none">
-                <option value="">不选 / 无进球</option>
+                <option value="">无人进球</option>
                 ${scorerOpts}
-                ${!players.length ? '<option disabled class="text-gray-500">（名单待录入）</option>' : ''}
+                ${!players.length ? '<option disabled class="text-gray-500">（球员名单待录入）</option>' : ''}
             </select>
             <button onclick="submitKoPred('${matchId}')" class="w-full ${myPred ? 'glass border border-blue-500/40 text-blue-300' : 'gold text-black'} font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
                 ${myPred ? '✏️ 更新预测' : '🎯 提交预测'}
@@ -1691,11 +1710,12 @@ window.submitKoPred = async function(matchId) {
     if (match.status === 'finished' || match.status === 'live') { toast('比赛已结束或进行中', 'error'); return; }
     if (kickoff && kickoff <= new Date()) { toast('比赛已开始，无法修改预测', 'error'); return; }
 
-    const hs = parseInt(document.getElementById(`ko-hs-${matchId}`)?.value);
-    const as = parseInt(document.getElementById(`ko-as-${matchId}`)?.value);
-    if (isNaN(hs) || isNaN(as)) { toast('请输入比分', 'error'); return; }
-    const scorer = document.getElementById(`ko-scorer-${matchId}`)?.value || '';
-    const pred = { homeScore: hs, awayScore: as, scorer: scorer || null, points: null };
+    const result90 = document.getElementById(`ko-r90-${matchId}`)?.value || '';
+    const advance  = document.getElementById(`ko-advance-${matchId}`)?.value || '';
+    const scorer   = document.getElementById(`ko-scorer-${matchId}`)?.value || '';
+    if (!result90) { toast('请选择90分钟结果', 'error'); return; }
+    if (!advance)  { toast('请选择晋级球队', 'error'); return; }
+    const pred = { result90, advance, scorer: scorer || null, points: null };
 
     if (demoMode) {
         koPredsData[matchId] = pred;
@@ -1709,16 +1729,52 @@ window.submitKoPred = async function(matchId) {
 
 function calcKoPts(pred, result) {
     let pts = 0;
-    if (pred.homeScore === result.homeScore && pred.awayScore === result.awayScore) {
-        pts += 5;
-    } else {
-        const pOut = pred.homeScore > pred.awayScore ? 'home' : pred.homeScore < pred.awayScore ? 'away' : 'draw';
-        const rOut = result.homeScore > result.awayScore ? 'home' : result.homeScore < result.awayScore ? 'away' : 'draw';
-        if (pOut === rOut) pts += 2;
+    if (pred.result90) {
+        // New format: W/D/L + advance + scorer
+        if (pred.result90 === result.outcome_90) pts += 2;
+        if (pred.advance && result.advance && pred.advance === result.advance) pts += 5;
+    } else if (pred.homeScore != null) {
+        // Legacy format: exact score gives +5, W/D/L gives +2
+        if (pred.homeScore === result.homeScore && pred.awayScore === result.awayScore) {
+            pts += 5;
+        } else {
+            const pOut = pred.homeScore > pred.awayScore ? 'W' : pred.homeScore < pred.awayScore ? 'L' : 'D';
+            const rOut = result.outcome_90 || (result.homeScore > result.awayScore ? 'W' : result.homeScore < result.awayScore ? 'L' : 'D');
+            if (pOut === rOut) pts += 2;
+        }
     }
     if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += 8;
     return pts;
 }
+
+window.selectKoResult = function(matchId, val) {
+    document.getElementById(`ko-r90-${matchId}`).value = val;
+    ['W','D','L'].forEach(v => {
+        const btn = document.getElementById(`ko-r90-${matchId}-${v}`);
+        if (!btn) return;
+        const active = 'bg-blue-500/30 border-blue-400/70 text-blue-300';
+        const idle   = 'glass border-white/10 text-gray-400';
+        btn.className = btn.className
+            .replace(v === val ? idle : active, v === val ? active : idle);
+    });
+};
+
+window.initR32Matches = async function() {
+    const R32 = [
+        { id:'m73', home:'南非',   homeFlag:'🇿🇦', away:'加拿大', awayFlag:'🇨🇦', kickoff:'2026-06-28T19:00:00Z', venue:'SoFi Stadium' },
+        { id:'m76', home:'巴西',   homeFlag:'🇧🇷', away:'日本',   awayFlag:'🇯🇵', kickoff:'2026-06-29T17:00:00Z', venue:'NRG Stadium' },
+        { id:'m75', home:'荷兰',   homeFlag:'🇳🇱', away:'摩洛哥', awayFlag:'🇲🇦', kickoff:'2026-06-30T01:00:00Z', venue:'Estadio BBVA' },
+        { id:'m81', home:'美国',   homeFlag:'🇺🇸', away:'波黑',   awayFlag:'🇧🇦', kickoff:'2026-07-02T00:00:00Z', venue:"Levi's Stadium" },
+    ];
+    for (const m of R32) {
+        const match = { round:'r32', home:m.home, homeFlag:m.homeFlag, away:m.away, awayFlag:m.awayFlag, kickoff:m.kickoff, venue:m.venue, status:'upcoming' };
+        if (demoMode) { koMatchesData[m.id] = match; }
+        else { await set(ref(db, `rooms/${currentRoom}/ko/matches/${m.id}`), match); }
+    }
+    renderKnockout();
+    refreshKoAdmin();
+    toast('✅ 已添加4场确认对阵');
+};
 
 // ── KO Admin functions ────────────────────────────────────
 function refreshKoAdmin() {
@@ -1735,10 +1791,19 @@ function refreshKoAdmin() {
         sel.innerHTML = '<option value="">— 选择淘汰赛比赛 —</option>' + opts;
         sel.onchange = function() {
             const m = koMatchesData[this.value];
-            if (!m) { document.getElementById('koScorerInputWrap').innerHTML=''; return; }
+            const advSel = document.getElementById('koResAdvance');
+            if (!m) {
+                document.getElementById('koScorerInputWrap').innerHTML='';
+                if (advSel) advSel.innerHTML='<option value="">— 选择晋级球队 —</option>';
+                return;
+            }
             document.getElementById('koResHomeLabel').textContent = m.home||'主队';
             document.getElementById('koResAwayLabel').textContent = m.away||'客队';
-            // Build scorer options from both teams' rosters
+            if (advSel) {
+                advSel.innerHTML = `<option value="">— 选择晋级球队 —</option>
+                    <option value="${m.home||'TBD'}">${m.homeFlag||''} ${m.home||'TBD'}</option>
+                    <option value="${m.away||'TBD'}">${m.awayFlag||''} ${m.away||'TBD'}</option>`;
+            }
             const players = _koRosterForMatch(m);
             const opts2 = players.map(p => `<option value="${p}">${p}</option>`).join('');
             document.getElementById('koScorerInputWrap').innerHTML = `<select id="koResScorer" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
@@ -1839,8 +1904,9 @@ window.submitKoResult = async function() {
     if (isNaN(hs) || isNaN(as)) { toast('请输入比分', 'error'); return; }
     let scorer = document.getElementById('koResScorer')?.value || '';
     if (!scorer) scorer = null;
-    const outcome = hs > as ? 'home' : hs < as ? 'away' : 'draw';
-    const result = { homeScore: hs, awayScore: as, outcome, scorer };
+    const outcome_90 = hs > as ? 'W' : hs < as ? 'L' : 'D';
+    const advance = document.getElementById('koResAdvance')?.value || null;
+    const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer };
 
     // Score all predictions for this match
     const updates = {};
