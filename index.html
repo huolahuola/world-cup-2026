@@ -1742,25 +1742,49 @@ function renderKoMatchCard(matchId, match) {
         </div>`;
     }
 
-    return `<div class="glass rounded-2xl p-4 mb-3">
-        <div class="flex items-center justify-between mb-1">
-            ${roundBadge}
-            ${statusBadge}
-        </div>
-        ${deadlineBadge ? `<div class="mb-2">${deadlineBadge}</div>` : '<div class="mb-2"></div>'}
-        <div class="flex items-center">
-            <div class="text-center flex-1">
-                <div class="text-4xl mb-1.5">${match.homeFlag||'🏳️'}</div>
-                <div class="font-bold text-sm leading-tight">${match.home||'TBD'}</div>
+    // Default: expanded only when unlocked with no pred yet (user needs to fill in)
+    const expanded = !locked && !myPred;
+
+    // Mini summary for collapsed state
+    const r90map2 = { W: `${match.home}胜`, D: '平局', L: `${match.away}胜` };
+    const miniR90 = myPred?.result90 ? r90map2[myPred.result90] : (myPred?.homeScore != null ? `${myPred.homeScore}:${myPred.awayScore}` : null);
+    const miniPred = myPred ? `<div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+        ${miniR90 ? `<span class="text-blue-300 text-[11px] font-bold">${miniR90}</span>` : ''}
+        ${myPred.advance ? `<span class="text-green-300 text-[11px]">⬆️ ${myPred.advance}</span>` : ''}
+        ${myPred.scorer ? `<span class="text-orange-300 text-[11px]">⚽ ${myPred.scorer}</span>` : ''}
+        ${myPred.points != null ? `<span class="text-yellow-400 text-[11px] font-bold">+${myPred.points}分</span>` : `<span class="text-gray-500 text-[11px]">待揭晓</span>`}
+    </div>` : (!locked ? `<span class="text-red-400 text-[11px]">⚠️ 未预测</span>` : '');
+
+    return `<div class="glass rounded-2xl mb-3 overflow-hidden">
+        <div onclick="toggleKoCard('${matchId}')" class="flex items-center gap-2 px-4 py-3 cursor-pointer select-none active:bg-white/5">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    ${roundBadge}
+                    <span class="text-sm font-bold text-white">${match.homeFlag||'🏳️'} ${match.home||'TBD'} vs ${match.awayFlag||'🏳️'} ${match.away||'TBD'}</span>
+                </div>
+                <div id="ko-mini-${matchId}" class="${expanded ? 'hidden' : ''}">${miniPred}</div>
             </div>
-            <div class="flex-1 text-center px-2">${vsBlock}</div>
-            <div class="text-center flex-1">
-                <div class="text-4xl mb-1.5">${match.awayFlag||'🏳️'}</div>
-                <div class="font-bold text-sm leading-tight">${match.away||'TBD'}</div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                ${statusBadge}
+                <span id="ko-chevron-${matchId}" class="text-gray-500 text-xs w-4 text-right">${expanded ? '▲' : '▶'}</span>
             </div>
         </div>
-        ${predBlock}
-        ${predForm}
+        <div id="ko-card-body-${matchId}" class="${expanded ? '' : 'hidden'} px-4 pb-4 border-t border-white/8 pt-3">
+            ${deadlineBadge ? `<div class="mb-2">${deadlineBadge}</div>` : ''}
+            <div class="flex items-center mb-1">
+                <div class="text-center flex-1">
+                    <div class="text-4xl mb-1.5">${match.homeFlag||'🏳️'}</div>
+                    <div class="font-bold text-sm leading-tight">${match.home||'TBD'}</div>
+                </div>
+                <div class="flex-1 text-center px-2">${vsBlock}</div>
+                <div class="text-center flex-1">
+                    <div class="text-4xl mb-1.5">${match.awayFlag||'🏳️'}</div>
+                    <div class="font-bold text-sm leading-tight">${match.away||'TBD'}</div>
+                </div>
+            </div>
+            ${predBlock}
+            ${predForm}
+        </div>
     </div>`;
 }
 
@@ -1839,6 +1863,17 @@ window.selectKoResult = function(matchId, val) {
         btn.className = btn.className
             .replace(v === val ? idle : active, v === val ? active : idle);
     });
+};
+
+window.toggleKoCard = function(matchId) {
+    const body = document.getElementById(`ko-card-body-${matchId}`);
+    const mini = document.getElementById(`ko-mini-${matchId}`);
+    const chevron = document.getElementById(`ko-chevron-${matchId}`);
+    if (!body) return;
+    const opening = body.classList.contains('hidden');
+    body.classList.toggle('hidden');
+    if (mini) mini.classList.toggle('hidden');
+    if (chevron) chevron.textContent = opening ? '▲' : '▶';
 };
 
 window.selectKoSpecial = function(matchId, key, val) {
