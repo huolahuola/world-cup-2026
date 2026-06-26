@@ -606,9 +606,10 @@ setTimeout(function() {
         <div id="content-knockout" class="hidden">
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 淘汰赛规则</p>
-                <p>· 猜中<b class="text-white">90分钟胜平负</b>（站主队视角） → <b class="text-green-400">+5分</b></p>
-                <p>· 猜中<b class="text-white">最终晋级球队</b>（含加时/点球） → <b class="text-yellow-400">+5分</b></p>
-                <p>· 猜中<b class="text-white">首个进球者</b>（90分钟内） → <b class="text-orange-400">+5分</b></p>
+                <p>· 猜中<b class="text-white">90分钟胜平负</b>（站主队视角） → <b class="text-green-400">+2分</b></p>
+                <p>· 猜中<b class="text-white">最终晋级球队</b>（含加时/点球） → <b class="text-yellow-400">+2分</b></p>
+                <p>· 猜中<b class="text-white">首个进球者</b>（90分钟内） → <b class="text-orange-400">+4分</b></p>
+                <p>· 猜中<b class="text-white">特别竞猜</b>（每场最多2题） → <b class="text-purple-400">+5分/题</b></p>
                 <p>· 每场开球前可随时修改，开球后锁定</p>
             </div>
             <!-- Round tabs -->
@@ -665,7 +666,7 @@ setTimeout(function() {
                             <p>· 冠军 <b class="text-yellow-400">按赔率</b>；半程猜对 <b class="text-blue-300">+赔率×0.5</b>；两次选同队 <b class="text-green-400">+25%奖励</b></p>
                             <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
                             <p>· 小组赛：出线且名次正确 <b class="text-yellow-400">+2分</b>，出线但名次错误 <b class="text-green-400">+1分</b>；第三名出线每队 <b class="text-orange-400">+1分</b></p>
-                            <p>· 淘汰赛：精确比分 <b class="text-yellow-400">+5分</b>，猜中胜平负 <b class="text-green-400">+2分</b>，首个进球者 <b class="text-orange-400">+8分</b></p>
+                            <p>· 淘汰赛：胜平负 <b class="text-green-400">+2分</b>，晋级球队 <b class="text-yellow-400">+2分</b>，首个进球者 <b class="text-orange-400">+4分</b>，特别竞猜 <b class="text-purple-400">+5分/题</b></p>
                             <p>· 比分未出结果前，预测数越多排名越高</p>
                         </div>
                         <div id="leaderboardContainer" class="space-y-2">
@@ -973,6 +974,24 @@ setTimeout(function() {
                     <div id="koScorerInputWrap"></div>
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
+            </div>
+
+            <!-- KO: Special Questions -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-purple-400 mb-2">✨ 设置特别竞猜</h3>
+                <p class="text-xs text-gray-400 mb-3">为每场比赛设置最多2道特别题，每题答对+5分</p>
+                <select id="koSpecialMatchSel" onchange="loadKoSpecialForm()" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                    <option value="">— 选择比赛 —</option>
+                </select>
+                <div id="koSpecialFormWrap" class="hidden">
+                    <p class="text-xs text-gray-400 mb-1">题目1 <span class="text-gray-600">（必填）</span></p>
+                    <input type="text" id="koSpQ1" placeholder="题目内容，如：本场率先破门的球队？" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-1 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                    <input type="text" id="koSpOpts1" placeholder="选项，英文逗号分隔：主队,客队,无进球" class="w-full glass-dark rounded-xl px-3 py-2 text-xs text-gray-300 mb-3 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                    <p class="text-xs text-gray-400 mb-1">题目2 <span class="text-gray-600">（选填）</span></p>
+                    <input type="text" id="koSpQ2" placeholder="题目内容" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-1 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                    <input type="text" id="koSpOpts2" placeholder="选项，英文逗号分隔" class="w-full glass-dark rounded-xl px-3 py-2 text-xs text-gray-300 mb-3 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                    <button onclick="saveKoSpecials()" class="w-full bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">保存题目</button>
+                </div>
             </div>
 
             <!-- Clear public room data -->
@@ -1589,7 +1608,16 @@ function renderKoMatchCard(matchId, match) {
     const myPred = koPredsData[matchId] || null;
     const kickoff = match.kickoff ? new Date(match.kickoff) : null;
     const now = new Date();
-    const locked = match.status === 'finished' || match.status === 'live' || (kickoff && kickoff <= now);
+
+    // Round-based lock: 1 hour before the earliest kickoff in this round
+    const roundKickoffs = Object.values(koMatchesData)
+        .filter(m => m.round === match.round && m.kickoff)
+        .map(m => new Date(m.kickoff).getTime());
+    const earliestInRound = roundKickoffs.length ? Math.min(...roundKickoffs) : null;
+    const roundDeadline = earliestInRound ? new Date(earliestInRound - 60 * 60 * 1000) : null;
+    const deadlinePassed = roundDeadline ? roundDeadline <= now : false;
+
+    const locked = match.status === 'finished' || match.status === 'live' || deadlinePassed || (kickoff && kickoff <= now);
     const finished = match.status === 'finished';
     const result = match.result || null;
 
@@ -1606,6 +1634,12 @@ function renderKoMatchCard(matchId, match) {
         const timeStr = kickoff ? kickoff.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '时间待定';
         statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${timeStr}</span>`;
     }
+    const deadlineStr = roundDeadline
+        ? roundDeadline.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+        : null;
+    const deadlineBadge = !finished && deadlineStr
+        ? `<span class="text-[10px] text-gray-600">🔒 截止 ${deadlineStr}</span>`
+        : '';
 
     let vsBlock;
     if (finished && result) {
@@ -1615,12 +1649,14 @@ function renderKoMatchCard(matchId, match) {
         vsBlock = `<div class="text-gray-600 font-black text-xl">VS</div>`;
     }
 
+    const matchSpecials = match.specials || [];
+
     let predBlock = '';
     if (myPred) {
         const pts = myPred.points;
         let ptsBadge;
         if (pts !== null && pts !== undefined) {
-            const cls = pts >= 13 ? 'bg-orange-500 text-white' : pts >= 5 ? 'bg-yellow-500 text-black' : pts >= 2 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
+            const cls = pts >= 10 ? 'bg-orange-500 text-white' : pts >= 4 ? 'bg-yellow-500 text-black' : pts >= 2 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
             ptsBadge = `<span class="${cls} text-xs px-2 py-0.5 rounded-full font-bold">+${pts}分</span>`;
         } else {
             ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full">待揭晓</span>`;
@@ -1628,11 +1664,20 @@ function renderKoMatchCard(matchId, match) {
         const r90map = { W: `${match.home}胜`, D: '平局', L: `${match.away}胜` };
         const r90label = myPred.result90 ? (r90map[myPred.result90] || myPred.result90)
             : (myPred.homeScore != null ? `${myPred.homeScore}:${myPred.awayScore}` : '?');
+        const spItems = matchSpecials.map(sp => {
+            const myAns = myPred.specials?.[sp.key] || null;
+            const correctAns = result?.specials?.[sp.key] || null;
+            if (!myAns) return '';
+            const cls = correctAns ? (myAns === correctAns ? 'text-green-300' : 'text-red-400') : 'text-purple-300';
+            const mark = correctAns ? (myAns === correctAns ? ' ✓' : ' ✗') : '';
+            return `<span class="${cls}">✨ ${myAns}${mark}</span>`;
+        }).join('');
         predBlock = `<div class="mt-2 pt-2 border-t border-white/10 text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
             <span>我预测：</span>
             <span class="font-bold text-blue-300">${r90label}</span>
             ${myPred.advance ? `<span class="text-green-300">⬆️ ${myPred.advance}</span>` : ''}
             ${myPred.scorer ? `<span class="text-orange-300">⚽ ${myPred.scorer}</span>` : ''}
+            ${spItems}
             ${ptsBadge}
         </div>`;
     }
@@ -1651,17 +1696,30 @@ function renderKoMatchCard(matchId, match) {
                 >${label}</button>`;
         }).join('');
         const numOpts = Array.from({length:26},(_,i)=>i+1).map(n=>`<option value="${n}" ${myPred?.scorerNum===String(n)?'selected':''}>${n}号</option>`).join('');
+        const specialsFormHtml = matchSpecials.length ? matchSpecials.map(sp => {
+            const myAns = myPred?.specials?.[sp.key] || '';
+            const opts = (sp.opts || []).map(opt => {
+                const safeId = opt.replace(/[^a-zA-Z0-9]/g,'_');
+                const sel = myAns === opt;
+                return `<button type="button" onclick="selectKoSpecial('${matchId}','${sp.key}','${opt.replace(/'/g,"\\'")}')"
+                    id="ko-sp-${matchId}-${sp.key}-${safeId}"
+                    class="flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${sel ? 'bg-purple-500/30 border-purple-400/70 text-purple-200' : 'glass border-white/10 text-gray-400'}">${opt}</button>`;
+            }).join('');
+            return `<p class="text-xs text-gray-500 mb-1.5">✨ ${sp.q} <span class="text-purple-400 font-bold">+5分</span></p>
+            <input type="hidden" id="ko-sp-${matchId}-${sp.key}" value="${myAns}">
+            <div class="flex gap-2 mb-3">${opts}</div>`;
+        }).join('') : `<p class="text-xs text-gray-600 text-center py-1 mb-2">✨ 特别竞猜 · 即将开放</p>`;
         predForm = `<div class="mt-3 pt-3 border-t border-white/10">
             <input type="hidden" id="ko-r90-${matchId}" value="${curR90}">
-            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="text-green-400 font-bold">+5分</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="text-green-400 font-bold">+2分</span></p>
             <div class="flex gap-2 mb-3">${r90Btns}</div>
-            <p class="text-xs text-gray-500 mb-1.5">⬆️ 最终晋级球队 <span class="text-yellow-400 font-bold">+5分</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">⬆️ 最终晋级球队 <span class="text-yellow-400 font-bold">+2分</span></p>
             <select id="ko-advance-${matchId}" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none">
                 <option value="">— 选择晋级球队 —</option>
                 <option value="${match.home||'TBD'}" ${myPred?.advance===match.home?'selected':''}>${match.homeFlag||''} ${match.home||'TBD'}</option>
                 <option value="${match.away||'TBD'}" ${myPred?.advance===match.away?'selected':''}>${match.awayFlag||''} ${match.away||'TBD'}</option>
             </select>
-            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者（90分钟内） <span class="text-orange-400 font-bold">+5分</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者（90分钟内） <span class="text-orange-400 font-bold">+4分</span></p>
             <div class="flex gap-2 mb-3">
                 <select id="ko-scorer-team-${matchId}" class="flex-1 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
                     <option value="">无人进球</option>
@@ -1673,17 +1731,23 @@ function renderKoMatchCard(matchId, match) {
                     ${numOpts}
                 </select>
             </div>
+            ${specialsFormHtml}
             <button onclick="submitKoPred('${matchId}')" class="w-full ${myPred ? 'glass border border-blue-500/40 text-blue-300' : 'gold text-black'} font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
                 ${myPred ? '✏️ 更新预测' : '🎯 提交预测'}
             </button>
         </div>`;
+    } else if (!myPred && matchSpecials.length) {
+        predForm = `<div class="mt-3 pt-3 border-t border-white/10">
+            <p class="text-xs text-gray-600 text-center">🔒 预测已锁定</p>
+        </div>`;
     }
 
     return `<div class="glass rounded-2xl p-4 mb-3">
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center justify-between mb-1">
             ${roundBadge}
             ${statusBadge}
         </div>
+        ${deadlineBadge ? `<div class="mb-2">${deadlineBadge}</div>` : '<div class="mb-2"></div>'}
         <div class="flex items-center">
             <div class="text-center flex-1">
                 <div class="text-4xl mb-1.5">${match.homeFlag||'🏳️'}</div>
@@ -1723,7 +1787,13 @@ window.submitKoPred = async function(matchId) {
     if (!result90) { toast('请选择90分钟结果', 'error'); return; }
     if (!advance)  { toast('请选择晋级球队', 'error'); return; }
     const scorer = scorerTeam && scorerNum ? `${scorerNum}号 (${scorerTeam})` : null;
-    const pred = { result90, advance, scorer, scorerTeam: scorerTeam||null, scorerNum: scorerNum||null, points: null };
+    const specials = {};
+    (match.specials || []).forEach(sp => {
+        const val = document.getElementById(`ko-sp-${matchId}-${sp.key}`)?.value || '';
+        if (val) specials[sp.key] = val;
+    });
+    const pred = { result90, advance, scorer, scorerTeam: scorerTeam||null, scorerNum: scorerNum||null,
+        specials: Object.keys(specials).length ? specials : null, points: null };
 
     if (demoMode) {
         koPredsData[matchId] = pred;
@@ -1738,11 +1808,10 @@ window.submitKoPred = async function(matchId) {
 function calcKoPts(pred, result) {
     let pts = 0;
     if (pred.result90) {
-        // New format: W/D/L + advance + scorer
-        if (pred.result90 === result.outcome_90) pts += 5;
-        if (pred.advance && result.advance && pred.advance === result.advance) pts += 5;
+        if (pred.result90 === result.outcome_90) pts += 2;
+        if (pred.advance && result.advance && pred.advance === result.advance) pts += 2;
     } else if (pred.homeScore != null) {
-        // Legacy format: exact score gives +5, W/D/L gives +2
+        // Legacy format
         if (pred.homeScore === result.homeScore && pred.awayScore === result.awayScore) {
             pts += 5;
         } else {
@@ -1751,7 +1820,12 @@ function calcKoPts(pred, result) {
             if (pOut === rOut) pts += 2;
         }
     }
-    if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += 5;
+    if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += 4;
+    if (pred.specials && result.specials) {
+        Object.entries(result.specials).forEach(([key, ans]) => {
+            if (ans && pred.specials[key] === ans) pts += 5;
+        });
+    }
     return pts;
 }
 
@@ -1764,6 +1838,21 @@ window.selectKoResult = function(matchId, val) {
         const idle   = 'glass border-white/10 text-gray-400';
         btn.className = btn.className
             .replace(v === val ? idle : active, v === val ? active : idle);
+    });
+};
+
+window.selectKoSpecial = function(matchId, key, val) {
+    const hidden = document.getElementById(`ko-sp-${matchId}-${key}`);
+    if (hidden) hidden.value = val;
+    const sp = (koMatchesData[matchId]?.specials || []).find(s => s.key === key);
+    if (!sp) return;
+    (sp.opts || []).forEach(opt => {
+        const safeId = opt.replace(/[^a-zA-Z0-9]/g,'_');
+        const btn = document.getElementById(`ko-sp-${matchId}-${key}-${safeId}`);
+        if (!btn) return;
+        const active = 'bg-purple-500/30 border-purple-400/70 text-purple-200';
+        const idle   = 'glass border-white/10 text-gray-400';
+        btn.className = btn.className.replace(opt === val ? idle : active, opt === val ? active : idle);
     });
 };
 
@@ -1787,16 +1876,18 @@ window.initR32Matches = async function() {
 // ── KO Admin functions ────────────────────────────────────
 function refreshKoAdmin() {
     if (!adminAuthed) return;
+    const allMatchOpts = Object.entries(koMatchesData)
+        .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''))
+        .map(([id,m]) => `<option value="${id}">[${KO_LABELS[m.round]||m.round}] ${m.home||'TBD'} vs ${m.away||'TBD'} ${m.kickoff?new Date(m.kickoff).toLocaleDateString('zh-CN'):''}</option>`).join('');
+
     // Refresh KO result match selector
     const sel = document.getElementById('koResultMatchSel');
     if (sel) {
-        const opts = Object.entries(koMatchesData)
+        const unfinished = Object.entries(koMatchesData)
             .filter(([,m]) => m.status !== 'finished')
             .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''))
-            .map(([id,m]) => {
-                return `<option value="${id}">[${KO_LABELS[m.round]||m.round}] ${m.home||'TBD'} vs ${m.away||'TBD'} ${m.kickoff?new Date(m.kickoff).toLocaleDateString('zh-CN'):''}`;
-            }).join('');
-        sel.innerHTML = '<option value="">— 选择淘汰赛比赛 —</option>' + opts;
+            .map(([id,m]) => `<option value="${id}">[${KO_LABELS[m.round]||m.round}] ${m.home||'TBD'} vs ${m.away||'TBD'} ${m.kickoff?new Date(m.kickoff).toLocaleDateString('zh-CN'):''}</option>`).join('');
+        sel.innerHTML = '<option value="">— 选择淘汰赛比赛 —</option>' + unfinished;
         sel.onchange = function() {
             const m = koMatchesData[this.value];
             const advSel = document.getElementById('koResAdvance');
@@ -1813,6 +1904,13 @@ function refreshKoAdmin() {
                     <option value="${m.away||'TBD'}">${m.awayFlag||''} ${m.away||'TBD'}</option>`;
             }
             const numOpts2 = Array.from({length:26},(_,i)=>i+1).map(n=>`<option value="${n}">${n}号</option>`).join('');
+            const specialsGradeHtml = (m.specials||[]).map(sp => {
+                const opts = (sp.opts||[]).map(opt=>`<option value="${opt}">${opt}</option>`).join('');
+                return `<p class="text-xs text-gray-400 mb-1 mt-2">✨ ${sp.q}</p>
+                <select id="koResSpecial-${sp.key}" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-1 focus:outline-none">
+                    <option value="">— 正确答案 —</option>${opts}
+                </select>`;
+            }).join('');
             document.getElementById('koScorerInputWrap').innerHTML = `
                 <div class="flex gap-2 mb-2">
                     <select id="koResScorerTeam" class="flex-1 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
@@ -1824,8 +1922,14 @@ function refreshKoAdmin() {
                         <option value="">号码</option>
                         ${numOpts2}
                     </select>
-                </div>`;
+                </div>${specialsGradeHtml}`;
         };
+    }
+
+    // Refresh special questions match selector
+    const spSel = document.getElementById('koSpecialMatchSel');
+    if (spSel) {
+        spSel.innerHTML = '<option value="">— 选择比赛 —</option>' + allMatchOpts;
     }
     // Refresh KO match list
     const list = document.getElementById('koMatchAdminList');
@@ -1867,6 +1971,45 @@ function refreshRosterList() {
         </div>`;
     }).join('');
 }
+
+window.loadKoSpecialForm = function() {
+    const matchId = document.getElementById('koSpecialMatchSel')?.value;
+    const wrap = document.getElementById('koSpecialFormWrap');
+    if (!wrap) return;
+    if (!matchId) { wrap.classList.add('hidden'); return; }
+    const m = koMatchesData[matchId];
+    if (!m) { wrap.classList.add('hidden'); return; }
+    const specials = m.specials || [];
+    document.getElementById('koSpQ1').value = specials[0]?.q || '';
+    document.getElementById('koSpOpts1').value = (specials[0]?.opts||[]).join(',');
+    document.getElementById('koSpQ2').value = specials[1]?.q || '';
+    document.getElementById('koSpOpts2').value = (specials[1]?.opts||[]).join(',');
+    wrap.classList.remove('hidden');
+};
+
+window.saveKoSpecials = async function() {
+    const matchId = document.getElementById('koSpecialMatchSel')?.value;
+    if (!matchId) { toast('请选择比赛', 'error'); return; }
+    const q1 = document.getElementById('koSpQ1')?.value.trim();
+    const opts1Raw = document.getElementById('koSpOpts1')?.value.trim();
+    if (!q1) { toast('请输入题目1', 'error'); return; }
+    const opts1 = opts1Raw.split(',').map(s=>s.trim()).filter(Boolean);
+    if (opts1.length < 2) { toast('题目1至少填2个选项', 'error'); return; }
+    const specials = [{ key:'s1', q:q1, opts:opts1 }];
+    const q2 = document.getElementById('koSpQ2')?.value.trim();
+    const opts2Raw = document.getElementById('koSpOpts2')?.value.trim();
+    if (q2) {
+        const opts2 = opts2Raw.split(',').map(s=>s.trim()).filter(Boolean);
+        if (opts2.length >= 2) specials.push({ key:'s2', q:q2, opts:opts2 });
+    }
+    if (demoMode) {
+        koMatchesData[matchId].specials = specials;
+        renderKnockout();
+    } else {
+        await set(ref(db, `rooms/${currentRoom}/ko/matches/${matchId}/specials`), specials);
+    }
+    toast('✅ 特别竞猜已保存');
+};
 
 window.addKoMatch = async function() {
     const round = document.getElementById('koRoundSel')?.value;
@@ -1922,7 +2065,14 @@ window.submitKoResult = async function() {
     let scorer = (resScorerTeam && resScorerNum) ? `${resScorerNum}号 (${resScorerTeam})` : null;
     const outcome_90 = hs > as ? 'W' : hs < as ? 'L' : 'D';
     const advance = document.getElementById('koResAdvance')?.value || null;
-    const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer };
+    const match = koMatchesData[matchId];
+    const specialsResult = {};
+    (match?.specials || []).forEach(sp => {
+        const ans = document.getElementById(`koResSpecial-${sp.key}`)?.value || '';
+        if (ans) specialsResult[sp.key] = ans;
+    });
+    const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer,
+        specials: Object.keys(specialsResult).length ? specialsResult : null };
 
     // Score all predictions for this match
     const updates = {};
@@ -3588,6 +3738,14 @@ function renderMyPreds() {
             const r90map = { W: `${match.home}胜`, D: '平局', L: `${match.away}胜` };
             const r90label = pred.result90 ? (r90map[pred.result90] || pred.result90)
                 : (pred.homeScore != null ? `${pred.homeScore}:${pred.awayScore}` : '?');
+            const spLine = (match.specials||[]).map(sp => {
+                const myAns = pred.specials?.[sp.key];
+                if (!myAns) return '';
+                const correctAns = match.result?.specials?.[sp.key];
+                const cls = correctAns ? (myAns===correctAns?'text-green-300':'text-red-400') : 'text-purple-300';
+                const mark = correctAns ? (myAns===correctAns?' ✓':' ✗') : '';
+                return `<span class="text-gray-400">✨ <b class="${cls}">${myAns}${mark}</b></span>`;
+            }).join('');
             html += `<div class="glass rounded-xl p-3 mb-1">
                 <div class="flex items-center justify-between mb-1.5">
                     <span class="text-xs text-gray-400">${match.homeFlag||'🏳️'} ${match.home} vs ${match.awayFlag||'🏳️'} ${match.away}</span>
@@ -3597,6 +3755,7 @@ function renderMyPreds() {
                     <span class="text-gray-400">⏱️ <b class="text-blue-300">${r90label}</b></span>
                     ${pred.advance ? `<span class="text-gray-400">⬆️ <b class="text-green-300">${pred.advance}</b></span>` : ''}
                     ${pred.scorer ? `<span class="text-gray-400">⚽ <b class="text-orange-300">${pred.scorer}</b></span>` : ''}
+                    ${spLine}
                 </div>
             </div>`;
         });
