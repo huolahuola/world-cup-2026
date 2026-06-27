@@ -3938,9 +3938,10 @@ function updateTabDots() {
     const myPred = champPredsData[currentUser.id] || {};
     const now = new Date();
 
-    // Champion tab dot
+    // Champion tab dot — also when 半程冠军 open but unfilled
     const champDot = document.getElementById('dot-champion');
-    const needsChamp = !myPred.champion && now < CHAMPION_DEADLINE;
+    const needsChamp = (!myPred.champion && now < CHAMPION_DEADLINE) ||
+                       (!myPred.midway && now >= MIDWAY_OPEN && now < MIDWAY_DEADLINE);
     if (needsChamp && !champDot) {
         const btn = document.getElementById('tab-champion');
         if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-champion" class="tab-dot"></span>');
@@ -3969,6 +3970,19 @@ function updateTabDots() {
         const btn = document.getElementById('tab-groups');
         if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-groups" class="tab-dot"></span>');
     } else if (!needsGroups && groupDot) groupDot.remove();
+
+    // Knockout tab dot — open matches not yet predicted
+    const koDot = document.getElementById('dot-knockout');
+    const needsKnockout = Object.entries(koMatchesData).some(([mid, m]) => {
+        if (m.status === 'finished' || m.status === 'live') return false;
+        const kickoff = m.kickoff ? new Date(m.kickoff) : null;
+        if (kickoff && kickoff <= now) return false; // already kicked off
+        return !koPredsData[mid];
+    });
+    if (needsKnockout && !koDot) {
+        const btn = document.getElementById('tab-knockout');
+        if (btn) btn.insertAdjacentHTML('beforeend', '<span id="dot-knockout" class="tab-dot"></span>');
+    } else if (!needsKnockout && koDot) koDot.remove();
 
     // Update deadline chips
     const cd = fmtCountdown(CHAMPION_DEADLINE);
