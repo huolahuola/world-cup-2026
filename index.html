@@ -3792,7 +3792,7 @@ let midwayPendingPick = null;  // section 3 pending
 const CHAMPION_DEADLINE     = new Date('2026-06-11T19:59:00Z'); // June 11 20:59 CET — first match kickoff
 const TOP_SCORER_DEADLINE   = new Date('2026-06-11T19:59:00Z'); // June 11 20:59 CET — first match kickoff
 const GROUP_DEADLINE        = new Date('2026-06-11T19:59:00Z'); // June 11 20:59 CET — first match kickoff
-const GOLDEN_BOOT_OPEN      = new Date('2026-06-27T22:00:00Z'); // group stage ends ~June 27 — golden boot opens
+const GOLDEN_BOOT_OPEN      = new Date('2026-06-27T00:00:00Z'); // opened early — group stage nearly complete
 const GOLDEN_BOOT_DEADLINE  = new Date('2026-07-18T21:59:00Z'); // July 18 23:59 CEST — day before final
 const MIDWAY_OPEN         = new Date('2026-06-26T00:00:00Z'); // June 26 — opened early as R32 bracket takes shape
 const MIDWAY_DEADLINE     = new Date('2026-07-09T12:00:00Z'); // July 9 20:00 CST — before R16, permanent lock
@@ -4481,7 +4481,7 @@ function renderChampSection4(myPred, now) {
     const chip = document.getElementById('goldenBootDeadlineChip');
 
     if (now < GOLDEN_BOOT_OPEN) {
-        if (chip) chip.textContent = '⏰ 小组赛结束后开放（约6月27日）';
+        if (chip) chip.textContent = '⏰ 截止 7月18日 CET 23:59';
         el.innerHTML = `<div class="glass-dark rounded-xl p-4 text-center">
             <p class="text-2xl mb-2">⏳</p>
             <p class="text-sm text-white font-bold mb-1">小组赛结束后开放</p>
