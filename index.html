@@ -434,7 +434,7 @@ setTimeout(function() {
         <!-- Mega-tab row -->
         <div id="megaTabRow" class="flex border-b border-white/8">
             <button onclick="switchMegaTab('preds')" id="megatab-preds" class="tab-btn active flex-1 py-3 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">🎯<span>预测</span></button>
-            <button onclick="switchMegaTab('lb')" id="megatab-lb" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行/结果</span></button>
+            <button onclick="switchMegaTab('lb')" id="megatab-lb" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>排行/赛程</span></button>
             <button onclick="switchMegaTab('checkin')" id="megatab-checkin" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📺<span>打卡</span></button>
             <button onclick="switchMegaTab('my')" id="megatab-my" class="tab-btn flex-1 py-3 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">📝<span>我的</span></button>
         </div>
@@ -448,7 +448,7 @@ setTimeout(function() {
         <!-- Leaderboard/Results sub-nav (hidden until lb mega-tab active) -->
         <div id="lbSubnav" class="hidden">
             <div class="flex">
-                <button onclick="lbSubTab('rank')" id="lbt-rank" class="tab-btn active flex-1 py-2.5 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>预测排行</span></button>
+                <button onclick="lbSubTab('rank')" id="lbt-rank" class="tab-btn active flex-1 py-2.5 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">📊<span>积分排行</span></button>
                 <button onclick="lbSubTab('results')" id="lbt-results" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">⚽<span>赛程/积分榜</span></button>
             </div>
         </div>
@@ -639,8 +639,8 @@ setTimeout(function() {
                         <div class="flex items-center gap-2">
                             <span class="text-lg leading-none">🔴</span>
                             <div>
-                                <p class="font-black text-base gold-text">实时模拟积分榜</p>
-                                <p class="text-[10px] text-gray-400">按当前赛果模拟计算（仅小组赛）</p>
+                                <p class="font-black text-base gold-text">实时积分榜</p>
+                                <p class="text-[10px] text-gray-400">按当前赛果实时计算</p>
                             </div>
                         </div>
                         <button onclick="loadSimLeaderboard(true)" class="text-[10px] text-gray-500 underline flex-shrink-0">刷新</button>
@@ -650,30 +650,6 @@ setTimeout(function() {
                     </div>
                 </div>
 
-                <!-- ② Official leaderboard (below, toggleable) -->
-                <div class="border-t border-white/10 mt-2 pt-1">
-                    <button onclick="toggleRealLb()" class="w-full flex items-center justify-between py-3">
-                        <div class="flex items-center gap-2">
-                            <span>📊</span>
-                            <span class="font-bold text-sm text-gray-300">官方积分排行</span>
-                            <span class="text-[10px] text-gray-600">结果公布后自动计算</span>
-                        </div>
-                        <span id="realLbChevron" class="text-gray-500 text-xs">▶ 展开</span>
-                    </button>
-                    <div id="realLbContent" class="hidden">
-                        <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
-                            <p class="font-bold text-yellow-400 mb-1">📋 积分来源</p>
-                            <p>· 冠军 <b class="text-yellow-400">按赔率</b>；半程猜对 <b class="text-blue-300">+赔率×0.5</b>；两次选同队 <b class="text-green-400">+25%奖励</b></p>
-                            <p>· 小组赛射手 / 金靴奖 <b class="text-white">按赔率（10~50分）</b></p>
-                            <p>· 小组赛：出线且名次正确 <b class="text-yellow-400">+2分</b>，出线但名次错误 <b class="text-green-400">+1分</b>；第三名出线每队 <b class="text-orange-400">+1分</b></p>
-                            <p>· 淘汰赛：胜平负 <b class="text-green-400">+2分</b>，晋级球队 <b class="text-yellow-400">+2分</b>，首个进球者 <b class="text-orange-400">+4分</b>，特别竞猜 <b class="text-purple-400">+5分/题</b></p>
-                            <p>· 比分未出结果前，预测数越多排名越高</p>
-                        </div>
-                        <div id="leaderboardContainer" class="space-y-2">
-                            <div class="text-center py-8 text-gray-400">加载中...</div>
-                        </div>
-                    </div>
-                </div>
             </div>
             <!-- 赛程/积分榜 sub-content -->
             <div id="lb-results-content" class="hidden">
