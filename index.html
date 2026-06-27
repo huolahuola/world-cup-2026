@@ -1882,7 +1882,7 @@ window.initR32Matches = async function() {
     for (const m of R32) {
         const match = { round:'r32', home:m.home, homeFlag:m.homeFlag, away:m.away, awayFlag:m.awayFlag, kickoff:m.kickoff, venue:m.venue, status:'upcoming' };
         if (demoMode) { koMatchesData[m.id] = match; }
-        else { await set(ref(db, `rooms/${currentRoom}/ko/matches/${m.id}`), match); }
+        else { await Promise.all([PRIZE_ROOM, FREE_ROOM].map(r => set(ref(db, `rooms/${r}/ko/matches/${m.id}`), match))); }
     }
     renderKnockout();
     refreshKoAdmin();
@@ -2090,28 +2090,36 @@ window.submitKoResult = async function() {
     const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer,
         specials: Object.keys(specialsResult).length ? specialsResult : null };
 
-    // Score all predictions for this match
+    // Score all predictions for this match — both rooms
     const updates = {};
-    updates[`rooms/${currentRoom}/ko/matches/${matchId}/status`] = 'finished';
-    updates[`rooms/${currentRoom}/ko/matches/${matchId}/result`] = result;
+    for (const r of [PRIZE_ROOM, FREE_ROOM]) {
+        updates[`rooms/${r}/ko/matches/${matchId}/status`] = 'finished';
+        updates[`rooms/${r}/ko/matches/${matchId}/result`] = result;
+    }
 
     if (!demoMode) {
-        const [predsSnap, scoresSnap] = await Promise.all([
-            get(ref(db, `rooms/${currentRoom}/ko/preds`)),
-            get(ref(db, `rooms/${currentRoom}/scores`))
+        const [predsSnap0, scoresSnap0, predsSnap1, scoresSnap1] = await Promise.all([
+            get(ref(db, `rooms/${PRIZE_ROOM}/ko/preds`)),
+            get(ref(db, `rooms/${PRIZE_ROOM}/scores`)),
+            get(ref(db, `rooms/${FREE_ROOM}/ko/preds`)),
+            get(ref(db, `rooms/${FREE_ROOM}/scores`)),
         ]);
-        const allPreds = predsSnap.exists() ? predsSnap.val() : {};
-        const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
-
-        Object.entries(allPreds).forEach(([uid, userPreds]) => {
-            const pred = userPreds?.[matchId];
-            if (!pred || pred.points != null) return;
-            const pts = calcKoPts(pred, result);
-            updates[`rooms/${currentRoom}/ko/preds/${uid}/${matchId}/points`] = pts;
-            const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
-            s.total = (s.total||0) + pts;
-            updates[`rooms/${currentRoom}/scores/${uid}`] = s;
-        });
+        for (const [room, predsSnap, scoresSnap] of [
+            [PRIZE_ROOM, predsSnap0, scoresSnap0],
+            [FREE_ROOM,  predsSnap1, scoresSnap1],
+        ]) {
+            const allPreds = predsSnap.exists() ? predsSnap.val() : {};
+            const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+            Object.entries(allPreds).forEach(([uid, userPreds]) => {
+                const pred = userPreds?.[matchId];
+                if (!pred || pred.points != null) return;
+                const pts = calcKoPts(pred, result);
+                updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
+                const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
+                s.total = (s.total||0) + pts;
+                updates[`rooms/${room}/scores/${uid}`] = s;
+            });
+        }
         await update(ref(db, '/'), updates);
     } else {
         koMatchesData[matchId] = { ...koMatchesData[matchId], status:'finished', result };
@@ -4744,66 +4752,63 @@ window.submitChampResult = async function() {
     if (!champion) { toast('请选择冠军球队', 'error'); return; }
     if (!confirm(`确认 ${champion} 为2026世界杯冠军？此操作将结算所有冠军相关积分。`)) return;
 
-    const [champSnap, scoresSnap] = await Promise.all([
-        get(ref(db, `rooms/${currentRoom}/champPreds`)),
-        get(ref(db, `rooms/${currentRoom}/scores`))
+    const [champSnap0, scoresSnap0, champSnap1, scoresSnap1] = await Promise.all([
+        get(ref(db, `rooms/${PRIZE_ROOM}/champPreds`)),
+        get(ref(db, `rooms/${PRIZE_ROOM}/scores`)),
+        get(ref(db, `rooms/${FREE_ROOM}/champPreds`)),
+        get(ref(db, `rooms/${FREE_ROOM}/scores`)),
     ]);
-    const allPreds = champSnap.exists() ? champSnap.val() : {};
-    const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
     const updates = {};
-    updates[`rooms/${currentRoom}/settings/champion`] = champion;
-    if (topScorerResult) updates[`rooms/${currentRoom}/settings/topScorer`] = topScorerResult;
-    if (goldenBootResult) updates[`rooms/${currentRoom}/settings/goldenBoot`] = goldenBootResult;
+    for (const [room, champSnap, scoresSnap] of [
+        [PRIZE_ROOM, champSnap0, scoresSnap0],
+        [FREE_ROOM,  champSnap1, scoresSnap1],
+    ]) {
+        const allPreds = champSnap.exists() ? champSnap.val() : {};
+        const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+        updates[`rooms/${room}/settings/champion`] = champion;
+        if (topScorerResult) updates[`rooms/${room}/settings/topScorer`] = topScorerResult;
+        if (goldenBootResult) updates[`rooms/${room}/settings/goldenBoot`] = goldenBootResult;
 
-    Object.entries(allPreds).forEach(([uid, p]) => {
-        const s = JSON.parse(JSON.stringify(allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 }));
-        let delta = 0;
+        Object.entries(allPreds).forEach(([uid, p]) => {
+            const s = JSON.parse(JSON.stringify(allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 }));
+            let delta = 0;
 
-        // Original champion (fully independent)
-        if (p.champPoints === null || p.champPoints === undefined) {
-            const pts = (p.champion && p.champion === champion)
-                ? (p.champMaxPts || getChampPts(champion)) : 0;
-            updates[`rooms/${currentRoom}/champPreds/${uid}/champPoints`] = pts;
-            delta += pts;
-        }
-
-        // Midway champion (independent, half base odds)
-        if (p.midway && (p.midwayPoints === null || p.midwayPoints === undefined)) {
-            const pts = p.midway === champion ? Math.round(getChampPts(p.midway) * 0.5) : 0;
-            updates[`rooms/${currentRoom}/champPreds/${uid}/midwayPoints`] = pts;
-            delta += pts;
-        }
-
-        // Consistency bonus: both picks same + both correct → +25% of original base
-        if ((p.bonusPoints === null || p.bonusPoints === undefined)) {
-            const bothSame = p.champion && p.midway && p.champion === p.midway;
-            const bothRight = bothSame && p.champion === champion;
-            const pts = bothRight ? Math.round((p.champMaxPts || getChampPts(champion)) * 0.25) : 0;
-            updates[`rooms/${currentRoom}/champPreds/${uid}/bonusPoints`] = pts;
-            delta += pts;
-        }
-
-        // Top scorer points (dynamic based on odds at prediction time)
-        if (topScorerResult && (p.topScorerPoints === null || p.topScorerPoints === undefined)) {
-            const scorerBase = p.topScorerMaxPts || getTopScorerPts(p.topScorer || '');
-            const pts = (p.topScorer && p.topScorer === topScorerResult) ? scorerBase : 0;
-            updates[`rooms/${currentRoom}/champPreds/${uid}/topScorerPoints`] = pts;
-            delta += pts;
-        }
-
-        // Golden boot points
-        if (goldenBootResult && (p.goldenBootPoints === null || p.goldenBootPoints === undefined)) {
-            const base = p.goldenBootMaxPts || getTopScorerPts(p.goldenBoot || '');
-            const pts = (p.goldenBoot && p.goldenBoot === goldenBootResult) ? base : 0;
-            updates[`rooms/${currentRoom}/champPreds/${uid}/goldenBootPoints`] = pts;
-            delta += pts;
-        }
-
-        if (delta > 0) {
-            s.total = (s.total||0) + delta;
-            updates[`rooms/${currentRoom}/scores/${uid}`] = s;
-        }
-    });
+            if (p.champPoints === null || p.champPoints === undefined) {
+                const pts = (p.champion && p.champion === champion)
+                    ? (p.champMaxPts || getChampPts(champion)) : 0;
+                updates[`rooms/${room}/champPreds/${uid}/champPoints`] = pts;
+                delta += pts;
+            }
+            if (p.midway && (p.midwayPoints === null || p.midwayPoints === undefined)) {
+                const pts = p.midway === champion ? Math.round(getChampPts(p.midway) * 0.5) : 0;
+                updates[`rooms/${room}/champPreds/${uid}/midwayPoints`] = pts;
+                delta += pts;
+            }
+            if ((p.bonusPoints === null || p.bonusPoints === undefined)) {
+                const bothSame = p.champion && p.midway && p.champion === p.midway;
+                const bothRight = bothSame && p.champion === champion;
+                const pts = bothRight ? Math.round((p.champMaxPts || getChampPts(champion)) * 0.25) : 0;
+                updates[`rooms/${room}/champPreds/${uid}/bonusPoints`] = pts;
+                delta += pts;
+            }
+            if (topScorerResult && (p.topScorerPoints === null || p.topScorerPoints === undefined)) {
+                const scorerBase = p.topScorerMaxPts || getTopScorerPts(p.topScorer || '');
+                const pts = (p.topScorer && p.topScorer === topScorerResult) ? scorerBase : 0;
+                updates[`rooms/${room}/champPreds/${uid}/topScorerPoints`] = pts;
+                delta += pts;
+            }
+            if (goldenBootResult && (p.goldenBootPoints === null || p.goldenBootPoints === undefined)) {
+                const base = p.goldenBootMaxPts || getTopScorerPts(p.goldenBoot || '');
+                const pts = (p.goldenBoot && p.goldenBoot === goldenBootResult) ? base : 0;
+                updates[`rooms/${room}/champPreds/${uid}/goldenBootPoints`] = pts;
+                delta += pts;
+            }
+            if (delta > 0) {
+                s.total = (s.total||0) + delta;
+                updates[`rooms/${room}/scores/${uid}`] = s;
+            }
+        });
+    }
 
     await update(ref(db, '/'), updates);
     toast(`✅ ${champion} 已设为冠军，积分结算完毕！`);
@@ -6488,13 +6493,17 @@ window.submitBatchGroupResult = async function() {
 
     const thirdTeams = Object.values(_batchThirdPicks);
 
-    const [gPreds0, third0, scores0] = await Promise.all([
+    const [gPreds0, third0, scores0, gPreds1, third1, scores1] = await Promise.all([
         get(ref(db, `rooms/${PRIZE_ROOM}/groupPreds`)),
         get(ref(db, `rooms/${PRIZE_ROOM}/thirdPicks`)),
         get(ref(db, `rooms/${PRIZE_ROOM}/scores`)),
+        get(ref(db, `rooms/${FREE_ROOM}/groupPreds`)),
+        get(ref(db, `rooms/${FREE_ROOM}/thirdPicks`)),
+        get(ref(db, `rooms/${FREE_ROOM}/scores`)),
     ]);
     const roomData = [
         { room: PRIZE_ROOM, allGPreds: gPreds0.exists() ? gPreds0.val() : {}, allThirdPicks: third0.exists() ? third0.val() : {}, allScores: scores0.exists() ? scores0.val() : {} },
+        { room: FREE_ROOM,  allGPreds: gPreds1.exists() ? gPreds1.val() : {}, allThirdPicks: third1.exists() ? third1.val() : {}, allScores: scores1.exists() ? scores1.val() : {} },
     ];
 
     const updates = {};
@@ -6557,7 +6566,7 @@ window.submitBatchGroupResult = async function() {
 };
 
 window.recalcMissingScores = async function() {
-    const rooms = [PRIZE_ROOM];
+    const rooms = [PRIZE_ROOM, FREE_ROOM];
     const snaps = await Promise.all(rooms.flatMap(r => [
         get(ref(db, `rooms/${r}/groupPreds`)),
         get(ref(db, `rooms/${r}/thirdPicks`)),
