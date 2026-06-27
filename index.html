@@ -2022,7 +2022,7 @@ window.saveKoSpecials = async function() {
         koMatchesData[matchId].specials = specials;
         renderKnockout();
     } else {
-        await set(ref(db, `rooms/${currentRoom}/ko/matches/${matchId}/specials`), specials);
+        await Promise.all([PRIZE_ROOM, FREE_ROOM].map(r => set(ref(db, `rooms/${r}/ko/matches/${matchId}/specials`), specials)));
     }
     toast('✅ 特别竞猜已保存');
 };
@@ -2039,7 +2039,7 @@ window.addKoMatch = async function() {
     const match = { round, home, homeFlag, away, awayFlag, kickoff, status: 'upcoming' };
     const matchId = 'ko_' + Date.now();
     if (demoMode) { koMatchesData[matchId] = match; renderKnockout(); refreshKoAdmin(); }
-    else { await set(ref(db, `rooms/${currentRoom}/ko/matches/${matchId}`), match); }
+    else { await Promise.all([PRIZE_ROOM, FREE_ROOM].map(r => set(ref(db, `rooms/${r}/ko/matches/${matchId}`), match))); }
     ['koHome','koAway','koHomeFlag','koAwayFlag','koKickoff'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
     toast('✅ 对阵已添加');
 };
@@ -2047,7 +2047,7 @@ window.addKoMatch = async function() {
 window.deleteKoMatch = async function(matchId) {
     if (!confirm('确认删除这场对阵？')) return;
     if (demoMode) { delete koMatchesData[matchId]; renderKnockout(); refreshKoAdmin(); }
-    else { await remove(ref(db, `rooms/${currentRoom}/ko/matches/${matchId}`)); }
+    else { await Promise.all([PRIZE_ROOM, FREE_ROOM].map(r => remove(ref(db, `rooms/${r}/ko/matches/${matchId}`)))); }
     toast('已删除');
 };
 
