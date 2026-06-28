@@ -864,6 +864,16 @@ setTimeout(function() {
                 <button onclick="submitChampResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认并结算所有积分</button>
             </div>
 
+            <!-- Standalone Top Scorer Settlement -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-yellow-400 mb-3">⚽ 单独结算小组赛最佳射手</h3>
+                <p class="text-xs text-gray-400 mb-3">小组赛结果已出，可现在单独结算，无需等冠军揭晓</p>
+                <select id="topScorerOnlySel" class="w-full glass-dark rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <option value="">— 选择小组赛最佳射手 —</option>
+                </select>
+                <button onclick="submitTopScorerOnly()" class="w-full bg-yellow-900/60 border border-yellow-500/40 text-yellow-200 font-bold py-3 rounded-xl">确认结算射手积分</button>
+            </div>
+
             <!-- KO: Manage Matches -->
             <div class="glass rounded-2xl p-6">
                 <h3 class="font-bold text-yellow-400 mb-3">🥊 淘汰赛对阵管理</h3>
@@ -950,6 +960,33 @@ setTimeout(function() {
                     <div id="koScorerInputWrap"></div>
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
+            </div>
+
+            <!-- R32 Round Special Questions -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-bold text-purple-400 mb-2">✨ R32 轮次特别竞猜</h3>
+                <p class="text-xs text-gray-400 mb-3">设置32进16整轮2道特别题，开放后用户可作答</p>
+                <p class="text-xs text-gray-300 mb-1">题目1</p>
+                <input type="text" id="r32SpQ1" placeholder="题目内容" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-1 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                <input type="text" id="r32SpOpts1" placeholder="选项（英文逗号分隔）" class="w-full glass-dark rounded-xl px-3 py-2 text-xs text-gray-300 mb-2 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                <div class="flex gap-2 mb-3">
+                    <button onclick="toggleR32Special('q1',true)" class="flex-1 bg-green-900/40 border border-green-500/40 text-green-300 text-xs font-bold py-1.5 rounded-xl">开放题1</button>
+                    <button onclick="toggleR32Special('q1',false)" class="flex-1 bg-gray-800 border border-gray-600/40 text-gray-400 text-xs font-bold py-1.5 rounded-xl">关闭题1</button>
+                </div>
+                <p class="text-xs text-gray-300 mb-1">题目2</p>
+                <input type="text" id="r32SpQ2" placeholder="题目内容（选填）" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-1 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                <input type="text" id="r32SpOpts2" placeholder="选项（英文逗号分隔）" class="w-full glass-dark rounded-xl px-3 py-2 text-xs text-gray-300 mb-2 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                <div class="flex gap-2 mb-3">
+                    <button onclick="toggleR32Special('q2',true)" class="flex-1 bg-green-900/40 border border-green-500/40 text-green-300 text-xs font-bold py-1.5 rounded-xl">开放题2</button>
+                    <button onclick="toggleR32Special('q2',false)" class="flex-1 bg-gray-800 border border-gray-600/40 text-gray-400 text-xs font-bold py-1.5 rounded-xl">关闭题2</button>
+                </div>
+                <button onclick="saveR32Specials()" class="w-full bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm mb-3">保存题目</button>
+                <div class="border-t border-white/10 pt-3">
+                    <p class="text-xs text-gray-400 mb-2">结算：填入正确答案（留空不结算该题）</p>
+                    <input type="text" id="r32SpAns1" placeholder="题目1正确答案" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-2 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <input type="text" id="r32SpAns2" placeholder="题目2正确答案" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-2 focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <button onclick="submitR32Specials()" class="w-full gold text-black font-bold py-2.5 rounded-xl text-sm">确认结算R32特别竞猜</button>
+                </div>
             </div>
 
             <!-- KO: Special Questions -->
@@ -1142,6 +1179,8 @@ let koMatchesData  = {};
 let koPlayersData  = {};
 let koPredsData    = {};
 let koAllPredsData = {};
+let r32SpecialsData    = {};
+let r32SpecialPredsData = {};
 let currentKoRound = 'r32';
 let presenceData   = {};
 let _prevPresence  = {};
@@ -1399,6 +1438,15 @@ function startApp() {
             if (!document.getElementById('content-knockout').classList.contains('hidden')) renderKnockout();
             if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
+        onValue(ref(db, `rooms/${currentRoom}/r32specials`), snap => {
+            r32SpecialsData = snap.exists() ? snap.val() : {};
+            refreshR32SpecialsAdmin();
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/r32specialPreds/${currentUser.id}`), snap => {
+            r32SpecialPredsData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
+        });
         onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
             koAllPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
@@ -1577,7 +1625,8 @@ function renderKnockout() {
         </div>`;
         return;
     }
-    container.innerHTML = roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
+    const r32SpecialsHtml = (currentKoRound === 'r32') ? renderR32SpecialsCard() : '';
+    container.innerHTML = r32SpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
 }
 
 function renderKoMatchCard(matchId, match) {
@@ -1897,6 +1946,14 @@ window.initR32Matches = async function() {
 };
 
 // ── KO Admin functions ────────────────────────────────────
+function refreshR32SpecialsAdmin() {
+    if (!adminAuthed) return;
+    const q1 = r32SpecialsData.q1 || {};
+    const q2 = r32SpecialsData.q2 || {};
+    const fields = {r32SpQ1: q1.q, r32SpOpts1: (q1.opts||[]).join(','), r32SpQ2: q2.q, r32SpOpts2: (q2.opts||[]).join(',')};
+    Object.entries(fields).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val) el.value = val; });
+}
+
 function refreshKoAdmin() {
     if (!adminAuthed) return;
     const allMatchOpts = Object.entries(koMatchesData)
@@ -4749,7 +4806,197 @@ function refreshAdminChampSelect() {
         gbSel.innerHTML = scorerOpts;
         if (roomSettingsData?.goldenBoot) gbSel.value = roomSettingsData.goldenBoot;
     }
+    const tsSel2 = document.getElementById('topScorerOnlySel');
+    if (tsSel2) {
+        tsSel2.innerHTML = scorerOpts;
+        if (roomSettingsData?.topScorer) tsSel2.value = roomSettingsData.topScorer;
+    }
 }
+
+
+// ─── R32 Round Special Questions ─────────────────────────────
+function renderR32SpecialsCard() {
+    const q1 = r32SpecialsData.q1 || null;
+    const q2 = r32SpecialsData.q2 || null;
+    if (!q1?.q && !q2?.q) return '';
+
+    function renderQ(key, qData) {
+        if (!qData?.q) return '';
+        const opts = qData.opts || [];
+        const isOpen = !!qData.open;
+        const isSettled = !!qData.settled;
+        const correctAns = qData.answer || null;
+        const myAns = r32SpecialPredsData[key] || null;
+        const myPts = r32SpecialPredsData[key + 'Points'];
+        const gotIt = isSettled && myAns && myAns === correctAns;
+
+        let badge = '';
+        if (isSettled) {
+            badge = gotIt
+                ? `<span class="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full border border-green-500/30">✅ +${myPts != null ? myPts : 5}分</span>`
+                : `<span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">❌ 未中</span>`;
+        } else if (!isOpen) {
+            badge = '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>';
+        } else {
+            badge = '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">进行中</span>';
+        }
+
+        const optsHtml = opts.map(opt => {
+            const sel = myAns === opt;
+            const isCorrect = isSettled && opt === correctAns;
+            let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
+            if (isCorrect) cls += 'bg-green-500/20 border border-green-500/30 text-green-200';
+            else if (sel && isSettled) cls += 'bg-red-900/30 border border-red-500/20 text-gray-400 line-through';
+            else if (sel) cls += 'bg-purple-500/20 border border-purple-400/30 text-purple-200 cursor-pointer';
+            else cls += 'bg-white/5 border border-white/10 text-gray-300 ' + ((isOpen && !isSettled) ? 'cursor-pointer' : '');
+            const escOpt = opt.replace(/"/g, '&quot;');
+            const radio = (isOpen && !isSettled) ? `<input type="radio" name="r32sp_${key}" value="${escOpt}" ${sel ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
+            const tick = isCorrect ? '<span class="ml-auto text-xs text-green-400">✓</span>' : '';
+            return `<label class="${cls}">${radio}<span>${opt}</span>${tick}</label>`;
+        }).join('');
+
+        const prevNote = (isSettled && myAns && !gotIt) ? `<p class="text-xs text-gray-500 mt-1">你的选择：${myAns}</p>` : '';
+
+        return `<div class="mb-3">
+            <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
+                <p class="text-xs font-bold text-gray-200 flex-1">${qData.q}</p>
+                ${badge}
+            </div>
+            <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
+            ${prevNote}
+        </div>`;
+    }
+
+    const q1Html = renderQ('q1', q1);
+    const q2Html = renderQ('q2', q2);
+    const hasForm = (q1?.open || q2?.open) && !(q1?.settled && (!q2?.q || q2?.settled));
+
+    return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
+        <div class="flex items-center gap-2 mb-3">
+            <span class="text-lg">✨</span>
+            <p class="font-black text-sm text-white">R32 特别竞猜</p>
+            <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+5分/题</span>
+        </div>
+        ${q1Html}${q2Html}
+        ${hasForm ? '<button onclick="saveR32SpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交竞猜</button>' : ''}
+    </div>`;
+}
+
+window.saveR32SpecialPreds = async function() {
+    if (!currentUser) { toast('请先登录', 'error'); return; }
+    const pred = {};
+    ['q1','q2'].forEach(key => {
+        const radios = document.querySelectorAll(`input[name="r32sp_${key}"]`);
+        radios.forEach(r => { if (r.checked) pred[key] = r.value; });
+    });
+    if (!Object.keys(pred).length) { toast('请先选择选项', 'error'); return; }
+    const merged = { ...r32SpecialPredsData, ...pred };
+    r32SpecialPredsData = merged;
+    await set(ref(db, `rooms/${currentRoom}/r32specialPreds/${currentUser.id}`), merged);
+    toast('✅ 竞猜已保存');
+    renderKnockout();
+};
+
+window.saveR32Specials = async function() {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    const updates = {};
+    ['q1','q2'].forEach((key, i) => {
+        const qEl = document.getElementById(`r32SpQ${i+1}`);
+        const q = qEl?.value.trim();
+        if (!q) return;
+        const optsRaw = document.getElementById(`r32SpOpts${i+1}`)?.value.trim() || '';
+        const opts = optsRaw.split(',').map(s => s.trim()).filter(Boolean);
+        const existing = r32SpecialsData[key] || {};
+        [PRIZE_ROOM, FREE_ROOM].forEach(room => {
+            updates[`rooms/${room}/r32specials/${key}`] = { ...existing, q, opts };
+        });
+    });
+    if (!Object.keys(updates).length) { toast('请至少填写一道题目', 'error'); return; }
+    await update(ref(db, '/'), updates);
+    toast('✅ 题目已保存');
+};
+
+window.toggleR32Special = async function(key, open) {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    await Promise.all([PRIZE_ROOM, FREE_ROOM].map(r => update(ref(db, `rooms/${r}/r32specials/${key}`), { open })));
+    toast(open ? '✅ 已开放作答' : '🔒 已关闭作答');
+};
+
+window.submitR32Specials = async function() {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    const ans1 = document.getElementById('r32SpAns1')?.value.trim();
+    const ans2 = document.getElementById('r32SpAns2')?.value.trim();
+    if (!ans1 && !ans2) { toast('请至少输入一个正确答案', 'error'); return; }
+    const label = [ans1 && '题1：'+ans1, ans2 && '题2：'+ans2].filter(Boolean).join(' | ');
+    if (!confirm(`确认结算R32特别竞猜？${label}`)) return;
+
+    const [preds0, scores0, preds1, scores1] = await Promise.all([
+        get(ref(db, `rooms/${PRIZE_ROOM}/r32specialPreds`)),
+        get(ref(db, `rooms/${PRIZE_ROOM}/scores`)),
+        get(ref(db, `rooms/${FREE_ROOM}/r32specialPreds`)),
+        get(ref(db, `rooms/${FREE_ROOM}/scores`)),
+    ]);
+    const updates = {};
+    for (const [room, predsSnap, scoresSnap] of [[PRIZE_ROOM, preds0, scores0], [FREE_ROOM, preds1, scores1]]) {
+        const allPreds = predsSnap.exists() ? predsSnap.val() : {};
+        const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+        if (ans1) { updates[`rooms/${room}/r32specials/q1/answer`] = ans1; updates[`rooms/${room}/r32specials/q1/settled`] = true; updates[`rooms/${room}/r32specials/q1/open`] = false; }
+        if (ans2) { updates[`rooms/${room}/r32specials/q2/answer`] = ans2; updates[`rooms/${room}/r32specials/q2/settled`] = true; updates[`rooms/${room}/r32specials/q2/open`] = false; }
+        Object.entries(allPreds).forEach(([uid, p]) => {
+            let delta = 0;
+            if (ans1 && p.q1Points === undefined) {
+                const pts = (p.q1 === ans1) ? 5 : 0;
+                updates[`rooms/${room}/r32specialPreds/${uid}/q1Points`] = pts;
+                delta += pts;
+            }
+            if (ans2 && p.q2Points === undefined) {
+                const pts = (p.q2 === ans2) ? 5 : 0;
+                updates[`rooms/${room}/r32specialPreds/${uid}/q2Points`] = pts;
+                delta += pts;
+            }
+            if (delta > 0) {
+                const s = JSON.parse(JSON.stringify(allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 }));
+                s.total = (s.total||0) + delta;
+                updates[`rooms/${room}/scores/${uid}`] = s;
+            }
+        });
+    }
+    await update(ref(db, '/'), updates);
+    toast('✅ R32特别竞猜结算完毕！');
+};
+
+window.submitTopScorerOnly = async function() {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    const topScorerResult = document.getElementById('topScorerOnlySel')?.value || '';
+    if (!topScorerResult) { toast('请选择最佳射手', 'error'); return; }
+    if (!confirm(`确认 ${topScorerResult} 为小组赛最佳射手？将结算所有射手竞猜积分。`)) return;
+
+    const [champSnap0, scoresSnap0, champSnap1, scoresSnap1] = await Promise.all([
+        get(ref(db, `rooms/${PRIZE_ROOM}/champPreds`)),
+        get(ref(db, `rooms/${PRIZE_ROOM}/scores`)),
+        get(ref(db, `rooms/${FREE_ROOM}/champPreds`)),
+        get(ref(db, `rooms/${FREE_ROOM}/scores`)),
+    ]);
+    const updates = {};
+    for (const [room, champSnap, scoresSnap] of [[PRIZE_ROOM, champSnap0, scoresSnap0], [FREE_ROOM, champSnap1, scoresSnap1]]) {
+        const allPreds = champSnap.exists() ? champSnap.val() : {};
+        const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+        updates[`rooms/${room}/settings/topScorer`] = topScorerResult;
+        Object.entries(allPreds).forEach(([uid, p]) => {
+            if (p.topScorerPoints !== null && p.topScorerPoints !== undefined) return;
+            const scorerBase = p.topScorerMaxPts || getTopScorerPts(p.topScorer || '');
+            const pts = (p.topScorer && p.topScorer === topScorerResult) ? scorerBase : 0;
+            updates[`rooms/${room}/champPreds/${uid}/topScorerPoints`] = pts;
+            if (pts > 0) {
+                const s = JSON.parse(JSON.stringify(allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 }));
+                s.total = (s.total||0) + pts;
+                updates[`rooms/${room}/scores/${uid}`] = s;
+            }
+        });
+    }
+    await update(ref(db, '/'), updates);
+    toast(`✅ 小组赛最佳射手 ${topScorerResult} 已结算！`);
+};
 
 window.submitChampResult = async function() {
     if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
