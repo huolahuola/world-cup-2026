@@ -867,7 +867,7 @@ setTimeout(function() {
             <!-- KO: Manage Matches -->
             <div class="glass rounded-2xl p-6">
                 <h3 class="font-bold text-yellow-400 mb-3">🥊 淘汰赛对阵管理</h3>
-                <button onclick="initR32Matches()" class="w-full mb-3 bg-green-900/40 border border-green-500/40 text-green-300 font-bold py-2 rounded-xl text-sm">⚡ 一键添加9场已确认R32对阵</button>
+                <button onclick="initR32Matches()" class="w-full mb-3 bg-green-900/40 border border-green-500/40 text-green-300 font-bold py-2 rounded-xl text-sm">⚡ 一键添加全部16场R32对阵</button>
                 <p class="text-xs text-gray-400 mb-3">手动添加对阵（球队待确定时填 TBD）</p>
                 <div class="grid grid-cols-2 gap-2 mb-3">
                     <div>
@@ -1869,15 +1869,22 @@ window.selectKoSpecial = function(matchId, key, val) {
 
 window.initR32Matches = async function() {
     const R32 = [
-        { id:'m73', home:'南非',     homeFlag:'🇿🇦', away:'加拿大',   awayFlag:'🇨🇦', kickoff:'2026-06-28T19:00:00Z', venue:'SoFi Stadium' },
-        { id:'m74', home:'德国',     homeFlag:'🇩🇪', away:'巴拉圭',   awayFlag:'🇵🇾', kickoff:'2026-06-29T20:30:00Z', venue:'Gillette Stadium' },
-        { id:'m75', home:'荷兰',     homeFlag:'🇳🇱', away:'摩洛哥',   awayFlag:'🇲🇦', kickoff:'2026-06-30T01:00:00Z', venue:'Estadio BBVA' },
-        { id:'m76', home:'巴西',     homeFlag:'🇧🇷', away:'日本',     awayFlag:'🇯🇵', kickoff:'2026-06-29T17:00:00Z', venue:'NRG Stadium' },
-        { id:'m77', home:'法国',     homeFlag:'🇫🇷', away:'瑞典',     awayFlag:'🇸🇪', kickoff:'2026-06-30T21:00:00Z', venue:'MetLife Stadium' },
-        { id:'m78', home:'科特迪瓦', homeFlag:'🇨🇮', away:'挪威',     awayFlag:'🇳🇴', kickoff:'2026-06-30T17:00:00Z', venue:'AT&T Stadium' },
-        { id:'m81', home:'美国',     homeFlag:'🇺🇸', away:'波黑',     awayFlag:'🇧🇦', kickoff:'2026-07-02T00:00:00Z', venue:"Levi's Stadium" },
-        { id:'m86', home:'阿根廷',   homeFlag:'🇦🇷', away:'佛得角',   awayFlag:'🇨🇻', kickoff:'2026-07-03T22:00:00Z', venue:'Hard Rock Stadium' },
-        { id:'m88', home:'澳大利亚', homeFlag:'🇦🇺', away:'埃及',     awayFlag:'🇪🇬', kickoff:'2026-07-03T18:00:00Z', venue:'AT&T Stadium' },
+        { id:'m73', home:'南非',     homeFlag:'🇿🇦', away:'加拿大',    awayFlag:'🇨🇦', kickoff:'2026-06-28T19:00:00Z', venue:'SoFi Stadium' },
+        { id:'m74', home:'德国',     homeFlag:'🇩🇪', away:'巴拉圭',    awayFlag:'🇵🇾', kickoff:'2026-06-29T20:30:00Z', venue:'Gillette Stadium' },
+        { id:'m75', home:'荷兰',     homeFlag:'🇳🇱', away:'摩洛哥',    awayFlag:'🇲🇦', kickoff:'2026-06-29T23:00:00Z', venue:'Estadio BBVA' },
+        { id:'m76', home:'巴西',     homeFlag:'🇧🇷', away:'日本',      awayFlag:'🇯🇵', kickoff:'2026-06-29T17:00:00Z', venue:'NRG Stadium' },
+        { id:'m77', home:'法国',     homeFlag:'🇫🇷', away:'瑞典',      awayFlag:'🇸🇪', kickoff:'2026-06-30T21:00:00Z', venue:'MetLife Stadium' },
+        { id:'m78', home:'科特迪瓦', homeFlag:'🇨🇮', away:'挪威',      awayFlag:'🇳🇴', kickoff:'2026-06-30T17:00:00Z', venue:'AT&T Stadium' },
+        { id:'m79', home:'墨西哥',   homeFlag:'🇲🇽', away:'厄瓜多尔',  awayFlag:'🇪🇨', kickoff:'2026-06-30T23:00:00Z', venue:'Estadio Azteca' },
+        { id:'m80', home:'英格兰',   homeFlag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', away:'刚果',      awayFlag:'🇨🇩', kickoff:'2026-07-01T16:00:00Z', venue:'Mercedes-Benz Stadium' },
+        { id:'m81', home:'美国',     homeFlag:'🇺🇸', away:'波黑',      awayFlag:'🇧🇦', kickoff:'2026-07-01T22:00:00Z', venue:"Levi's Stadium" },
+        { id:'m82', home:'比利时',   homeFlag:'🇧🇪', away:'塞内加尔',  awayFlag:'🇸🇳', kickoff:'2026-07-01T20:00:00Z', venue:'Lumen Field' },
+        { id:'m83', home:'葡萄牙',   homeFlag:'🇵🇹', away:'克罗地亚',  awayFlag:'🇭🇷', kickoff:'2026-07-02T23:00:00Z', venue:'BMO Field' },
+        { id:'m84', home:'西班牙',   homeFlag:'🇪🇸', away:'奥地利',    awayFlag:'🇦🇹', kickoff:'2026-07-02T19:00:00Z', venue:'SoFi Stadium' },
+        { id:'m85', home:'瑞士',     homeFlag:'🇨🇭', away:'阿尔及利亚',awayFlag:'🇩🇿', kickoff:'2026-07-02T23:00:00Z', venue:'BC Place' },
+        { id:'m86', home:'阿根廷',   homeFlag:'🇦🇷', away:'佛得角',    awayFlag:'🇨🇻', kickoff:'2026-07-03T22:00:00Z', venue:'Hard Rock Stadium' },
+        { id:'m87', home:'哥伦比亚', homeFlag:'🇨🇴', away:'加纳',      awayFlag:'🇬🇭', kickoff:'2026-07-03T23:30:00Z', venue:'Arrowhead Stadium' },
+        { id:'m88', home:'澳大利亚', homeFlag:'🇦🇺', away:'埃及',      awayFlag:'🇪🇬', kickoff:'2026-07-03T18:00:00Z', venue:'AT&T Stadium' },
     ];
     for (const m of R32) {
         const match = { round:'r32', home:m.home, homeFlag:m.homeFlag, away:m.away, awayFlag:m.awayFlag, kickoff:m.kickoff, venue:m.venue, status:'upcoming' };
@@ -1886,7 +1893,7 @@ window.initR32Matches = async function() {
     }
     renderKnockout();
     refreshKoAdmin();
-    toast('✅ 已添加9场确认对阵');
+    toast('✅ 全部16场R32对阵已同步');
 };
 
 // ── KO Admin functions ────────────────────────────────────
