@@ -1699,7 +1699,7 @@ function renderKoMatchCard(matchId, match) {
             <span>我预测：</span>
             <span class="font-bold text-blue-300">${r90label}</span>
             ${myPred.advance ? `<span class="text-green-300">⬆️ ${myPred.advance}</span>` : ''}
-            ${myPred.scorer ? `<span class="text-orange-300">⚽ ${myPred.scorer}</span>` : ''}
+            ${myPred.scorer ? `<span class="text-orange-300">⚽ ${myPred.scorer}</span>` : (myPred.scorerPicked || myPred.advance ? '<span class="text-gray-500">⚽ 无人进球</span>' : '')}
             ${spItems}
             ${ptsBadge}
         </div>`;
@@ -1840,7 +1840,7 @@ window.submitKoPred = async function(matchId) {
         if (val) specials[sp.key] = val;
     });
     const pred = { result90, advance, scorer, scorerTeam: scorerTeam||null, scorerNum: scorerNum||null,
-        specials: Object.keys(specials).length ? specials : null, points: null };
+        scorerPicked: true, specials: Object.keys(specials).length ? specials : null, points: null };
 
     if (demoMode) {
         koPredsData[matchId] = pred;
@@ -2396,7 +2396,7 @@ function renderKoCompletionStatus() {
         const userPreds = Object.values(koAllPredsData).map(u => u[mid]).filter(Boolean);
         const nResult  = userPreds.filter(p => p.result90).length;
         const nAdvance = userPreds.filter(p => p.advance).length;
-        const nScorer  = userPreds.filter(p => p.scorer).length;
+        const nScorer  = userPreds.filter(p => p.scorer || p.scorerPicked || p.advance).length;
         const dateStr = m.kickoff ? new Date(m.kickoff).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}) : '';
         const allFull = nResult >= totalUsers && nAdvance >= totalUsers && nScorer >= totalUsers;
         const rowCls = allFull ? 'opacity-50' : '';
