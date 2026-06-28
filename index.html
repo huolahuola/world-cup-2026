@@ -1173,6 +1173,7 @@ let koPredsData    = {};
 let koAllPredsData = {};
 let r32SpecialsData    = {};
 let r32SpecialPredsData = {};
+let r32AllSpecialPredsData = {};
 let currentKoRound = 'r32';
 let presenceData   = {};
 let _prevPresence  = {};
@@ -1438,6 +1439,10 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/r32specialPreds/${currentUser.id}`), snap => {
             r32SpecialPredsData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/r32specialPreds`), snap => {
+            r32AllSpecialPredsData = snap.exists() ? snap.val() : {};
+            renderKoCompletionStatus();
         });
         onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
             koAllPredsData = snap.exists() ? snap.val() : {};
@@ -2340,26 +2345,67 @@ function _podiumCard(uid, s, rank, isMe, size) {
 function renderKoCompletionStatus() {
     const el = document.getElementById('koCompletionSection');
     if (!el) return;
-    const matches = Object.entries(koMatchesData).sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
-    if (!matches.length) { el.innerHTML = ''; return; }
     const totalUsers = Object.keys(_allScoreEntries()).length;
-    const rows = matches.map(([mid, m]) => {
-        const count = Object.values(koAllPredsData).filter(u => u[mid]).length;
-        const allDone = totalUsers > 0 && count >= totalUsers;
-        const badge = allDone
-            ? `<span class="text-green-400 font-bold text-xs">✅ ${count}/${totalUsers}人</span>`
-            : `<span class="text-yellow-400 font-bold text-xs">${count}/${totalUsers}人</span>`;
-        const label = KO_LABELS[m.round] ? `<span class="text-[10px] text-gray-600 mr-1">${KO_LABELS[m.round]}</span>` : '';
+    if (!totalUsers) { el.innerHTML = ''; return; }
+
+    function badge(n) {
+        const all = n >= totalUsers;
+        const none = n === 0;
+        const cls = all ? 'text-green-400 font-bold' : none ? 'text-gray-600' : 'text-yellow-400 font-bold';
+        return `<span class="text-xs ${cls}">${n}/${totalUsers}</span>`;
+    }
+    function row(icon, label, n) {
         return `<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
-            <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                ${label}<span class="text-xs text-gray-300 truncate">${m.homeFlag||'🏳️'} ${m.home} vs ${m.awayFlag||'🏳️'} ${m.away}</span>
+            <span class="text-xs text-gray-400">${icon} ${label}</span>${badge(n)}</div>`;
+    }
+
+    // ── 冠军 & 射手 ──────────────────────────────────────
+    const nMidway  = Object.values(champPredsData).filter(p => p?.midway).length;
+    const nGolden  = Object.values(champPredsData).filter(p => p?.goldenBoot).length;
+    const champRows = row('🎯','半程冠军', nMidway) + row('🥇','金靴奖', nGolden);
+
+    // ── R32 特别竞猜 ──────────────────────────────────────
+    let specialRows = '';
+    if (r32SpecialsData.q1?.q) {
+        const n1 = Object.values(r32AllSpecialPredsData).filter(p => p?.q1).length;
+        specialRows += row('✨', '特别竞猜①', n1);
+    }
+    if (r32SpecialsData.q2?.q) {
+        const n2 = Object.values(r32AllSpecialPredsData).filter(p => p?.q2).length;
+        specialRows += row('✨', '特别竞猜②', n2);
+    }
+
+    // ── 16场R32赛果（每场三个：90分钟结果 / 晋级球队 / 进球者）──
+    const r32Matches = Object.entries(koMatchesData)
+        .filter(([,m]) => m.round === 'r32')
+        .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
+    const matchRows = r32Matches.map(([mid, m]) => {
+        const userPreds = Object.values(koAllPredsData).map(u => u[mid]).filter(Boolean);
+        const nResult  = userPreds.filter(p => p.result90).length;
+        const nAdvance = userPreds.filter(p => p.advance).length;
+        const nScorer  = userPreds.filter(p => p.scorer).length;
+        const dateStr = m.kickoff ? new Date(m.kickoff).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}) : '';
+        const allFull = nResult >= totalUsers && nAdvance >= totalUsers && nScorer >= totalUsers;
+        const rowCls = allFull ? 'opacity-50' : '';
+        return `<div class="py-1.5 border-b border-white/5 last:border-0 ${rowCls}">
+            <div class="flex items-center justify-between mb-0.5">
+                <span class="text-xs text-gray-300 truncate flex-1">${m.homeFlag||''}${m.home} vs ${m.awayFlag||''}${m.away}</span>
+                <span class="text-[10px] text-gray-600 shrink-0 ml-1">${dateStr}</span>
             </div>
-            ${badge}
+            <div class="flex gap-3 text-[11px]">
+                <span class="text-gray-500">赛果 ${badge(nResult)}</span>
+                <span class="text-gray-500">晋级 ${badge(nAdvance)}</span>
+                <span class="text-gray-500">射手 ${badge(nScorer)}</span>
+            </div>
         </div>`;
     }).join('');
-    el.innerHTML = `<div class="glass rounded-2xl p-4">
-        <p class="text-xs font-bold text-gray-400 mb-2">⚡ 淘汰赛预测完成情况</p>
-        ${rows}
+
+    el.innerHTML = `<div class="glass rounded-2xl p-4 mb-3">
+        <p class="text-xs font-bold text-gray-400 mb-2">⚡ 预测完成情况 · 共 ${totalUsers} 人</p>
+        <p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">冠军 & 射手</p>
+        ${champRows}
+        ${specialRows ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">R32 特别竞猜</p>${specialRows}` : ''}
+        ${r32Matches.length ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">16场赛果</p>${matchRows}` : ''}
     </div>`;
 }
 
