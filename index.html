@@ -1637,7 +1637,8 @@ function renderKoMatchCard(matchId, match) {
         .map(m => new Date(m.kickoff).getTime());
     const earliestInRound = roundKickoffs.length ? Math.min(...roundKickoffs) : null;
     const roundDeadline = earliestInRound ? new Date(earliestInRound - 60 * 60 * 1000) : null;
-    const deadlinePassed = roundDeadline ? roundDeadline <= now : false;
+    const koUnlockUntil = roomSettingsData?.koUnlockUntil ? new Date(roomSettingsData.koUnlockUntil) : null;
+    const deadlinePassed = roundDeadline ? (roundDeadline <= now) && !(koUnlockUntil && now < koUnlockUntil) : false;
 
     const locked = match.status === 'finished' || match.status === 'live' || deadlinePassed || (kickoff && kickoff <= now);
     const finished = match.status === 'finished';
