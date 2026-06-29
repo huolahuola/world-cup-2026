@@ -795,6 +795,23 @@ setTimeout(function() {
 
         <div id="adminContent" class="hidden space-y-4">
 
+            <!-- Per-user KO prediction unlock -->
+            <div class="glass rounded-2xl p-4 border border-cyan-500/20">
+                <h3 class="font-bold text-cyan-400 mb-1">👤 指定用户开放淘汰赛填写</h3>
+                <p class="text-xs text-gray-400 mb-3">填入昵称后，这些用户在比赛开球前不受截止时间限制，可继续提交/修改淘汰赛预测。</p>
+                <div id="userUnlockStatus" class="mb-3"></div>
+                <p class="text-xs text-gray-300 mb-1">懂球弟妹（dqdm）房间</p>
+                <input type="text" id="userUnlockDqdm" placeholder="如：zelin996，多人用英文逗号分隔"
+                    class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none focus:ring-1 focus:ring-cyan-400">
+                <p class="text-xs text-gray-300 mb-1">公共（public）房间</p>
+                <input type="text" id="userUnlockPublic" placeholder="如：我厂夺冠，多人用英文逗号分隔"
+                    class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none focus:ring-1 focus:ring-cyan-400">
+                <div class="flex gap-2">
+                    <button onclick="saveUserUnlocks()" class="flex-1 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">✅ 保存</button>
+                    <button onclick="clearUserUnlocks()" class="flex-1 bg-red-500/20 border border-red-500/40 text-red-300 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">🗑️ 清除所有</button>
+                </div>
+            </div>
+
             <!-- Phase 1 Lock -->
             <div class="glass rounded-2xl p-4 border border-yellow-500/20">
                 <h3 class="font-bold text-yellow-400 mb-1">🔒 锁定第一阶段竞猜</h3>
@@ -1638,7 +1655,9 @@ function renderKoMatchCard(matchId, match) {
     const earliestInRound = roundKickoffs.length ? Math.min(...roundKickoffs) : null;
     const roundDeadline = earliestInRound ? new Date(earliestInRound - 60 * 60 * 1000) : null;
     const koUnlockUntil = roomSettingsData?.koUnlockUntil ? new Date(roomSettingsData.koUnlockUntil) : null;
-    const deadlinePassed = roundDeadline ? (roundDeadline <= now) && !(koUnlockUntil && now < koUnlockUntil) : false;
+    const unlockedNames = (roomSettingsData?.unlockedNames || '').split(',').map(n => n.trim()).filter(Boolean);
+    const isUserSpeciallyUnlocked = currentUser && unlockedNames.includes(currentUser.name);
+    const deadlinePassed = roundDeadline ? (roundDeadline <= now) && !(koUnlockUntil && now < koUnlockUntil) && !isUserSpeciallyUnlocked : false;
 
     const locked = match.status === 'finished' || match.status === 'live' || deadlinePassed || (kickoff && kickoff <= now);
     const finished = match.status === 'finished';
@@ -5583,6 +5602,60 @@ function _renderUpcoming() {
     container.dataset.loaded = '1';
 }
 
+// ─── Per-user KO unlock ───────────────────────────────────
+window.saveUserUnlocks = async function() {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    const dqdmVal = document.getElementById('userUnlockDqdm')?.value.trim() || null;
+    const publicVal = document.getElementById('userUnlockPublic')?.value.trim() || null;
+    await Promise.all([
+        set(ref(db, `rooms/${PRIZE_ROOM}/settings/unlockedNames`), dqdmVal),
+        set(ref(db, `rooms/${FREE_ROOM}/settings/unlockedNames`), publicVal),
+    ]);
+    toast('✅ 已保存，指定用户现在可以填写淘汰赛预测');
+    _refreshUserUnlockStatus();
+};
+
+window.clearUserUnlocks = async function() {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    if (!confirm('确认清除所有指定用户的开放设置？')) return;
+    await Promise.all([
+        set(ref(db, `rooms/${PRIZE_ROOM}/settings/unlockedNames`), null),
+        set(ref(db, `rooms/${FREE_ROOM}/settings/unlockedNames`), null),
+    ]);
+    const d = document.getElementById('userUnlockDqdm');
+    const p = document.getElementById('userUnlockPublic');
+    if (d) d.value = '';
+    if (p) p.value = '';
+    toast('🗑️ 已清除所有指定用户开放');
+    _refreshUserUnlockStatus();
+};
+
+function _refreshUserUnlockStatus() {
+    const el = document.getElementById('userUnlockStatus');
+    if (!el) return;
+    const names = roomSettingsData?.unlockedNames;
+    if (names) {
+        el.innerHTML = `<div class="bg-cyan-900/20 border border-cyan-500/20 rounded-xl px-3 py-2 text-xs">
+            <span class="text-cyan-400 font-bold">当前房间 (${currentRoom}) 已解锁：</span>
+            <span class="text-white font-mono">${names}</span>
+        </div>`;
+    } else {
+        el.innerHTML = `<div class="bg-gray-800/50 border border-gray-600/30 rounded-xl px-3 py-2 text-xs text-gray-400">当前房间无指定用户解锁</div>`;
+    }
+}
+
+async function _loadUserUnlockInputs() {
+    if (demoMode) return;
+    const [ds, ps] = await Promise.all([
+        get(ref(db, `rooms/${PRIZE_ROOM}/settings/unlockedNames`)),
+        get(ref(db, `rooms/${FREE_ROOM}/settings/unlockedNames`)),
+    ]);
+    const d = document.getElementById('userUnlockDqdm');
+    const p = document.getElementById('userUnlockPublic');
+    if (d) d.value = ds.exists() ? ds.val() : '';
+    if (p) p.value = ps.exists() ? ps.val() : '';
+}
+
 // ─── Phase 1 Lock ────────────────────────────────────────
 function isPhase1Locked() { return !!roomSettingsData?.phase1Locked; }
 
@@ -5641,6 +5714,8 @@ window.adminLogin = async function() {
         hide('adminLoginSection');
         show('adminContent');
         _refreshPhase1LockStatus();
+        _refreshUserUnlockStatus();
+        _loadUserUnlockInputs();
         refreshResultMatchSelect();
         refreshAdminGroupSelects();
         refreshAdminChampSelect();
