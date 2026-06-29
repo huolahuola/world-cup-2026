@@ -988,8 +988,8 @@ setTimeout(function() {
                     </select>
                     <p class="text-xs text-gray-400 mb-1">首个进球者（90分钟内）</p>
                     <div id="koScorerInputWrap"></div>
-                    <p class="text-xs text-gray-400 mb-1 mt-2">进球者周岁（用于特别竞猜核对）</p>
-                    <input type="number" id="koScorerAge" min="16" max="50" placeholder="如：30" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <p class="text-xs text-gray-400 mb-1 mt-2">进球者出生日期（用于特别竞猜核对）</p>
+                    <input type="date" id="koScorerBirthdate" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
             </div>
@@ -1716,7 +1716,15 @@ function renderKoMatchCard(matchId, match) {
     let vsBlock;
     if (finished && result) {
         vsBlock = `<div class="text-2xl font-black text-yellow-400">${result.homeScore} : ${result.awayScore}</div>
-            <div class="text-xs text-gray-400 mt-0.5">${result.scorer ? `⚽ ${result.scorer}${result.scorerAge != null ? ` · ${result.scorerAge}岁` : ''}` : ''}</div>`;
+            <div class="text-xs text-gray-400 mt-0.5">${result.scorer ? `⚽ ${result.scorer}${(() => {
+                if (!result.scorerBirthdate) return '';
+                const bd = new Date(result.scorerBirthdate);
+                const ref = match.kickoff ? new Date(match.kickoff) : new Date();
+                let age = ref.getFullYear() - bd.getFullYear();
+                if (ref.getMonth() < bd.getMonth() || (ref.getMonth() === bd.getMonth() && ref.getDate() < bd.getDate())) age--;
+                const over30 = age >= 30;
+                return ` · ${result.scorerBirthdate}（${age}岁${over30 ? ' ✅≥30' : ' ❌<30'}）`;
+            })()}` : ''}</div>`;
     } else {
         vsBlock = `<div class="text-gray-600 font-black text-xl">VS</div>`;
     }
@@ -2286,8 +2294,7 @@ window.submitKoResult = async function() {
     const resScorerTeam = document.getElementById('koResScorerTeam')?.value || '';
     const resScorerNum  = document.getElementById('koResScorerNum')?.value || '';
     let scorer = (resScorerTeam && resScorerNum) ? `${resScorerNum}号 (${resScorerTeam})` : null;
-    const scorerAgeRaw = parseInt(document.getElementById('koScorerAge')?.value);
-    const scorerAge = !isNaN(scorerAgeRaw) ? scorerAgeRaw : null;
+    const scorerBirthdate = document.getElementById('koScorerBirthdate')?.value || null;
     const outcome_90 = hs > as ? 'W' : hs < as ? 'L' : 'D';
     const advance = document.getElementById('koResAdvance')?.value || null;
     const match = koMatchesData[matchId];
@@ -2297,7 +2304,7 @@ window.submitKoResult = async function() {
         if (ans) specialsResult[sp.key] = ans;
     });
     const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer,
-        ...(scorerAge != null ? { scorerAge } : {}),
+        ...(scorerBirthdate ? { scorerBirthdate } : {}),
         specials: Object.keys(specialsResult).length ? specialsResult : null };
 
     // Score all predictions for this match — both rooms
