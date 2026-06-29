@@ -1705,10 +1705,7 @@ function renderKoMatchCard(matchId, match) {
     } else {
         statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${_kickoffStr(kickoff)}</span>`;
     }
-    const deadlineStr = roundDeadline ? _kickoffStr(roundDeadline) : null;
-    const deadlineBadge = !finished && deadlineStr
-        ? `<span class="text-[10px] text-gray-600">🔒 截止 ${deadlineStr}</span>`
-        : '';
+    const deadlineBadge = '';
 
     let vsBlock;
     if (finished && result) {
@@ -5303,14 +5300,20 @@ function renderR32SpecialsCard() {
     const q2Html = renderQ('q2', q2);
     const hasForm = (q1?.open || q2?.open) && _isUserUnlocked && !(q1?.settled && (!q2?.q || q2?.settled));
 
+    const wasOpen = !document.getElementById('r32SpecialsBody')?.classList.contains('hidden') && !!document.getElementById('r32SpecialsBody');
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
-        <div class="flex items-center gap-2 mb-3">
-            <span class="text-lg">✨</span>
-            <p class="font-black text-sm text-white">R32 特别竞猜</p>
-            <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+5分/题</span>
+        <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleR32SpecialsCard()">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">✨</span>
+                <p class="font-black text-sm text-white">R32 特别竞猜</p>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+5分/题</span>
+            </div>
+            <span id="r32SpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
-        ${q1Html}${q2Html}
-        ${hasForm ? '<button onclick="saveR32SpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交竞猜</button>' : ''}
+        <div id="r32SpecialsBody" class="${wasOpen ? 'mt-3' : 'hidden'}">
+            ${q1Html}${q2Html}
+            ${hasForm ? '<button onclick="saveR32SpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交竞猜</button>' : ''}
+        </div>
     </div>`;
 }
 
@@ -5346,6 +5349,15 @@ window.saveR32Specials = async function() {
     if (!Object.keys(updates).length) { toast('请至少填写一道题目', 'error'); return; }
     await update(ref(db, '/'), updates);
     toast('✅ 题目已保存');
+};
+
+window.toggleR32SpecialsCard = function() {
+    const body = document.getElementById('r32SpecialsBody');
+    const chev = document.getElementById('r32SpecChev');
+    if (!body) return;
+    const nowHidden = body.classList.toggle('hidden');
+    body.classList.toggle('mt-3', !nowHidden);
+    if (chev) chev.textContent = nowHidden ? '▶' : '▼';
 };
 
 window.toggleR32Special = async function(key, open) {
