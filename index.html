@@ -440,10 +440,10 @@ setTimeout(function() {
         </div>
         <!-- Prediction sub-nav -->
         <div id="predSubnav" class="flex">
-            <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn active flex-1 py-2.5 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">🏆<span>冠军</span></button>
+            <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn active flex-1 py-2.5 font-bold text-xs whitespace-nowrap flex flex-col items-center gap-0.5">🥊<span>淘汰赛</span></button>
+            <button onclick="switchTab('champion')" id="tab-champion" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🏆<span>冠军</span></button>
             <button onclick="switchTab('topScorer')" id="tab-topScorer" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">⚽<span>射手</span></button>
             <button onclick="switchTab('groups')" id="tab-groups" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🏅<span>出线</span></button>
-            <button onclick="switchTab('knockout')" id="tab-knockout" class="tab-btn flex-1 py-2.5 font-bold text-xs text-gray-400 whitespace-nowrap flex flex-col items-center gap-0.5">🥊<span>淘汰赛</span></button>
         </div>
         <!-- Leaderboard/Results sub-nav (hidden until lb mega-tab active) -->
         <div id="lbSubnav" class="hidden">
@@ -458,7 +458,7 @@ setTimeout(function() {
     <div id="mainContent" class="p-4 space-y-3">
 
         <!-- Champion Prediction -->
-        <div id="content-champion">
+        <div id="content-champion" class="hidden">
             <!-- Rules summary -->
             <div class="glass rounded-2xl mb-3 overflow-hidden">
                 <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.arrow').classList.toggle('rotate-180')"
@@ -603,7 +603,7 @@ setTimeout(function() {
         </div>
 
         <!-- Knockout Matches -->
-        <div id="content-knockout" class="hidden">
+        <div id="content-knockout">
             <div class="glass-dark rounded-2xl p-4 mb-3 text-xs text-gray-300 space-y-1.5">
                 <p class="font-bold text-yellow-400 mb-1">📋 淘汰赛规则</p>
                 <p>· 猜中<b class="text-white">90分钟胜平负</b>（站主队视角） → <b class="text-green-400">+2分</b></p>
@@ -5628,7 +5628,7 @@ window.switchTab = function(tab) {
 
 window.switchMegaTab = function(mega) {
     if (mega === 'preds') {
-        const last = localStorage.getItem('wc2026_pred_sub') || 'champion';
+        const last = localStorage.getItem('wc2026_pred_sub') || 'knockout';
         switchTab(last);
     } else if (mega === 'lb') {
         switchTab('leaderboard');
