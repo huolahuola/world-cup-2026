@@ -610,7 +610,7 @@ setTimeout(function() {
                 <p>· 猜中<b class="text-white">最终晋级球队</b>（含加时/点球） → <b class="text-yellow-400">+2分</b></p>
                 <p>· 猜中<b class="text-white">首个进球者</b>（90分钟内） → <b class="text-orange-400">+4分</b></p>
                 <p>· 猜中<b class="text-white">特别竞猜</b>（每场最多2题） → <b class="text-purple-400">+5分/题</b></p>
-                <p>· 每场开球前可随时修改，开球后锁定</p>
+                <p>· 每场开球前可随时修改，<b class="text-red-400">开球后锁定</b></p>
             </div>
             <!-- Round tabs -->
             <div class="flex gap-1 mb-3 bg-white/5 rounded-2xl p-1">
@@ -984,6 +984,8 @@ setTimeout(function() {
                     </select>
                     <p class="text-xs text-gray-400 mb-1">首个进球者（90分钟内）</p>
                     <div id="koScorerInputWrap"></div>
+                    <p class="text-xs text-gray-400 mb-1 mt-2">进球者周岁（用于特别竞猜核对）</p>
+                    <input type="number" id="koScorerAge" min="16" max="50" placeholder="如：30" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
             </div>
@@ -1710,7 +1712,7 @@ function renderKoMatchCard(matchId, match) {
     let vsBlock;
     if (finished && result) {
         vsBlock = `<div class="text-2xl font-black text-yellow-400">${result.homeScore} : ${result.awayScore}</div>
-            <div class="text-xs text-gray-400 mt-0.5">${result.scorer ? `⚽ ${result.scorer}` : ''}</div>`;
+            <div class="text-xs text-gray-400 mt-0.5">${result.scorer ? `⚽ ${result.scorer}${result.scorerAge != null ? ` · ${result.scorerAge}岁` : ''}` : ''}</div>`;
     } else {
         vsBlock = `<div class="text-gray-600 font-black text-xl">VS</div>`;
     }
@@ -2239,6 +2241,8 @@ window.submitKoResult = async function() {
     const resScorerTeam = document.getElementById('koResScorerTeam')?.value || '';
     const resScorerNum  = document.getElementById('koResScorerNum')?.value || '';
     let scorer = (resScorerTeam && resScorerNum) ? `${resScorerNum}号 (${resScorerTeam})` : null;
+    const scorerAgeRaw = parseInt(document.getElementById('koScorerAge')?.value);
+    const scorerAge = !isNaN(scorerAgeRaw) ? scorerAgeRaw : null;
     const outcome_90 = hs > as ? 'W' : hs < as ? 'L' : 'D';
     const advance = document.getElementById('koResAdvance')?.value || null;
     const match = koMatchesData[matchId];
@@ -2248,6 +2252,7 @@ window.submitKoResult = async function() {
         if (ans) specialsResult[sp.key] = ans;
     });
     const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer,
+        ...(scorerAge != null ? { scorerAge } : {}),
         specials: Object.keys(specialsResult).length ? specialsResult : null };
 
     // Score all predictions for this match — both rooms
