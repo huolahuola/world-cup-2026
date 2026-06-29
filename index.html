@@ -5337,6 +5337,38 @@ function renderR32SpecialsCard() {
 
         const prevNote = (isSettled && displayAns && !gotIt) ? `<p class="text-xs text-gray-500 mt-1">生效答案：${displayAns}</p>` : '';
 
+        // Public picks for this question
+        const SIM_EXCLUDE = ['小助手'];
+        const _nameOf = uid => scoresData[uid]?.name || usersTableData[uid]?.name || null;
+        const pubEntries = Object.entries(r32AllSpecialPredsData)
+            .filter(([uid, p]) => {
+                const name = _nameOf(uid);
+                return name && !SIM_EXCLUDE.includes(name) && p[key];
+            })
+            .map(([uid, p]) => {
+                const name = _nameOf(uid);
+                const { answer: eff, wasFlipped, wasSwapped } = _magicEffectiveSpecial(name, key);
+                const isMe = currentUser?.id === uid || currentUser?.name === name;
+                const pts = p[key + 'Points'];
+                const correct = isSettled && eff === correctAns;
+                const wrong = isSettled && eff && eff !== correctAns;
+                return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
+                    <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${name}${isMe ? '↩' : ''}${wasFlipped ? '🃏' : ''}${wasSwapped ? '🔀' : ''}</span>
+                    <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${eff || p[key] || '–'}</span>
+                    ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
+                </div>`;
+            });
+        const pubBodyId = `r32spPub-${key}`;
+        const pubChevId = `r32spPubChev-${key}`;
+        const pubOpen = document.getElementById(pubBodyId) && !document.getElementById(pubBodyId).classList.contains('hidden');
+        const pubHtml = pubEntries.length ? `<div class="mt-2 pt-2 border-t border-white/8">
+            <button onclick="toggleR32SpecPub('${key}')" class="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                <span>👥 大家的选择（${pubEntries.length}人）</span>
+                <span id="${pubChevId}">${pubOpen ? '▼' : '▶'}</span>
+            </button>
+            <div id="${pubBodyId}" class="${pubOpen ? 'mt-1' : 'hidden'}">${pubEntries.join('')}</div>
+        </div>` : '';
+
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
                 <p class="text-xs font-bold text-gray-200 flex-1">${qData.q}</p>
@@ -5345,6 +5377,7 @@ function renderR32SpecialsCard() {
             <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
             ${prevNote}
             ${magicNote}
+            ${pubHtml}
         </div>`;
     }
 
@@ -5401,6 +5434,15 @@ window.saveR32Specials = async function() {
     if (!Object.keys(updates).length) { toast('请至少填写一道题目', 'error'); return; }
     await update(ref(db, '/'), updates);
     toast('✅ 题目已保存');
+};
+
+window.toggleR32SpecPub = function(key) {
+    const body = document.getElementById(`r32spPub-${key}`);
+    const chev = document.getElementById(`r32spPubChev-${key}`);
+    if (!body) return;
+    const nowHidden = body.classList.toggle('hidden');
+    body.classList.toggle('mt-1', !nowHidden);
+    if (chev) chev.textContent = nowHidden ? '▶' : '▼';
 };
 
 window.toggleR32SpecialsCard = function() {
