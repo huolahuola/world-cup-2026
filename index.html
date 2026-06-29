@@ -5092,21 +5092,100 @@ function _magicEffectiveKoPred(userName, matchId) {
     if (!swapUid) return { pred: koPredsData[matchId] || null, wasSwapped: false };
     return { pred: koAllPredsData[swapUid]?.[matchId] || null, wasSwapped: true };
 }
+function _calcMagicImpact() {
+    const { flip, swap } = _magicGet();
+    if (!flip && !swap) return null;
+    const out = {};
+
+    if (flip) {
+        const tUid = _magicFindUid(flip.targetName);
+        let impact = 0; const lines = [];
+        if (tUid) {
+            const myP = r32AllSpecialPredsData[tUid] || {};
+            for (const key of ['q1', 'q2']) {
+                const qd = r32SpecialsData[key] || {};
+                if (!qd.settled || !qd.answer) continue;
+                const own = myP[key]; if (!own) continue;
+                const ownPts = own === qd.answer ? 5 : 0;
+                const flipPts = _magicFlipAnswer(own) === qd.answer ? 5 : 0;
+                const d = flipPts - ownPts;
+                if (d !== 0) { impact += d; lines.push(`题${key.slice(1)} ${d>0?'+':''}${d}`); }
+            }
+        }
+        out.flip = { target: flip.targetName, caster: flip.caster, card: flip.card, impact, lines };
+    }
+
+    if (swap) {
+        const uid1 = _magicFindUid(swap.player1Name);
+        const uid2 = _magicFindUid(swap.player2Name);
+        let i1 = 0, i2 = 0; const l1 = [], l2 = [];
+        if (uid1 && uid2) {
+            for (const [mid, match] of Object.entries(koMatchesData)) {
+                if (match.round !== 'r32' || !match.result) continue;
+                const res = match.result;
+                const p1 = koAllPredsData[uid1]?.[mid];
+                const p2 = koAllPredsData[uid2]?.[mid];
+                if (!p1 || !p2) continue;
+                const label = `${match.home||'?'}v${match.away||'?'}`;
+                const d1 = calcKoPts(p2, res) - calcKoPts(p1, res);
+                const d2 = calcKoPts(p1, res) - calcKoPts(p2, res);
+                if (d1 !== 0) { i1 += d1; l1.push(`${label} ${d1>0?'+':''}${d1}`); }
+                if (d2 !== 0) { i2 += d2; l2.push(`${label} ${d2>0?'+':''}${d2}`); }
+            }
+            for (const key of ['q1', 'q2']) {
+                const qd = r32SpecialsData[key] || {};
+                if (!qd.settled || !qd.answer) continue;
+                const a1 = (r32AllSpecialPredsData[uid1] || {})[key];
+                const a2 = (r32AllSpecialPredsData[uid2] || {})[key];
+                if (!a1 || !a2) continue;
+                const d1 = (a2 === qd.answer ? 5 : 0) - (a1 === qd.answer ? 5 : 0);
+                const d2 = (a1 === qd.answer ? 5 : 0) - (a2 === qd.answer ? 5 : 0);
+                if (d1 !== 0) { i1 += d1; l1.push(`特别题${key.slice(1)} ${d1>0?'+':''}${d1}`); }
+                if (d2 !== 0) { i2 += d2; l2.push(`特别题${key.slice(1)} ${d2>0?'+':''}${d2}`); }
+            }
+        }
+        out.swap = { caster: swap.caster, card: swap.card,
+            p1: { name: swap.player1Name, impact: i1, lines: l1 },
+            p2: { name: swap.player2Name, impact: i2, lines: l2 } };
+    }
+    return out;
+}
+
 // Magic banner HTML for R32 tab
 function _magicBannerHtml() {
     const { flip, swap } = _magicGet();
     if (!flip && !swap) return '';
     let items = '';
-    if (flip) items += `<div class="flex items-start gap-2 text-xs">
+    const mi = _calcMagicImpact();
+    const _manaTag = (val, lines) => {
+        if (!lines.length) return `<span class="text-gray-500">⚡ 法力值：结算中…</span>`;
+        const color = val < 0 ? 'text-red-400' : val > 0 ? 'text-green-400' : 'text-gray-400';
+        return `<span class="${color}">⚡ 法力值 ${val>0?'+':''}${val} 分 <span class="text-gray-500">(${lines.join(' / ')})</span></span>`;
+    };
+    if (flip) {
+        const mf = mi?.flip;
+        items += `<div class="flex items-start gap-2 text-xs">
         <span class="text-2xl leading-none">🃏</span>
         <div><span class="font-black text-amber-300">${flip.card}</span>
         <span class="text-gray-300"> · ${flip.caster} 使用</span>
-        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${flip.targetName}</b> 的 Y/N 答案全部对调</div></div></div>`;
-    if (swap) items += `<div class="flex items-start gap-2 text-xs mt-2">
+        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${flip.targetName}</b> 的 Y/N 答案全部对调</div>
+        ${mf ? `<div class="mt-1">${_manaTag(mf.impact, mf.lines)} 作用于 ${flip.targetName}</div>` : ''}
+        </div></div>`;
+    }
+    if (swap) {
+        const ms = mi?.swap;
+        const _swapMana = ms ? `<div class="mt-1 flex flex-col gap-0.5">
+            <div>${_manaTag(ms.p1.impact, ms.p1.lines)} 作用于 ${ms.p1.name}</div>
+            <div>${_manaTag(ms.p2.impact, ms.p2.lines)} 作用于 ${ms.p2.name}</div>
+        </div>` : '';
+        items += `<div class="flex items-start gap-2 text-xs mt-2">
         <span class="text-2xl leading-none">🃏</span>
         <div><span class="font-black text-violet-300">${swap.card}</span>
         <span class="text-gray-300"> · ${swap.caster} 使用</span>
-        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${swap.player1Name}</b> 与 <b class="text-white">${swap.player2Name}</b> 的本轮所有竞猜互换</div></div></div>`;
+        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${swap.player1Name}</b> 与 <b class="text-white">${swap.player2Name}</b> 的本轮所有竞猜互换</div>
+        ${_swapMana}
+        </div></div>`;
+    }
     return `<div class="glass rounded-2xl p-4 mb-3 border border-amber-500/30 bg-amber-900/10">
         <div class="flex items-center gap-2 mb-2"><span class="text-base">✨</span><p class="font-black text-sm text-amber-300">本轮魔法牌效果</p></div>
         ${items}
