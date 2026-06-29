@@ -3333,6 +3333,23 @@ function _calcSimilarity(myUid, otherUid) {
         myT.forEach(t => { total++; if (oT.includes(t)) same++; });
     }
 
+    // KO match predictions
+    const myKo = koAllPredsData[myUid] || {};
+    const oKo  = koAllPredsData[otherUid] || {};
+    for (const mid of Object.keys({...myKo, ...oKo})) {
+        const mp = myKo[mid], op = oKo[mid];
+        if (!mp || !op) continue;
+        if (mp.result90 && op.result90) { total++; if (mp.result90 === op.result90) same++; }
+        if (mp.advance  && op.advance)  { total++; if (mp.advance  === op.advance)  same++; }
+        if (mp.scorer   && op.scorer)   { total++; if (mp.scorer   === op.scorer)   same++; }
+    }
+
+    // R32 special questions
+    const mySp = r32AllSpecialPredsData[myUid] || {};
+    const oSp  = r32AllSpecialPredsData[otherUid] || {};
+    if (mySp.q1 && oSp.q1) { total++; if (mySp.q1 === oSp.q1) same++; }
+    if (mySp.q2 && oSp.q2) { total++; if (mySp.q2 === oSp.q2) same++; }
+
     return { same, total };
 }
 
@@ -3762,8 +3779,8 @@ function renderMyPreds() {
     // Similarity card
     const sim = _findSimilarUsers(uid);
     if (sim && Object.keys(_allScoreEntries()).length > 1) {
-        const mostPct  = Math.round(sim.most.same  / 46 * 100);
-        const leastPct = Math.round(sim.least.same / 46 * 100);
+        const mostPct  = sim.most.total  ? Math.round(sim.most.same  / sim.most.total  * 100) : 0;
+        const leastPct = sim.least.total ? Math.round(sim.least.same / sim.least.total * 100) : 0;
         const sameRow = sim.most.uid === sim.least.uid ? true : false;
         html += `<div class="glass rounded-2xl p-4 mb-3">
             <p class="text-xs text-gray-400 font-bold mb-3">🔍 预测相似度</p>
@@ -3777,7 +3794,7 @@ function renderMyPreds() {
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm font-black text-green-400">${sim.most.same}/46</p>
+                        <p class="text-sm font-black text-green-400">${sim.most.same}/${sim.most.total}</p>
                         <p class="text-xs text-gray-500">${mostPct}% 一致</p>
                     </div>
                 </div>
@@ -3790,7 +3807,7 @@ function renderMyPreds() {
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm font-black text-orange-400">${sim.least.same}/46</p>
+                        <p class="text-sm font-black text-orange-400">${sim.least.same}/${sim.least.total}</p>
                         <p class="text-xs text-gray-500">${leastPct}% 一致</p>
                     </div>
                 </div>`}
