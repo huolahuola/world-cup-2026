@@ -812,6 +812,15 @@ setTimeout(function() {
                 </div>
             </div>
 
+            <!-- R32 Magic Cards -->
+            <div class="glass rounded-2xl p-4 border border-amber-500/20">
+                <h3 class="font-bold text-amber-400 mb-1">🃏 R32 魔法牌效果</h3>
+                <p class="text-xs text-gray-400 mb-3">写入本轮魔法牌到 Firebase，双房间同步生效。写入后玩家端实时看到效果，结算时自动计入。</p>
+                <div id="magicWriteStatus" class="mb-3"></div>
+                <button onclick="writeMagicCards()" class="w-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform mb-2">✨ 写入本轮魔法效果（贝蒂/小林）</button>
+                <button onclick="clearMagicCards()" class="w-full bg-red-500/20 border border-red-500/40 text-red-300 font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">🗑️ 清除所有魔法效果</button>
+            </div>
+
             <!-- Phase 1 Lock -->
             <div class="glass rounded-2xl p-4 border border-yellow-500/20">
                 <h3 class="font-bold text-yellow-400 mb-1">🔒 锁定第一阶段竞猜</h3>
@@ -1191,6 +1200,7 @@ let koAllPredsData = {};
 let r32SpecialsData    = {};
 let r32SpecialPredsData = {};
 let r32AllSpecialPredsData = {};
+let r32MagicData = {};
 let currentKoRound = 'r32';
 let presenceData   = {};
 let _prevPresence  = {};
@@ -1465,6 +1475,10 @@ function startApp() {
             koAllPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
         });
+        onValue(ref(db, `rooms/${currentRoom}/r32magic`), snap => {
+            r32MagicData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
+        });
 
         // ── Presence ──
         const myPresRef = ref(db, `rooms/${currentRoom}/presence/${currentUser.id}`);
@@ -1640,11 +1654,17 @@ function renderKnockout() {
         return;
     }
     const r32SpecialsHtml = (currentKoRound === 'r32' && currentRoom !== FREE_ROOM) ? renderR32SpecialsCard() : '';
-    container.innerHTML = r32SpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
+    const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : '';
+    container.innerHTML = magicBanner + r32SpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
 }
 
 function renderKoMatchCard(matchId, match) {
-    const myPred = koPredsData[matchId] || null;
+    const isR32Match = match.round === 'r32';
+    const { pred: effectivePred, wasSwapped: predWasSwapped } = isR32Match
+        ? _magicEffectiveKoPred(currentUser?.name, matchId)
+        : { pred: koPredsData[matchId] || null, wasSwapped: false };
+    const myPred = isR32Match ? effectivePred : (koPredsData[matchId] || null);
+    const myPredOriginal = koPredsData[matchId] || null; // always the user's own real pred (for form)
     const kickoff = match.kickoff ? new Date(match.kickoff) : null;
     const now = new Date();
 
@@ -1714,14 +1734,16 @@ function renderKoMatchCard(matchId, match) {
             const mark = correctAns ? (myAns === correctAns ? ' ✓' : ' ✗') : '';
             return `<span class="${cls}">✨ ${myAns}${mark}</span>`;
         }).join('');
+        const magicSwapNote = predWasSwapped
+            ? `<div class="text-xs text-violet-400 mt-1">🃏 灵魂互换：积分将按此预测（被交换玩家的原始选择）计算</div>` : '';
         predBlock = `<div class="mt-2 pt-2 border-t border-white/10 text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
-            <span>我预测：</span>
+            <span>${predWasSwapped ? '🃏 生效预测：' : '我预测：'}</span>
             <span class="font-bold text-blue-300">${r90label}</span>
             ${myPred.advance ? `<span class="text-green-300">⬆️ ${myPred.advance}</span>` : ''}
             ${myPred.scorer ? `<span class="text-orange-300">⚽ ${myPred.scorer}</span>` : (myPred.scorerPicked || myPred.advance ? '<span class="text-gray-500">⚽ 无人进球</span>' : '')}
             ${spItems}
             ${ptsBadge}
-        </div>`;
+        </div>${magicSwapNote}`;
     }
 
     let predForm = '';
@@ -2191,9 +2213,28 @@ window.submitKoResult = async function() {
         ]) {
             const allPreds = predsSnap.exists() ? predsSnap.val() : {};
             const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
+            // Load magic for this room (only PRIZE_ROOM has magic)
+            let roomMagic = null;
+            if (room === PRIZE_ROOM && match?.round === 'r32') {
+                const mgSnap = await get(ref(db, `rooms/${room}/r32magic`));
+                roomMagic = mgSnap.exists() ? mgSnap.val() : null;
+            }
+            const mgSwap = roomMagic ? Object.values(roomMagic).find(m => m.type === 'soul_swap') : null;
+            // Build name→uid map from scores
+            const nameToUid = Object.fromEntries(Object.entries(allScores).map(([u,s]) => [s.name, u]));
+
             Object.entries(allPreds).forEach(([uid, userPreds]) => {
-                const pred = userPreds?.[matchId];
-                if (!pred || pred.points != null) return;
+                const ownPred = userPreds?.[matchId];
+                if (!ownPred || ownPred.points != null) return;
+                // Apply soul swap: use the other player's prediction for R32 scoring
+                let pred = ownPred;
+                if (mgSwap && match?.round === 'r32') {
+                    const uName = allScores[uid]?.name;
+                    let swapUid = null;
+                    if (uName === mgSwap.player1Name) swapUid = nameToUid[mgSwap.player2Name];
+                    else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
+                    if (swapUid && allPreds[swapUid]?.[matchId]) pred = allPreds[swapUid][matchId];
+                }
                 const pts = calcKoPts(pred, result);
                 updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
                 const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
@@ -4893,6 +4934,103 @@ function refreshAdminChampSelect() {
 }
 
 
+// ─── R32 Magic Helpers ────────────────────────────────────────
+function _magicFlipAnswer(a) {
+    if (a === 'Y') return 'N';
+    if (a === 'N') return 'Y';
+    return a;
+}
+function _magicFindUid(name) {
+    // search usersTableData (uid→{name}) then fallback to scoresData
+    return Object.entries(usersTableData).find(([,u]) => u.name === name)?.[0]
+        || Object.entries(scoresData).find(([,s]) => s.name === name)?.[0]
+        || null;
+}
+function _magicGet() {
+    const vals = Object.values(r32MagicData || {});
+    return {
+        flip: vals.find(m => m.type === 'flip_yesno') || null,
+        swap: vals.find(m => m.type === 'soul_swap') || null,
+    };
+}
+// Returns { answer, wasSwapped, wasFlipped } for current user's R32 special pred
+function _magicEffectiveSpecial(userName, key) {
+    const { flip, swap } = _magicGet();
+    let uid = null; // null = use r32SpecialPredsData (current user's own data)
+    let wasSwapped = false;
+    if (swap) {
+        if (userName === swap.player1Name) { uid = _magicFindUid(swap.player2Name); wasSwapped = !!uid; }
+        else if (userName === swap.player2Name) { uid = _magicFindUid(swap.player1Name); wasSwapped = !!uid; }
+    }
+    let answer = uid ? (r32AllSpecialPredsData[uid]?.[key] || null) : (r32SpecialPredsData[key] || null);
+    let wasFlipped = false;
+    if (flip && userName === flip.targetName && answer) { answer = _magicFlipAnswer(answer); wasFlipped = true; }
+    return { answer, wasSwapped, wasFlipped };
+}
+// Returns { pred, wasSwapped } for current user's R32 KO match pred
+function _magicEffectiveKoPred(userName, matchId) {
+    const { swap } = _magicGet();
+    if (!swap) return { pred: koPredsData[matchId] || null, wasSwapped: false };
+    let swapUid = null;
+    if (userName === swap.player1Name) swapUid = _magicFindUid(swap.player2Name);
+    else if (userName === swap.player2Name) swapUid = _magicFindUid(swap.player1Name);
+    if (!swapUid) return { pred: koPredsData[matchId] || null, wasSwapped: false };
+    return { pred: koAllPredsData[swapUid]?.[matchId] || null, wasSwapped: true };
+}
+// Magic banner HTML for R32 tab
+function _magicBannerHtml() {
+    const { flip, swap } = _magicGet();
+    if (!flip && !swap) return '';
+    let items = '';
+    if (flip) items += `<div class="flex items-start gap-2 text-xs">
+        <span class="text-2xl leading-none">🃏</span>
+        <div><span class="font-black text-amber-300">${flip.card}</span>
+        <span class="text-gray-300"> · ${flip.caster} 使用</span>
+        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${flip.targetName}</b> 的 Y/N 答案全部对调</div></div></div>`;
+    if (swap) items += `<div class="flex items-start gap-2 text-xs mt-2">
+        <span class="text-2xl leading-none">🃏</span>
+        <div><span class="font-black text-violet-300">${swap.card}</span>
+        <span class="text-gray-300"> · ${swap.caster} 使用</span>
+        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${swap.player1Name}</b> 与 <b class="text-white">${swap.player2Name}</b> 的本轮所有竞猜互换</div></div></div>`;
+    return `<div class="glass rounded-2xl p-4 mb-3 border border-amber-500/30 bg-amber-900/10">
+        <div class="flex items-center gap-2 mb-2"><span class="text-base">✨</span><p class="font-black text-sm text-amber-300">本轮魔法牌效果</p></div>
+        ${items}
+    </div>`;
+}
+
+window.writeMagicCards = async function() {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    const magic = {
+        betty:    { type: 'flip_yesno', card: '乐极生悲', caster: '贝蒂',  targetName: '拉球王' },
+        kobayashi: { type: 'soul_swap',  card: '灵魂互换', caster: '小林',  player1Name: '快乐小羊', player2Name: 'katie' },
+    };
+    await set(ref(db, `rooms/${PRIZE_ROOM}/r32magic`), magic);
+    toast('✅ 魔法牌效果已写入 dqdm 房间');
+    _refreshMagicStatus();
+};
+
+window.clearMagicCards = async function() {
+    if (demoMode) { toast('演示模式不支持此操作', 'error'); return; }
+    if (!confirm('确认清除所有 R32 魔法效果？')) return;
+    await set(ref(db, `rooms/${PRIZE_ROOM}/r32magic`), null);
+    toast('🗑️ 魔法效果已清除');
+    _refreshMagicStatus();
+};
+
+function _refreshMagicStatus() {
+    const el = document.getElementById('magicWriteStatus');
+    if (!el) return;
+    const { flip, swap } = _magicGet();
+    if (flip || swap) {
+        let txt = '';
+        if (flip) txt += `<div class="text-xs text-amber-300">🃏 乐极生悲：${flip.caster} → ${flip.targetName}</div>`;
+        if (swap) txt += `<div class="text-xs text-violet-300">🃏 灵魂互换：${swap.caster} → ${swap.player1Name} ↔ ${swap.player2Name}</div>`;
+        el.innerHTML = `<div class="bg-amber-900/20 border border-amber-500/20 rounded-xl px-3 py-2">${txt}</div>`;
+    } else {
+        el.innerHTML = `<div class="bg-gray-800/50 border border-gray-600/30 rounded-xl px-3 py-2 text-xs text-gray-400">当前无魔法效果</div>`;
+    }
+}
+
 // ─── R32 Round Special Questions ─────────────────────────────
 function renderR32SpecialsCard() {
     const q1 = r32SpecialsData.q1 || null;
@@ -4909,9 +5047,17 @@ function renderR32SpecialsCard() {
         const effectiveOpen = isOpen && _isUserUnlocked;
         const isSettled = !!qData.settled;
         const correctAns = qData.answer || null;
-        const myAns = r32SpecialPredsData[key] || null;
+        const myAns = r32SpecialPredsData[key] || null; // original answer
         const myPts = r32SpecialPredsData[key + 'Points'];
-        const gotIt = isSettled && myAns && myAns === correctAns;
+
+        // Apply magic effects for display
+        const { answer: effectiveAns, wasSwapped, wasFlipped } = _magicEffectiveSpecial(currentUser?.name, key);
+        const displayAns = effectiveAns; // what actually counts for scoring
+        const gotIt = isSettled && displayAns && displayAns === correctAns;
+
+        let magicNote = '';
+        if (wasFlipped) magicNote = `<p class="text-xs text-amber-400 mt-1">🃏 乐极生悲：你的答案已被反转（原选：${myAns || '未选'}）</p>`;
+        else if (wasSwapped) magicNote = `<p class="text-xs text-violet-400 mt-1">🃏 灵魂互换：此答案来自被交换的玩家</p>`;
 
         let badge = '';
         if (isSettled) {
@@ -4925,7 +5071,7 @@ function renderR32SpecialsCard() {
         }
 
         const optsHtml = opts.map(opt => {
-            const sel = myAns === opt;
+            const sel = displayAns === opt; // highlight effective answer
             const isCorrect = isSettled && opt === correctAns;
             let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
             if (isCorrect) cls += 'bg-green-500/20 border border-green-500/30 text-green-200';
@@ -4933,12 +5079,13 @@ function renderR32SpecialsCard() {
             else if (sel) cls += 'bg-purple-500/20 border border-purple-400/30 text-purple-200 cursor-pointer';
             else cls += 'bg-white/5 border border-white/10 text-gray-300 ' + ((effectiveOpen && !isSettled) ? 'cursor-pointer' : '');
             const escOpt = opt.replace(/"/g, '&quot;');
-            const radio = (effectiveOpen && !isSettled) ? `<input type="radio" name="r32sp_${key}" value="${escOpt}" ${sel ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
+            // radio always reflects original answer so user can update their own pick
+            const radio = (effectiveOpen && !isSettled) ? `<input type="radio" name="r32sp_${key}" value="${escOpt}" ${myAns === opt ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
             const tick = isCorrect ? '<span class="ml-auto text-xs text-green-400">✓</span>' : '';
             return `<label class="${cls}">${radio}<span>${opt}</span>${tick}</label>`;
         }).join('');
 
-        const prevNote = (isSettled && myAns && !gotIt) ? `<p class="text-xs text-gray-500 mt-1">你的选择：${myAns}</p>` : '';
+        const prevNote = (isSettled && displayAns && !gotIt) ? `<p class="text-xs text-gray-500 mt-1">生效答案：${displayAns}</p>` : '';
 
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
@@ -4947,6 +5094,7 @@ function renderR32SpecialsCard() {
             </div>
             <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
             ${prevNote}
+            ${magicNote}
         </div>`;
     }
 
@@ -5025,15 +5173,40 @@ window.submitR32Specials = async function() {
         const allScores = scoresSnap.exists() ? scoresSnap.val() : {};
         if (ans1) { updates[`rooms/${room}/r32specials/q1/answer`] = ans1; updates[`rooms/${room}/r32specials/q1/settled`] = true; updates[`rooms/${room}/r32specials/q1/open`] = false; }
         if (ans2) { updates[`rooms/${room}/r32specials/q2/answer`] = ans2; updates[`rooms/${room}/r32specials/q2/settled`] = true; updates[`rooms/${room}/r32specials/q2/open`] = false; }
+        // Load magic for this room
+        let mgFlip = null, mgSwap = null;
+        if (room === PRIZE_ROOM) {
+            const mgSnap = await get(ref(db, `rooms/${room}/r32magic`));
+            if (mgSnap.exists()) {
+                const vals = Object.values(mgSnap.val());
+                mgFlip = vals.find(m => m.type === 'flip_yesno') || null;
+                mgSwap = vals.find(m => m.type === 'soul_swap') || null;
+            }
+        }
+        const nameToUid = Object.fromEntries(Object.entries(allScores).map(([u,s]) => [s.name, u]));
         Object.entries(allPreds).forEach(([uid, p]) => {
+            const uName = allScores[uid]?.name;
+            // Soul swap: use the other person's raw answers
+            let effP = p;
+            if (mgSwap && uName) {
+                let swapUid = null;
+                if (uName === mgSwap.player1Name) swapUid = nameToUid[mgSwap.player2Name];
+                else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
+                if (swapUid && allPreds[swapUid]) effP = allPreds[swapUid];
+            }
             let delta = 0;
             if (ans1 && p.q1Points === undefined) {
-                const pts = (p.q1 === ans1) ? 5 : 0;
+                // Flip: invert the effective answer before comparing
+                let effAns1 = effP.q1 || null;
+                if (mgFlip && uName === mgFlip.targetName && effAns1) effAns1 = _magicFlipAnswer(effAns1);
+                const pts = (effAns1 === ans1) ? 5 : 0;
                 updates[`rooms/${room}/r32specialPreds/${uid}/q1Points`] = pts;
                 delta += pts;
             }
             if (ans2 && p.q2Points === undefined) {
-                const pts = (p.q2 === ans2) ? 5 : 0;
+                let effAns2 = effP.q2 || null;
+                if (mgFlip && uName === mgFlip.targetName && effAns2) effAns2 = _magicFlipAnswer(effAns2);
+                const pts = (effAns2 === ans2) ? 5 : 0;
                 updates[`rooms/${room}/r32specialPreds/${uid}/q2Points`] = pts;
                 delta += pts;
             }
@@ -5045,7 +5218,7 @@ window.submitR32Specials = async function() {
         });
     }
     await update(ref(db, '/'), updates);
-    toast('✅ R32特别竞猜结算完毕！');
+    toast('✅ R32特别竞猜结算完毕！（魔法效果已计入）');
 };
 
 window.submitTopScorerOnly = async function() {
@@ -5720,6 +5893,7 @@ window.adminLogin = async function() {
         _refreshPhase1LockStatus();
         _refreshUserUnlockStatus();
         _loadUserUnlockInputs();
+        _refreshMagicStatus();
         refreshResultMatchSelect();
         refreshAdminGroupSelects();
         refreshAdminChampSelect();
