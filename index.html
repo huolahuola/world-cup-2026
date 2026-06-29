@@ -655,12 +655,16 @@ setTimeout(function() {
             <div id="lb-results-content" class="hidden">
                 <!-- 4 sub-sub-tabs -->
                 <div class="flex border-b border-white/10 mb-0 bg-black/20 sticky top-0 z-10">
-                    <button onclick="resultsSubTab('finished')" id="rst-finished" class="flex-1 py-2.5 text-xs font-bold text-yellow-400 border-b-2 border-yellow-400">已结束</button>
+                    <button onclick="resultsSubTab('bracket')" id="rst-bracket" class="flex-1 py-2.5 text-xs font-bold text-yellow-400 border-b-2 border-yellow-400">对阵图</button>
+                    <button onclick="resultsSubTab('finished')" id="rst-finished" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">已结束</button>
                     <button onclick="resultsSubTab('standings')" id="rst-standings" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">积分榜</button>
-                    <button onclick="resultsSubTab('scorer')" id="rst-scorer" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">最佳射手</button>
-                    <button onclick="resultsSubTab('upcoming')" id="rst-upcoming" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">即将开赛</button>
+                    <button onclick="resultsSubTab('scorer')" id="rst-scorer" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">射手</button>
+                    <button onclick="resultsSubTab('upcoming')" id="rst-upcoming" class="flex-1 py-2.5 text-xs font-bold text-gray-500 border-b-2 border-transparent">赛程</button>
                 </div>
-                <div id="rst-finished-content" class="pt-3">
+                <div id="rst-bracket-content" class="pt-3">
+                    <div class="text-center py-8 text-gray-400">加载中...</div>
+                </div>
+                <div id="rst-finished-content" class="hidden pt-3">
                     <div class="text-center py-8 text-gray-400">加载中...</div>
                 </div>
                 <div id="rst-standings-content" class="hidden pt-3">
@@ -5654,7 +5658,7 @@ window.lbSubTab = function(tab) {
         const btn = document.getElementById(`lbt-${t}`);
         if (btn) { btn.classList.toggle('active', t === tab); btn.classList.toggle('text-gray-400', t !== tab); }
     });
-    if (tab === 'results') loadResultsData();
+    if (tab === 'results') { renderKoBracket(); loadResultsData(); }
     if (tab === 'rank') {
         const c = document.getElementById('simLbContainer');
         if (c && !c.dataset.loaded) loadSimLeaderboard();
@@ -5662,7 +5666,7 @@ window.lbSubTab = function(tab) {
 };
 
 window.resultsSubTab = function(tab) {
-    ['finished','standings','scorer','upcoming'].forEach(t => {
+    ['bracket','finished','standings','scorer','upcoming'].forEach(t => {
         document.getElementById(`rst-${t}-content`)?.classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`rst-${t}`);
         if (btn) {
@@ -5670,6 +5674,7 @@ window.resultsSubTab = function(tab) {
             btn.className = `flex-1 py-2.5 text-xs font-bold border-b-2 ${active ? 'text-yellow-400 border-yellow-400' : 'text-gray-500 border-transparent'}`;
         }
     });
+    if (tab === 'bracket') { renderKoBracket(); return; }
     loadResultsData();
 };
 
@@ -5943,6 +5948,153 @@ function _renderScorers() {
     html += '</div>';
     container.innerHTML = html;
     container.dataset.loaded = '1';
+}
+
+// ─── KO Bracket ─────────────────────────────────────────────
+// Bracket pairing order: each pair of R32 matches feeds one R16 slot
+const _BRACKET_R32_PAIRS = [
+    ['m73','m75'], ['m76','m74'],
+    ['m77','m78'], ['m79','m80'],
+    ['m81','m82'], ['m83','m84'],
+    ['m85','m86'], ['m87','m88'],
+];
+
+function renderKoBracket() {
+    const el = document.getElementById('rst-bracket-content');
+    if (!el) return;
+
+    const m = koMatchesData;
+    if (!Object.keys(m).length) {
+        el.innerHTML = '<p class="text-center text-gray-500 py-8">暂无淘汰赛数据</p>';
+        return;
+    }
+
+    // Build a match card (compact)
+    function _mCard(matchId, opts = {}) {
+        const match = m[matchId];
+        if (!match) {
+            // TBD slot
+            return `<div class="bracket-match bg-white/5 rounded-lg px-2 py-1.5 text-center">
+                <div class="text-[10px] text-gray-600">待定</div>
+            </div>`;
+        }
+        const fin = match.status === 'finished';
+        const res = match.result;
+        const adv = res?.advance;
+        const homeAdv = fin && adv === match.home;
+        const awayAdv = fin && adv === match.away;
+        const kickStr = match.kickoff ? (() => {
+            const d = new Date(match.kickoff);
+            return d.toLocaleString('zh-CN',{timeZone:'Europe/Amsterdam',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+        })() : '';
+
+        return `<div class="bracket-match rounded-lg overflow-hidden border ${fin ? 'border-white/10' : 'border-white/5'} bg-black/30">
+            <div class="flex items-center gap-1 px-2 py-1 ${homeAdv ? 'bg-green-900/30' : ''}">
+                <span class="text-sm leading-none">${match.homeFlag||'🏳️'}</span>
+                <span class="text-[11px] font-bold flex-1 truncate ${homeAdv ? 'text-white' : fin ? 'text-gray-500' : 'text-gray-300'}">${match.home||'TBD'}</span>
+                <span class="text-[11px] font-black ${homeAdv ? 'text-yellow-400' : 'text-gray-400'} w-4 text-right">${fin ? res.homeScore : ''}</span>
+            </div>
+            <div class="h-px bg-white/5"></div>
+            <div class="flex items-center gap-1 px-2 py-1 ${awayAdv ? 'bg-green-900/30' : ''}">
+                <span class="text-sm leading-none">${match.awayFlag||'🏳️'}</span>
+                <span class="text-[11px] font-bold flex-1 truncate ${awayAdv ? 'text-white' : fin ? 'text-gray-500' : 'text-gray-300'}">${match.away||'TBD'}</span>
+                <span class="text-[11px] font-black ${awayAdv ? 'text-yellow-400' : 'text-gray-400'} w-4 text-right">${fin ? res.awayScore : ''}</span>
+            </div>
+            ${!fin && kickStr ? `<div class="text-[9px] text-gray-600 text-center pb-0.5">${kickStr}🇳🇱</div>` : ''}
+            ${fin && adv ? `<div class="text-[9px] text-green-400 text-center pb-0.5">▶ ${adv}</div>` : ''}
+        </div>`;
+    }
+
+    // Get winner name from a match
+    function _winner(matchId) {
+        const match = m[matchId];
+        return match?.result?.advance || null;
+    }
+    function _winnerFlag(matchId) {
+        const match = m[matchId];
+        const adv = match?.result?.advance;
+        if (!adv) return '🏳️';
+        return adv === match.home ? (match.homeFlag||'🏳️') : (match.awayFlag||'🏳️');
+    }
+
+    // Build R16, QF, SF, Final match slots from Firebase (by round)
+    const byRound = { r16: [], qf: [], sf: [], final: [] };
+    ['r16','qf','sf','final'].forEach(r => {
+        byRound[r] = Object.entries(m)
+            .filter(([,x]) => x.round === r)
+            .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
+    });
+
+    // Round label
+    const RLABEL = { r32:'32进16', r16:'16进8', qf:'8进4', sf:'4进2', final:'决赛' };
+
+    // ── Render bracket as vertical sections ──
+    let html = `<div class="space-y-4 pb-4">`;
+
+    // R32 section — 2 col grid of pairs
+    html += `<div>
+        <div class="flex items-center gap-2 mb-2 px-1">
+            <span class="text-xs font-black text-yellow-400">⚔️ ${RLABEL.r32}</span>
+            <span class="text-[10px] text-gray-500">${_BRACKET_R32_PAIRS.length * 2}场</span>
+        </div>
+        <div class="space-y-1">`;
+
+    _BRACKET_R32_PAIRS.forEach(([mA, mB], i) => {
+        const wA = _winner(mA), wB = _winner(mB);
+        const wAFlag = _winnerFlag(mA), wBFlag = _winnerFlag(mB);
+        const r16Match = byRound.r16[i];
+        const r16Done = r16Match && r16Match[1].status === 'finished';
+        html += `<div class="flex gap-1 items-stretch">
+            <div class="flex-1 space-y-1">
+                ${_mCard(mA)}
+                ${_mCard(mB)}
+            </div>
+            <div class="flex flex-col items-center justify-center w-6 text-gray-700">
+                <div class="flex-1 border-r border-gray-700"></div>
+                <div class="w-3 border-t border-gray-700"></div>
+                <div class="flex-1 border-r border-gray-700"></div>
+            </div>
+            <div class="w-28 flex flex-col justify-center">
+                ${r16Match ? _mCard(r16Match[0]) : `<div class="bracket-match rounded-lg border border-white/5 bg-black/20 px-2 py-2">
+                    <div class="flex items-center gap-1 py-0.5">
+                        <span class="text-sm">${wAFlag}</span>
+                        <span class="text-[10px] truncate ${wA ? 'text-gray-300' : 'text-gray-600'}">${wA || '待定'}</span>
+                    </div>
+                    <div class="h-px bg-white/5 my-0.5"></div>
+                    <div class="flex items-center gap-1 py-0.5">
+                        <span class="text-sm">${wBFlag}</span>
+                        <span class="text-[10px] truncate ${wB ? 'text-gray-300' : 'text-gray-600'}">${wB || '待定'}</span>
+                    </div>
+                </div>`}
+            </div>
+        </div>`;
+        if (i === 3) {
+            // Divider between upper and lower bracket halves
+            html += `<div class="flex items-center gap-2 my-2">
+                <div class="flex-1 h-px bg-white/10"></div>
+                <span class="text-[10px] text-gray-600">下半区</span>
+                <div class="flex-1 h-px bg-white/10"></div>
+            </div>`;
+        }
+    });
+    html += `</div></div>`;
+
+    // QF, SF, Final sections
+    [['qf', byRound.qf], ['sf', byRound.sf], ['final', byRound.final]].forEach(([r, matches]) => {
+        if (!matches.length) return;
+        html += `<div>
+            <div class="flex items-center gap-2 mb-2 px-1">
+                <span class="text-xs font-black text-yellow-400">⚔️ ${RLABEL[r]}</span>
+                <span class="text-[10px] text-gray-500">${matches.length}场</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                ${matches.map(([mid]) => _mCard(mid)).join('')}
+            </div>
+        </div>`;
+    });
+
+    html += `</div>`;
+    el.innerHTML = html;
 }
 
 function _renderUpcoming() {
