@@ -1701,7 +1701,7 @@ function renderKoMatchCard(matchId, match) {
     } else if (match.status === 'live') {
         statusBadge = `<span class="text-xs bg-red-900/60 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full pulse">🔴 进行中</span>`;
     } else if (locked) {
-        statusBadge = `<span class="text-xs bg-orange-900/60 text-orange-300 border border-orange-500/30 px-2 py-0.5 rounded-full">已锁定</span>`;
+        statusBadge = `<span class="text-xs bg-orange-900/60 text-orange-300 border border-orange-500/30 px-2 py-0.5 rounded-full">🔒 ${_kickoffStr(kickoff)}</span>`;
     } else {
         statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${_kickoffStr(kickoff)}</span>`;
     }
