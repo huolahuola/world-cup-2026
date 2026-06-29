@@ -2474,7 +2474,7 @@ function renderKoCompletionStatus() {
     }).join('');
 
     const bodyId = 'koCompletionBody';
-    const wasOpen = document.getElementById(bodyId)?.style.display !== 'none';
+    const wasOpen = document.getElementById(bodyId)?.style.display === 'block';
     el.innerHTML = `<div class="glass rounded-2xl p-4 mb-3">
         <button onclick="toggleKoCompletion()" class="w-full flex items-center justify-between">
             <p class="text-xs font-bold text-gray-400">⚡ 预测完成情况 · 共 ${totalUsers} 人</p>
@@ -2595,6 +2595,41 @@ function renderLeaderboard() {
             </table>
         </div>
     </div>`;
+
+    // ── 淘汰赛赛况卡片 ──
+    const koEntries = Object.entries(koMatchesData);
+    if (koEntries.length) {
+        const r32Matches = koEntries.filter(([,m]) => m.round === 'r32');
+        const r32Done = r32Matches.filter(([,m]) => m.status === 'finished');
+        const KO_PHASE_LABELS = { r32:'32进16', r16:'16进8', qf:'8进4', sf:'半决赛', final:'决赛' };
+        // Determine current active phase
+        const allRounds = ['r32','r16','qf','sf','final'];
+        let activeRound = allRounds.find(r => koEntries.some(([,m]) => m.round === r && m.status !== 'finished')) || allRounds.find(r => koEntries.some(([,m]) => m.round === r)) || 'r32';
+        const phaseMatches = koEntries.filter(([,m]) => m.round === activeRound);
+        const phaseDone = phaseMatches.filter(([,m]) => m.status === 'finished');
+        const doneRows = phaseDone.sort((a,b)=>(a[1].kickoff||'').localeCompare(b[1].kickoff||'')).map(([,m]) => {
+            const r = m.result;
+            const adv = r?.advance ? `<span class="text-green-400 ml-1">▶ ${r.advance}</span>` : '';
+            return `<div class="flex items-center gap-1 py-1.5 border-b border-white/5 last:border-0 flex-wrap text-xs">
+                <span class="text-gray-500 w-12 flex-shrink-0">${m.kickoff ? new Date(m.kickoff).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}) : '–'}</span>
+                <span class="font-bold text-white">${m.homeFlag||''} ${m.home||'TBD'}</span>
+                <span class="font-black text-yellow-300 mx-1.5">${r?.homeScore??'?'} : ${r?.awayScore??'?'}</span>
+                <span class="font-bold text-white">${m.awayFlag||''} ${m.away||'TBD'}</span>
+                ${adv}
+            </div>`;
+        }).join('');
+        const pendingCount = phaseMatches.length - phaseDone.length;
+        html += `<div class="glass rounded-2xl p-3.5 mt-3 border border-blue-500/20">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">🏆</span>
+                    <span class="font-black text-sm text-blue-300">${KO_PHASE_LABELS[activeRound] || activeRound} 淘汰赛</span>
+                </div>
+                <span class="text-xs text-gray-500">${phaseDone.length}/${phaseMatches.length} 场已完赛${pendingCount > 0 ? ` · 还剩 ${pendingCount} 场` : ''}</span>
+            </div>
+            ${doneRows || '<div class="text-xs text-gray-500 text-center py-2">本轮暂无已结束比赛</div>'}
+        </div>`;
+    }
 
     html += `<div id="crossRoomCard" class="mt-3"></div>`;
 
