@@ -2773,6 +2773,16 @@ function _calcSimScores() {
             }
         }
 
+        // Add settled KO match points from Firebase
+        const myKoPreds = koAllPredsData[uid] || {};
+        const settledKoPts = Object.values(myKoPreds).reduce((sum, p) => sum + (p?.points || 0), 0);
+        if (settledKoPts > 0) { simPts += settledKoPts; breakdown.push(`淘汰赛 +${settledKoPts}`); }
+
+        // Add settled R32 special question points
+        const mySpecials = r32AllSpecialPredsData[uid] || {};
+        const settledSpPts = (mySpecials.q1Points || 0) + (mySpecials.q2Points || 0);
+        if (settledSpPts > 0) { simPts += settledSpPts; breakdown.push(`特别竞猜 +${settledSpPts}`); }
+
         scores.push({ uid, name: user.name, simPts, breakdown });
     }
 
