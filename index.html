@@ -1658,6 +1658,16 @@ function renderKnockout() {
     container.innerHTML = magicBanner + r32SpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
 }
 
+function _kickoffStr(kickoff) {
+    if (!kickoff) return '时间待定';
+    const amsStr  = kickoff.toLocaleString('zh-CN', { timeZone:'Europe/Amsterdam', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
+    const bjTime  = kickoff.toLocaleTimeString('zh-CN', { timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit', hour12:false });
+    const amsDate = kickoff.toLocaleDateString('zh-CN', { timeZone:'Europe/Amsterdam' });
+    const bjDate  = kickoff.toLocaleDateString('zh-CN', { timeZone:'Asia/Shanghai' });
+    const nextDay = bjDate !== amsDate;
+    return `${amsStr}🇳🇱 ${bjTime}${nextDay?'(+1)':''}🇨🇳`;
+}
+
 function renderKoMatchCard(matchId, match) {
     const isR32Match = match.round === 'r32';
     const { pred: effectivePred, wasSwapped: predWasSwapped } = isR32Match
@@ -1693,12 +1703,9 @@ function renderKoMatchCard(matchId, match) {
     } else if (locked) {
         statusBadge = `<span class="text-xs bg-orange-900/60 text-orange-300 border border-orange-500/30 px-2 py-0.5 rounded-full">已锁定</span>`;
     } else {
-        const timeStr = kickoff ? kickoff.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '时间待定';
-        statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${timeStr}</span>`;
+        statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${_kickoffStr(kickoff)}</span>`;
     }
-    const deadlineStr = roundDeadline
-        ? roundDeadline.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
-        : null;
+    const deadlineStr = roundDeadline ? _kickoffStr(roundDeadline) : null;
     const deadlineBadge = !finished && deadlineStr
         ? `<span class="text-[10px] text-gray-600">🔒 截止 ${deadlineStr}</span>`
         : '';
