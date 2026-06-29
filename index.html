@@ -147,6 +147,7 @@
             #lbSubnav > div > button { flex: 1 1 0; }
         }
         .cfilter-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
+        .cistage-btn.cf-active { background: linear-gradient(135deg,#f7c948,#e89c00) !important; color:#000 !important; border-color: transparent !important; }
         .checkin-watched { background: rgba(34,197,94,0.09) !important; border: 1px solid rgba(34,197,94,0.4) !important; }
         .ci-match-card { padding:10px 12px; margin-bottom:8px; border-radius:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
         .ci-card-top { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
@@ -732,7 +733,15 @@ setTimeout(function() {
                     <span id="ci-pct-text">0%</span>
                 </div>
             </div>
-            <!-- Group filter -->
+            <!-- Stage toggle -->
+            <div class="flex gap-1.5 overflow-x-auto pb-1 mb-2" style="scrollbar-width:none">
+                <button onclick="ciStage('group')" id="cistage-group" class="cistage-btn cf-active flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full glass border border-white/20 text-black">小组赛</button>
+                <button onclick="ciStage('r32')" id="cistage-r32" class="cistage-btn flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full glass border border-white/20 text-gray-400">32进16</button>
+                <button onclick="ciStage('r16')" id="cistage-r16" class="cistage-btn flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full glass border border-white/20 text-gray-400">16进8</button>
+                <button onclick="ciStage('qf')" id="cistage-qf" class="cistage-btn flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full glass border border-white/20 text-gray-400">8进4</button>
+                <button onclick="ciStage('sf')" id="cistage-sf" class="cistage-btn flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full glass border border-white/20 text-gray-400">半决赛&amp;决赛</button>
+            </div>
+            <!-- Group filter (小组赛 only) -->
             <div id="ci-filter-wrap" class="flex gap-1.5 overflow-x-auto pb-1 mb-4" style="scrollbar-width:none">
                 <button onclick="ciFilter('all')" id="cfilter-all" class="cfilter-btn cf-active flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full glass border border-white/20 text-black">全部</button>
             </div>
@@ -8721,6 +8730,32 @@ for (const [gId, gData] of Object.entries(CI_GROUPS)) {
     });
 }
 
+const CI_KO_R32 = {
+    'm73': { id:'m73', home:['南非','🇿🇦'],   away:['加拿大','🇨🇦'],     month:6, day:28 },
+    'm74': { id:'m74', home:['德国','🇩🇪'],    away:['巴拉圭','🇵🇾'],     month:6, day:29 },
+    'm75': { id:'m75', home:['荷兰','🇳🇱'],    away:['摩洛哥','🇲🇦'],     month:6, day:29 },
+    'm76': { id:'m76', home:['巴西','🇧🇷'],    away:['日本','🇯🇵'],       month:6, day:29 },
+    'm77': { id:'m77', home:['法国','🇫🇷'],    away:['瑞典','🇸🇪'],       month:6, day:30 },
+    'm78': { id:'m78', home:['科特迪瓦','🇨🇮'],away:['挪威','🇳🇴'],       month:6, day:30 },
+    'm79': { id:'m79', home:['墨西哥','🇲🇽'],  away:['厄瓜多尔','🇪🇨'],   month:6, day:30 },
+    'm80': { id:'m80', home:['英格兰','🏴󠁧󠁢󠁥󠁮󠁧󠁿'], away:['刚果(金)','🇨🇩'],  month:7, day:1  },
+    'm81': { id:'m81', home:['美国','🇺🇸'],    away:['波黑','🇧🇦'],       month:7, day:1  },
+    'm82': { id:'m82', home:['比利时','🇧🇪'],  away:['塞内加尔','🇸🇳'],   month:7, day:1  },
+    'm83': { id:'m83', home:['葡萄牙','🇵🇹'],  away:['克罗地亚','🇭🇷'],   month:7, day:2  },
+    'm84': { id:'m84', home:['西班牙','🇪🇸'],  away:['奥地利','🇦🇹'],     month:7, day:2  },
+    'm85': { id:'m85', home:['瑞士','🇨🇭'],    away:['阿尔及利亚','🇩🇿'], month:7, day:2  },
+    'm86': { id:'m86', home:['阿根廷','🇦🇷'],  away:['佛得角','🇨🇻'],     month:7, day:3  },
+    'm87': { id:'m87', home:['哥伦比亚','🇨🇴'],away:['加纳','🇬🇭'],       month:7, day:3  },
+    'm88': { id:'m88', home:['澳大利亚','🇦🇺'],away:['埃及','🇪🇬'],       month:7, day:3  },
+};
+
+// Future KO stages (populated as tournament progresses)
+const CI_KO_R16 = {};
+const CI_KO_QF  = {};
+const CI_KO_SF  = {};
+
+const CI_KO_BY_STAGE = { r32: CI_KO_R32, r16: CI_KO_R16, qf: CI_KO_QF, sf: CI_KO_SF };
+
 function ciKey() { return `wc2026_ci_${currentUser?.id || 'local'}`; }
 function ciLoad() { try { return JSON.parse(localStorage.getItem(ciKey()) || '{}'); } catch(e) { return {}; } }
 function ciSave(d) {
@@ -8749,6 +8784,7 @@ async function ciSyncFromFirebase() {
 }
 
 let _ciFilter = 'all';
+let _ciStage = 'group';
 
 // Build group filter buttons once
 function _ciInitFilter() {
@@ -8774,7 +8810,7 @@ function _ciCard(m, c, showGroup) {
     const stateClass = wFull ? 'checkin-watched' : wHalf ? 'checkin-half' : wClips ? 'checkin-clips' : wSkip ? 'checkin-skip' : '';
     const sub = showGroup
         ? `<span class="ci-group-badge">${m.group}组</span>`
-        : `<span class="ci-date-badge">6月${m.day}日</span>`;
+        : `<span class="ci-date-badge">${m.month ? m.month : 6}月${m.day}日</span>`;
     return `<div class="ci-match-card ${stateClass}">
       <div class="ci-card-top">
         <span class="text-xl flex-shrink-0 leading-none">${m.home[1]} ${m.away[1]}</span>
@@ -8798,67 +8834,118 @@ function _ciCard(m, c, showGroup) {
 window.ciRender = function() {
     _ciInitFilter();
     const data = ciLoad();
-    const allMatches = Object.values(CI_MATCHES);
-    const total = allMatches.length;
-    const full = allMatches.filter(m => { const w = data[m.id]?.w; return w === 'full' || w === true; }).length;
-    const half = allMatches.filter(m => data[m.id]?.w === 'half').length;
-    const clips = allMatches.filter(m => data[m.id]?.w === 'clips').length;
-    const skip = allMatches.filter(m => data[m.id]?.w === 'skip').length;
+
+    // Stage matches
+    const stageMatches = _ciStage === 'group'
+        ? Object.values(CI_MATCHES)
+        : Object.values(CI_KO_BY_STAGE[_ciStage] || {});
+
+    const total = stageMatches.length;
+    const full = stageMatches.filter(m => { const w = data[m.id]?.w; return w === 'full' || w === true; }).length;
+    const half = stageMatches.filter(m => data[m.id]?.w === 'half').length;
+    const clips = stageMatches.filter(m => data[m.id]?.w === 'clips').length;
     const watched = full + half + clips;
-    const noteCount = allMatches.filter(m => data[m.id]?.note?.trim()).length;
+    const noteCount = stageMatches.filter(m => data[m.id]?.note?.trim()).length;
     const pct = total ? Math.round(watched/total*100) : 0;
 
-    document.getElementById('ci-stats-text').textContent = `认真${full}，迷糊${half}，集锦${clips}/${total}场`;
+    document.getElementById('ci-stats-text').textContent = total ? `认真${full}，迷糊${half}，集锦${clips}/${total}场` : '暂无比赛';
     document.getElementById('ci-notes-text').textContent = `笔记 ${noteCount} 篇`;
     document.getElementById('ci-pct-text').textContent = `${pct}%`;
     document.getElementById('ci-progress-bar').style.width = `${pct}%`;
 
-    document.querySelectorAll('.cfilter-btn').forEach(b => {
+    // Stage toggle active state
+    document.querySelectorAll('.cistage-btn').forEach(b => {
         b.classList.remove('cf-active','text-black');
         b.classList.add('text-gray-400');
     });
-    const ab = document.getElementById(`cfilter-${_ciFilter}`);
-    if (ab) { ab.classList.add('cf-active','text-black'); ab.classList.remove('text-gray-400'); }
+    const sb = document.getElementById(`cistage-${_ciStage}`);
+    if (sb) { sb.classList.add('cf-active','text-black'); sb.classList.remove('text-gray-400'); }
+
+    // Show/hide group filter
+    document.getElementById('ci-filter-wrap').classList.toggle('hidden', _ciStage !== 'group');
+
+    // Group filter active state
+    if (_ciStage === 'group') {
+        document.querySelectorAll('.cfilter-btn').forEach(b => {
+            b.classList.remove('cf-active','text-black');
+            b.classList.add('text-gray-400');
+        });
+        const ab = document.getElementById(`cfilter-${_ciFilter}`);
+        if (ab) { ab.classList.add('cf-active','text-black'); ab.classList.remove('text-gray-400'); }
+    }
 
     let html = '';
-    if (_ciFilter === 'all') {
-        // Sort all matches by date, group by day
-        const byDay = {};
-        for (const m of [...allMatches].sort((a,b) => a.day - b.day)) {
-            (byDay[m.day] = byDay[m.day] || []).push(m);
+
+    if (_ciStage === 'group') {
+        if (_ciFilter === 'all') {
+            const byDay = {};
+            for (const m of [...stageMatches].sort((a,b) => a.day - b.day)) {
+                (byDay[m.day] = byDay[m.day] || []).push(m);
+            }
+            for (const day of Object.keys(byDay).map(Number).sort((a,b)=>a-b)) {
+                const ms = byDay[day];
+                const dw = ms.filter(m => data[m.id]?.w).length;
+                html += `<div class="mb-4">
+                  <div class="flex items-center gap-2 mb-2 px-1">
+                    <span class="font-black text-sm gold-text">6月${day}日</span>
+                    <span class="text-xs text-gray-600">${dw}/${ms.length}</span>
+                  </div>`;
+                for (const m of ms) html += _ciCard(m, data[m.id], true);
+                html += `</div>`;
+            }
+        } else {
+            const gData = CI_GROUPS[_ciFilter];
+            const gMatches = stageMatches.filter(m => m.group === _ciFilter);
+            const gWatched = gMatches.filter(m => data[m.id]?.w).length;
+            html += `<div class="flex items-center justify-between mb-3 px-1">
+              <span class="font-black text-sm gold-text">${gData.label}</span>
+              <span class="text-xs ${gWatched===6?'text-green-400 font-bold':'text-gray-500'}">${gWatched}/6 场</span>
+            </div>`;
+            for (let md = 1; md <= 3; md++) {
+                const mdMs = gMatches.filter(m => m.md === md);
+                html += `<div class="mb-3"><p class="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-1 mb-2">第${md}轮</p>`;
+                for (const m of mdMs) html += _ciCard(m, data[m.id], false);
+                html += `</div>`;
+            }
         }
-        for (const day of Object.keys(byDay).map(Number).sort((a,b)=>a-b)) {
-            const ms = byDay[day];
+    } else if (CI_KO_BY_STAGE[_ciStage] && Object.keys(CI_KO_BY_STAGE[_ciStage]).length > 0) {
+        // KO stage with matches: group by date
+        const byDate = {};
+        for (const m of [...stageMatches].sort((a,b) => a.month*100+a.day - (b.month*100+b.day))) {
+            const key = `${m.month}-${m.day}`;
+            (byDate[key] = byDate[key] || []).push(m);
+        }
+        for (const key of Object.keys(byDate).sort()) {
+            const [month, day] = key.split('-').map(Number);
+            const ms = byDate[key];
             const dw = ms.filter(m => data[m.id]?.w).length;
             html += `<div class="mb-4">
               <div class="flex items-center gap-2 mb-2 px-1">
-                <span class="font-black text-sm gold-text">6月${day}日</span>
+                <span class="font-black text-sm gold-text">${month}月${day}日</span>
                 <span class="text-xs text-gray-600">${dw}/${ms.length}</span>
               </div>`;
-            for (const m of ms) html += _ciCard(m, data[m.id], true);
+            for (const m of ms) html += _ciCard(m, data[m.id], false);
             html += `</div>`;
         }
     } else {
-        const gData = CI_GROUPS[_ciFilter];
-        const gMatches = allMatches.filter(m => m.group === _ciFilter);
-        const gWatched = gMatches.filter(m => data[m.id]?.w).length;
-        html += `<div class="flex items-center justify-between mb-3 px-1">
-          <span class="font-black text-sm gold-text">${gData.label}</span>
-          <span class="text-xs ${gWatched===6?'text-green-400 font-bold':'text-gray-500'}">${gWatched}/6 场</span>
+        html = `<div class="text-center py-16 text-gray-500">
+            <div class="text-4xl mb-3">⏳</div>
+            <p class="font-bold text-sm">赛程即将开始</p>
+            <p class="text-xs text-gray-600 mt-1">晋级球队确定后这里会自动更新</p>
         </div>`;
-        for (let md = 1; md <= 3; md++) {
-            const mdMs = gMatches.filter(m => m.md === md);
-            html += `<div class="mb-3"><p class="text-[10px] font-bold text-gray-600 uppercase tracking-wider px-1 mb-2">第${md}轮</p>`;
-            for (const m of mdMs) html += _ciCard(m, data[m.id], false);
-            html += `</div>`;
-        }
     }
+
     document.getElementById('ci-list').innerHTML = html;
 
 };
 
 window.ciFilter = function(gId) {
     _ciFilter = gId;
+    ciRender();
+};
+
+window.ciStage = function(stage) {
+    _ciStage = stage;
     ciRender();
 };
 
@@ -8883,7 +8970,7 @@ window.ciToggle = function(matchId, mode) {
 };
 
 window.ciNoteOpen = function(matchId, readOnly) {
-    const m = CI_MATCHES[matchId];
+    const m = CI_MATCHES[matchId] || CI_KO_R32[matchId] || CI_KO_R16[matchId] || CI_KO_QF[matchId] || CI_KO_SF[matchId];
     const data = ciLoad();
     const label = `${m.home[1]}${m.away[1]}  ${m.home[0]} vs ${m.away[0]}`;
     document.getElementById('ciNoteMatchLabel').textContent = label;
@@ -8980,9 +9067,19 @@ window.mySubTab = function(tab) {
 
 function renderMyNotes() {
     const data = ciLoad();
-    const allMatches = Object.values(CI_MATCHES);
+    const allMatches = [
+        ...Object.values(CI_MATCHES),
+        ...Object.values(CI_KO_R32),
+        ...Object.values(CI_KO_R16),
+        ...Object.values(CI_KO_QF),
+        ...Object.values(CI_KO_SF),
+    ];
     const noteMatches = allMatches.filter(m => data[m.id]?.note?.trim())
-        .sort((a,b) => a.day - b.day);
+        .sort((a,b) => {
+            const ak = (a.month || 6)*100 + a.day;
+            const bk = (b.month || 6)*100 + b.day;
+            return ak - bk;
+        });
     const container = document.getElementById('myNotesContainer');
     if (!container) return;
     if (noteMatches.length === 0) {
@@ -8991,12 +9088,16 @@ function renderMyNotes() {
     }
     container.innerHTML = noteMatches.map(m => {
         const note = (data[m.id].note||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const badge = m.group
+            ? `<span class="ci-group-badge">${m.group}组</span>`
+            : `<span class="ci-group-badge">淘汰赛</span>`;
+        const dateStr = `${m.month || 6}/${m.day}`;
         return `<div class="glass rounded-2xl p-4 mb-3">
             <div class="flex items-center gap-2 mb-2">
                 <span class="text-lg leading-none">${m.home[1]}${m.away[1]}</span>
                 <span class="font-bold text-sm flex-1 min-w-0 truncate">${m.home[0]} <span class="text-gray-500 font-normal text-xs">vs</span> ${m.away[0]}</span>
-                <span class="ci-group-badge">${m.group}组</span>
-                <span class="text-[10px] text-gray-600 flex-shrink-0">6/${m.day}</span>
+                ${badge}
+                <span class="text-[10px] text-gray-600 flex-shrink-0">${dateStr}</span>
             </div>
             <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">${note}</p>
         </div>`;
