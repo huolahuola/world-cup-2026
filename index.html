@@ -5607,6 +5607,73 @@ function renderR32SpecialsCard() {
     const q2Html = renderQ('q2', q2);
     const hasForm = (q1?.open || q2?.open) && _isUserUnlocked && !(q1?.settled && (!q2?.q || q2?.settled));
 
+    // Build age summary toggle for q2
+    function buildQ2AgeToggle() {
+        if (!q2?.q) return '';
+        const _calcAge = (bd, kickoff) => {
+            const d = new Date(bd), ref = kickoff ? new Date(kickoff) : new Date();
+            let age = ref.getFullYear() - d.getFullYear();
+            if (ref.getMonth() < d.getMonth() || (ref.getMonth() === d.getMonth() && ref.getDate() < d.getDate())) age--;
+            return age;
+        };
+        const _parseNum = s => { const m = s ? s.match(/^(\d+)号/) : null; return m ? m[1] : ''; };
+
+        const r32Finished = Object.entries(koMatchesData)
+            .filter(([,m]) => m.round === 'r32' && m.status === 'finished')
+            .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
+
+        const allEntries = [];
+        const matchRows = r32Finished.map(([, m]) => {
+            const res = m.result || {};
+            const advFlag = res.advance === m.home ? (m.homeFlag||'') : res.advance === m.away ? (m.awayFlag||'') : '';
+            const label = `${m.homeFlag||''}${m.home||'?'} ${res.homeScore??'?'}:${res.awayScore??'?'} ${m.awayFlag||''}${m.away||'?'}`;
+            let items = [];
+            const wArr = res.winnerScorers ? Object.values(res.winnerScorers) : null;
+            if (wArr?.length) {
+                items = wArr.filter(ws => ws.birthdate).map(ws => {
+                    const age = _calcAge(ws.birthdate, m.kickoff);
+                    return { num: _parseNum(ws.scorer), birthdate: ws.birthdate, age, over30: age >= 30 };
+                });
+            } else {
+                const bd = res.winnerScorerBirthdate || res.scorerBirthdate;
+                if (bd) {
+                    const age = _calcAge(bd, m.kickoff);
+                    items = [{ num: _parseNum(res.winnerScorer || res.scorer || ''), birthdate: bd, age, over30: age >= 30 }];
+                }
+            }
+            if (!items.length) return '';
+            allEntries.push(...items);
+            const lines = items.map(e =>
+                `<div class="text-gray-400 pl-3">· ${e.num ? e.num+'号 ' : ''}${e.birthdate}（${e.age}岁 ${e.over30 ? '✅≥30' : '❌<30'}）</div>`
+            ).join('');
+            return `<div class="py-1 border-b border-white/5 last:border-0">
+                <div class="text-gray-300">${advFlag}${res.advance||'?'} · <span class="text-gray-500">${label}</span></div>${lines}
+            </div>`;
+        }).filter(Boolean);
+
+        if (!allEntries.length) return '';
+        const total = allEntries.length;
+        const over30 = allEntries.filter(e => e.over30).length;
+        const curAns = over30 * 2 >= total ? 'Y' : 'N';
+        const ansColor = curAns === 'Y' ? 'text-green-400' : 'text-red-400';
+        const bodyId = 'r32Q2AgeBody', chevId = 'r32Q2AgeChev';
+        const isOpen = !document.getElementById(bodyId)?.classList.contains('hidden') && !!document.getElementById(bodyId);
+        return `<div class="mt-1 pt-2 border-t border-white/8 text-xs">
+            <button type="button" onclick="toggleR32Q2Age()" class="w-full flex items-center justify-between text-gray-500 hover:text-gray-300 py-0.5 transition-colors">
+                <span>📊 年龄汇总（${total}人，${over30}人≥30岁）· 当前答案 <span class="${ansColor} font-bold">${curAns}</span></span>
+                <span id="${chevId}" class="text-gray-600 text-[10px]">${isOpen ? '▼' : '▶'}</span>
+            </button>
+            <div id="${bodyId}" class="${isOpen ? 'mt-2' : 'hidden mt-2'} space-y-0.5">
+                ${matchRows.join('')}
+                <div class="pt-1.5 mt-1 border-t border-white/8 text-gray-300 font-medium">
+                    共 ${total} 球 · <span class="text-green-400">${over30}人≥30岁</span> · <span class="text-red-400">${total-over30}人&lt;30岁</span>
+                    · 占比 ${Math.round(over30/total*100)}% → <span class="${ansColor} font-bold">当前答案: ${curAns}</span>
+                </div>
+            </div>
+        </div>`;
+    }
+    const q2AgeToggle = buildQ2AgeToggle();
+
     const wasOpen = !document.getElementById('r32SpecialsBody')?.classList.contains('hidden') && !!document.getElementById('r32SpecialsBody');
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
         <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleR32SpecialsCard()">
@@ -5618,7 +5685,7 @@ function renderR32SpecialsCard() {
             <span id="r32SpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
         <div id="r32SpecialsBody" class="${wasOpen ? 'mt-3' : 'hidden'}">
-            ${q1Html}${q2Html}
+            ${q1Html}${q2Html}${q2AgeToggle}
             ${hasForm ? '<button onclick="saveR32SpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交竞猜</button>' : ''}
         </div>
     </div>`;
@@ -5673,6 +5740,15 @@ window.toggleR32SpecialsCard = function() {
     if (!body) return;
     const nowHidden = body.classList.toggle('hidden');
     body.classList.toggle('mt-3', !nowHidden);
+    if (chev) chev.textContent = nowHidden ? '▶' : '▼';
+};
+
+window.toggleR32Q2Age = function() {
+    const body = document.getElementById('r32Q2AgeBody');
+    const chev = document.getElementById('r32Q2AgeChev');
+    if (!body) return;
+    const nowHidden = body.classList.toggle('hidden');
+    body.classList.toggle('mt-2', !nowHidden);
     if (chev) chev.textContent = nowHidden ? '▶' : '▼';
 };
 
