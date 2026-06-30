@@ -1884,7 +1884,7 @@ function renderKoMatchCard(matchId, match) {
                 const ageStr = ws.birthdate ? `📅 ${_ageHtml(ws.birthdate)}` : '';
                 return `<div class="text-gray-400 pl-1">· ${num}号 ${ageStr}</div>`;
             }).join('');
-            winnerLines = `<div class="text-gray-300">🏆 ${advFlag} 晋级方进球</div>${rows}`;
+            winnerLines = `<div class="text-gray-300">🏆 晋级方${advFlag}进球</div>${rows}`;
         } else {
             // Backward compat: single winnerScorer or old scorerBirthdate
             const wBirthdate = result.winnerScorerBirthdate || result.scorerBirthdate || null;
@@ -1894,7 +1894,7 @@ function renderKoMatchCard(matchId, match) {
                     const { num: wNum } = _parseScorer(result.winnerScorer);
                     wWho = `${wNum}号 · `;
                 }
-                winnerLines = `<div class="text-gray-400">🏆 ${advFlag} 晋级方 ${wWho}📅 ${_ageHtml(wBirthdate)}</div>`;
+                winnerLines = `<div class="text-gray-400">🏆 晋级方${advFlag} ${wWho}📅 ${_ageHtml(wBirthdate)}</div>`;
             }
         }
 
