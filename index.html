@@ -997,10 +997,8 @@ setTimeout(function() {
                     </select>
                     <p class="text-xs text-gray-400 mb-1">⚽ 首个进球者（90分钟内，任意队）</p>
                     <div id="koScorerInputWrap"></div>
-                    <p class="text-xs text-gray-400 mb-1 mt-3">🏆 晋级方进球者（特别竞猜2，含乌龙球）</p>
+                    <p class="text-xs text-gray-400 mb-1 mt-3">🏆 晋级方进球者（特别竞猜2，含乌龙球，每人填队+号码+生日）</p>
                     <div id="koWinnerScorerInputWrap"></div>
-                    <p class="text-xs text-gray-400 mb-1 mt-2">晋级方进球者出生日期</p>
-                    <input type="date" id="koWinnerScorerBirthdate" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
             </div>
@@ -1874,22 +1872,34 @@ function renderKoMatchCard(matchId, match) {
             firstLine = `<div class="text-gray-200">⚽ 首开 ${_getFlag(country)}${country} ${num}号</div>`;
         }
 
-        // Line 2: winner's scorer — country+number + birthdate+age
-        // Use result.winnerScorer + result.winnerScorerBirthdate if available,
-        // else fall back to result.scorerBirthdate (backward compat for existing data)
-        let winnerLine = '';
-        const wBirthdate = result.winnerScorerBirthdate || result.scorerBirthdate || null;
-        if (wBirthdate) {
-            let wWho = '';
-            if (result.winnerScorer) {
-                const { num: wNum, country: wCountry } = _parseScorer(result.winnerScorer);
-                wWho = `${_getFlag(wCountry)}${wCountry} ${wNum}号 · `;
+        // Advancing team flag
+        const advFlag = result.advance === match.home ? (match.homeFlag||'') : result.advance === match.away ? (match.awayFlag||'') : '';
+
+        // Lines 2+: winner's scorers — support new array model or old single-field fallback
+        let winnerLines = '';
+        const wArr = result.winnerScorers ? Object.values(result.winnerScorers) : null;
+        if (wArr && wArr.length > 0) {
+            const rows = wArr.map(ws => {
+                const { num } = _parseScorer(ws.scorer);
+                const ageStr = ws.birthdate ? `📅 ${_ageHtml(ws.birthdate)}` : '';
+                return `<div class="text-gray-400 pl-1">· ${num}号 ${ageStr}</div>`;
+            }).join('');
+            winnerLines = `<div class="text-gray-300">🏆 ${advFlag} 晋级方进球</div>${rows}`;
+        } else {
+            // Backward compat: single winnerScorer or old scorerBirthdate
+            const wBirthdate = result.winnerScorerBirthdate || result.scorerBirthdate || null;
+            if (wBirthdate) {
+                let wWho = '';
+                if (result.winnerScorer) {
+                    const { num: wNum } = _parseScorer(result.winnerScorer);
+                    wWho = `${wNum}号 · `;
+                }
+                winnerLines = `<div class="text-gray-400">🏆 ${advFlag} 晋级方 ${wWho}📅 ${_ageHtml(wBirthdate)}</div>`;
             }
-            winnerLine = `<div class="text-gray-400">🏆 晋级方 ${wWho}📅 ${_ageHtml(wBirthdate)}</div>`;
         }
 
-        if (firstLine || winnerLine) {
-            scorerBlock = `<div class="mt-2 pt-2 border-t border-white/8 text-xs space-y-0.5">${firstLine}${winnerLine}</div>`;
+        if (firstLine || winnerLines) {
+            scorerBlock = `<div class="mt-2 pt-2 border-t border-white/8 text-xs space-y-0.5">${firstLine}${winnerLines}</div>`;
         }
     } else {
         vsBlock = `<div class="text-gray-600 font-black text-xl">VS</div>`;
@@ -2293,6 +2303,7 @@ function refreshKoAdmin() {
             const advSel = document.getElementById('koResAdvance');
             if (!m) {
                 document.getElementById('koScorerInputWrap').innerHTML='';
+                document.getElementById('koWinnerScorerInputWrap').innerHTML='';
                 if (advSel) advSel.innerHTML='<option value="">— 选择晋级球队 —</option>';
                 return;
             }
@@ -2324,16 +2335,17 @@ function refreshKoAdmin() {
                         ${numOpts2}
                     </select>
                 </div>${specialsGradeHtml}`;
-            document.getElementById('koWinnerScorerInputWrap').innerHTML = `
-                <div class="flex gap-2 mb-2">
-                    <select id="koResWinnerScorerTeam" class="flex-1 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
-                        ${_teamOpts('无人进球（不含）')}
-                    </select>
-                    <select id="koResWinnerScorerNum" class="w-24 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
-                        <option value="">号码</option>
-                        ${numOpts2}
-                    </select>
+            window._koAdminMatch = m;
+            window._koAdminNumOpts = numOpts2;
+            const _wsRowHtml = (i) => `
+                <div class="flex gap-1 mb-1 items-center" id="koWsRow-${i}">
+                    <select id="koWsTeam-${i}" class="flex-1 glass-dark rounded-xl px-2 py-2 text-sm text-white focus:outline-none">${_teamOpts('无')}</select>
+                    <select id="koWsNum-${i}" class="w-20 glass-dark rounded-xl px-2 py-2 text-sm text-white focus:outline-none"><option value="">号</option>${numOpts2}</select>
+                    <input type="date" id="koWsBd-${i}" class="flex-1 glass-dark rounded-xl px-2 py-1 text-xs text-white focus:outline-none">
                 </div>`;
+            document.getElementById('koWinnerScorerInputWrap').innerHTML = `
+                <div id="koWsRows">${_wsRowHtml(0)}</div>
+                <button type="button" onclick="addKoWsRow()" class="text-xs text-yellow-400 hover:text-yellow-300 mt-1">＋ 添加进球者</button>`;
         };
     }
 
@@ -2465,6 +2477,20 @@ window.loadRosterForEdit = function(team) {
     document.getElementById('rosterTeam').scrollIntoView({behavior:'smooth'});
 };
 
+window.addKoWsRow = function() {
+    const rows = document.getElementById('koWsRows');
+    if (!rows) return;
+    const idx = rows.querySelectorAll('[id^="koWsRow-"]').length;
+    const m = window._koAdminMatch || {};
+    const numOpts = window._koAdminNumOpts || '';
+    const teamOpts = `<option value="">无</option><option value="${m.home||''}">${m.homeFlag||''} ${m.home||''}</option><option value="${m.away||''}">${m.awayFlag||''} ${m.away||''}</option>`;
+    rows.insertAdjacentHTML('beforeend', `<div class="flex gap-1 mb-1 items-center" id="koWsRow-${idx}">
+        <select id="koWsTeam-${idx}" class="flex-1 glass-dark rounded-xl px-2 py-2 text-sm text-white focus:outline-none">${teamOpts}</select>
+        <select id="koWsNum-${idx}" class="w-20 glass-dark rounded-xl px-2 py-2 text-sm text-white focus:outline-none"><option value="">号</option>${numOpts}</select>
+        <input type="date" id="koWsBd-${idx}" class="flex-1 glass-dark rounded-xl px-2 py-1 text-xs text-white focus:outline-none">
+    </div>`);
+};
+
 window.submitKoResult = async function() {
     const matchId = document.getElementById('koResultMatchSel')?.value;
     if (!matchId) { toast('请选择比赛', 'error'); return; }
@@ -2474,10 +2500,16 @@ window.submitKoResult = async function() {
     const resScorerTeam = document.getElementById('koResScorerTeam')?.value || '';
     const resScorerNum  = document.getElementById('koResScorerNum')?.value || '';
     let scorer = (resScorerTeam && resScorerNum) ? `${resScorerNum}号 (${resScorerTeam})` : null;
-    const resWinnerScorerTeam = document.getElementById('koResWinnerScorerTeam')?.value || '';
-    const resWinnerScorerNum  = document.getElementById('koResWinnerScorerNum')?.value || '';
-    const winnerScorer = (resWinnerScorerTeam && resWinnerScorerNum) ? `${resWinnerScorerNum}号 (${resWinnerScorerTeam})` : null;
-    const winnerScorerBirthdate = document.getElementById('koWinnerScorerBirthdate')?.value || null;
+    // Collect multiple winner scorers from dynamic rows
+    const winnerScorers = [];
+    let _wsi = 0;
+    while (document.getElementById(`koWsTeam-${_wsi}`)) {
+        const wt = document.getElementById(`koWsTeam-${_wsi}`)?.value || '';
+        const wn = document.getElementById(`koWsNum-${_wsi}`)?.value || '';
+        const wb = document.getElementById(`koWsBd-${_wsi}`)?.value || null;
+        if (wt && wn) winnerScorers.push({ scorer: `${wn}号 (${wt})`, ...(wb ? { birthdate: wb } : {}) });
+        _wsi++;
+    }
     const outcome_90 = hs > as ? 'W' : hs < as ? 'L' : 'D';
     const advance = document.getElementById('koResAdvance')?.value || null;
     const match = koMatchesData[matchId];
@@ -2487,8 +2519,7 @@ window.submitKoResult = async function() {
         if (ans) specialsResult[sp.key] = ans;
     });
     const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer,
-        ...(winnerScorer ? { winnerScorer } : {}),
-        ...(winnerScorerBirthdate ? { winnerScorerBirthdate } : {}),
+        ...(winnerScorers.length ? { winnerScorers } : {}),
         specials: Object.keys(specialsResult).length ? specialsResult : null };
 
     // Score all predictions for this match — both rooms
