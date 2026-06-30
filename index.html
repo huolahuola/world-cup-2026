@@ -2156,7 +2156,7 @@ function renderKoPublicPredsSection(matchId, match) {
         const pts = u.ownPts ?? p.points;
         const isMe = currentUser?.name === u.name;
         return `<div class="flex items-center gap-1.5 py-1 border-b border-white/5 last:border-0 text-xs">
-            <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(u.name)}${u.isSwapped ? '🃏' : ''}${isMe ? '↩' : ''}</span>
+            <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(u.name)}${u.isSwapped ? '🃏' : ''}${isMe ? '↩' : ''}</span>
             <span class="text-gray-400 flex-shrink-0">${r90}</span>
             ${p.advance ? `<span class="text-green-400 flex-shrink-0">▶${p.advance}</span>` : ''}
             ${p.scorer ? `<span class="text-orange-300 flex-1 truncate">⚽${p.scorer}</span>` : '<span class="flex-1"></span>'}
@@ -2202,7 +2202,7 @@ function _champPublicHtml(field, label, flagFn) {
     const rows = entries.map(e => {
         const flag = flagFn ? flagFn(e.pick) : '';
         return `<div class="flex items-center gap-1.5 py-1 border-b border-white/5 last:border-0 text-xs">
-            <span class="font-bold flex-shrink-0 w-16 truncate ${e.isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(e.name)}${e.isMe ? '↩' : ''}</span>
+            <span class="font-bold flex-shrink-0 w-24 truncate ${e.isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(e.name)}${e.isMe ? '↩' : ''}</span>
             ${flag ? `<span class="text-sm leading-none flex-shrink-0">${flag}</span>` : ''}
             <span class="flex-1 truncate ${e.isMe ? 'text-yellow-200' : 'text-gray-400'}">${e.pick}</span>
         </div>`;
@@ -5579,7 +5579,7 @@ function renderR32SpecialsCard() {
                 const correct = isSettled && eff === correctAns;
                 const wrong = isSettled && eff && eff !== correctAns;
                 return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
-                    <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}${wasFlipped ? '🃏' : ''}${wasSwapped ? '🔀' : ''}</span>
+                    <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}${wasFlipped ? '🃏' : ''}${wasSwapped ? '🔀' : ''}</span>
                     <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${eff || p[key] || '–'}</span>
                     ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
                 </div>`;
@@ -5813,7 +5813,7 @@ function renderR16SpecialsCard() {
                 const correct = isSettled && ans === correctAns;
                 const wrong = isSettled && ans && ans !== correctAns;
                 return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
-                    <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}</span>
+                    <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}</span>
                     <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${ans || '–'}</span>
                     ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
                 </div>`;
