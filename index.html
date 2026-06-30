@@ -1972,14 +1972,15 @@ function renderKoPublicPredsSection(matchId, match) {
                 else if (s.name === swap.player2Name) effUid = nameToUid[swap.player1Name] || uid;
             }
             const pred = koAllPredsData[effUid]?.[matchId] || null;
-            return { uid, name: s.name, pred, isSwapped: effUid !== uid };
+            const ownPts = koAllPredsData[uid]?.[matchId]?.points;
+            return { uid, name: s.name, pred, isSwapped: effUid !== uid, ownPts };
         })
         .filter(u => u.pred);
 
     const rows = entries.map(u => {
         const p = u.pred;
         const r90 = p.result90 === 'W' ? `${match.home||'主'}胜` : p.result90 === 'L' ? `${match.away||'客'}胜` : p.result90 === 'D' ? '平局' : (p.result90 || '–');
-        const pts = p.points;
+        const pts = u.ownPts ?? p.points;
         const isMe = currentUser?.name === u.name;
         return `<div class="flex items-center gap-1.5 py-1 border-b border-white/5 last:border-0 text-xs">
             <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${u.name}${u.isSwapped ? '🃏' : ''}${isMe ? '↩' : ''}</span>
