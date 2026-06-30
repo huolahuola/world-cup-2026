@@ -1198,6 +1198,10 @@ let db = null;
 const PRIZE_ROOM = 'dqdm';
 const FREE_ROOM  = 'public';
 
+// 情侣印记 💕 — 灵魂互换组合专属
+const _COUPLE = ['快乐小羊', 'katie'];
+const _cn = name => _COUPLE.includes(name) ? name + ' 💕' : (name || '');
+
 let demoMode = false;
 let currentUser = null;
 let currentRoom = PRIZE_ROOM;
@@ -1764,7 +1768,7 @@ function renderRoundStats(round, roundMatches) {
     const userRows = allUsers.map(u => {
         const pct = u.total ? Math.round(u.correct / u.total * 100) : 0;
         return `<div class="flex items-center gap-2 text-xs py-0.5">
-            <span class="w-20 truncate font-bold flex-shrink-0 ${u.isMe ? 'text-yellow-300' : 'text-gray-300'}">${u.name}</span>
+            <span class="w-20 truncate font-bold flex-shrink-0 ${u.isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(u.name)}</span>
             <div class="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <div class="h-full bg-gradient-to-r from-yellow-400 to-yellow-300 rounded-full transition-all" style="width:${pct}%"></div>
             </div>
@@ -2152,7 +2156,7 @@ function renderKoPublicPredsSection(matchId, match) {
         const pts = u.ownPts ?? p.points;
         const isMe = currentUser?.name === u.name;
         return `<div class="flex items-center gap-1.5 py-1 border-b border-white/5 last:border-0 text-xs">
-            <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${u.name}${u.isSwapped ? '🃏' : ''}${isMe ? '↩' : ''}</span>
+            <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(u.name)}${u.isSwapped ? '🃏' : ''}${isMe ? '↩' : ''}</span>
             <span class="text-gray-400 flex-shrink-0">${r90}</span>
             ${p.advance ? `<span class="text-green-400 flex-shrink-0">▶${p.advance}</span>` : ''}
             ${p.scorer ? `<span class="text-orange-300 flex-1 truncate">⚽${p.scorer}</span>` : '<span class="flex-1"></span>'}
@@ -2198,7 +2202,7 @@ function _champPublicHtml(field, label, flagFn) {
     const rows = entries.map(e => {
         const flag = flagFn ? flagFn(e.pick) : '';
         return `<div class="flex items-center gap-1.5 py-1 border-b border-white/5 last:border-0 text-xs">
-            <span class="font-bold flex-shrink-0 w-16 truncate ${e.isMe ? 'text-yellow-300' : 'text-gray-300'}">${e.name}${e.isMe ? '↩' : ''}</span>
+            <span class="font-bold flex-shrink-0 w-16 truncate ${e.isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(e.name)}${e.isMe ? '↩' : ''}</span>
             ${flag ? `<span class="text-sm leading-none flex-shrink-0">${flag}</span>` : ''}
             <span class="flex-1 truncate ${e.isMe ? 'text-yellow-200' : 'text-gray-400'}">${e.pick}</span>
         </div>`;
@@ -2725,7 +2729,7 @@ function _podiumCard(uid, s, rank, isMe, size) {
         <div class="${podiumColors[rank-1]} rounded-2xl px-3 py-3 flex flex-col items-center gap-1 w-full ${isMe?'ring-2 ring-yellow-400':''}">
             <span class="text-2xl">${trophyEmoji[rank-1]}</span>
             ${_avatarHtml(uid, s.name, avatarCls, 'text-lg')}
-            <p class="${nameCls} text-center truncate w-full">${s.name||'未知'}${isMe?' <span class="text-yellow-400">·我</span>':''}</p>
+            <p class="${nameCls} text-center truncate w-full">${_cn(s.name)||'未知'}${isMe?' <span class="text-yellow-400">·我</span>':''}</p>
             <p class="${scoreCls}">${s.total||0}<span class="text-xs font-normal opacity-60">分</span></p>
             <div class="text-xs opacity-80 text-center">${_predSummary(uid)}</div>
         </div>
@@ -2877,7 +2881,7 @@ function renderLeaderboard() {
             ${_avatarHtml(uid, s.name, 'w-9 h-9', 'text-lg')}
             <div class="flex-1 min-w-0">
                 <div class="font-bold text-sm flex items-center gap-1.5">
-                    <span class="truncate text-white">${s.name||'未知'}</span>
+                    <span class="truncate text-white">${_cn(s.name)||'未知'}</span>
                     ${isMe?'<span class="text-xs bg-yellow-400 text-black px-1.5 py-0.5 rounded-full flex-shrink-0">我</span>':''}
                 </div>
                 <div class="text-xs mt-0.5">${_predSummary(uid)}</div>
@@ -2896,7 +2900,7 @@ function renderLeaderboard() {
         const groupPts = _groupTotalPts(uid);
         const isMe = s.name === currentUser.name;
         return `<tr class="border-b border-white/5 ${isMe?'text-yellow-300':'text-gray-300'}">
-            <td class="py-1.5 pr-2 font-bold truncate max-w-[70px] text-xs">${s.name||'?'}</td>
+            <td class="py-1.5 pr-2 font-bold truncate max-w-[70px] text-xs">${_cn(s.name)||'?'}</td>
             <td class="text-center py-1.5 px-0.5 text-xs ${champPts>0?'text-yellow-400 font-bold':''}">${champPts || '–'}</td>
             <td class="text-center py-1.5 px-0.5 text-xs ${groupPts>0?'text-green-400 font-bold':''}">${groupPts || '–'}</td>
             ${rowData.map(pts => `<td class="text-center py-1.5 px-0.5 text-xs ${pts>0?'text-blue-400 font-bold':''}">${pts || '–'}</td>`).join('')}
@@ -3149,7 +3153,7 @@ function _renderSimHtml(scores, gamesNote, scorerNote) {
             <div class="${colors[rank-1]} rounded-2xl px-2 py-3 flex flex-col items-center gap-1 w-full ${isMe?'ring-2 ring-white/60':''}">
                 <span class="text-2xl">${trophies[rank-1]}</span>
                 ${_avatarHtml(s.uid, s.name, big?'w-12 h-12':'w-9 h-9', big?'text-xl':'text-base')}
-                <p class="${big?'text-sm':'text-xs'} font-bold text-center truncate max-w-full px-1">${s.name||'?'}${isMe?' 👈':''}</p>
+                <p class="${big?'text-sm':'text-xs'} font-bold text-center truncate max-w-full px-1">${_cn(s.name)||'?'}${isMe?' 👈':''}</p>
                 <p class="${big?'text-3xl':'text-2xl'} font-black">${s.simPts}<span class="${big?'text-sm':'text-xs'} font-normal opacity-70">分</span></p>
                 <p class="text-[9px] text-center opacity-60 leading-relaxed max-w-full px-1">${s.breakdown.join(' ')}</p>
             </div></div>`;
@@ -3165,7 +3169,7 @@ function _renderSimHtml(scores, gamesNote, scorerNote) {
             <span class="w-7 text-center font-black text-sm text-gray-400">${i+4}</span>
             ${_avatarHtml(s.uid, s.name, 'w-8 h-8', 'text-base')}
             <div class="flex-1 min-w-0">
-                <div class="font-bold text-sm ${isMe?'text-yellow-400':'text-white'} truncate">${s.name||'?'}${isMe?' 👈':''}</div>
+                <div class="font-bold text-sm ${isMe?'text-yellow-400':'text-white'} truncate">${_cn(s.name)||'?'}${isMe?' 👈':''}</div>
                 <div class="text-[10px] text-gray-500">${s.breakdown.length ? s.breakdown.join(' · ') : '暂无积分'}</div>
             </div>
             <div class="text-xl font-black text-white">${s.simPts}<span class="text-xs font-normal opacity-60">分</span></div>
@@ -5453,8 +5457,8 @@ function _magicBannerHtml() {
     if (swap) {
         const ms = mi?.swap;
         const _swapMana = ms ? `<div class="mt-1 flex flex-col gap-0.5">
-            <div>${_manaTag(ms.p1.impact, ms.p1.lines)} 作用于 ${ms.p1.name}</div>
-            <div>${_manaTag(ms.p2.impact, ms.p2.lines)} 作用于 ${ms.p2.name}</div>
+            <div>${_manaTag(ms.p1.impact, ms.p1.lines)} 作用于 ${_cn(ms.p1.name)}</div>
+            <div>${_manaTag(ms.p2.impact, ms.p2.lines)} 作用于 ${_cn(ms.p2.name)}</div>
         </div>` : '';
         items += `<div class="flex items-start gap-2 text-xs mt-2">
         <span class="text-2xl leading-none">🃏</span>
@@ -5575,7 +5579,7 @@ function renderR32SpecialsCard() {
                 const correct = isSettled && eff === correctAns;
                 const wrong = isSettled && eff && eff !== correctAns;
                 return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
-                    <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${name}${isMe ? '↩' : ''}${wasFlipped ? '🃏' : ''}${wasSwapped ? '🔀' : ''}</span>
+                    <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}${wasFlipped ? '🃏' : ''}${wasSwapped ? '🔀' : ''}</span>
                     <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${eff || p[key] || '–'}</span>
                     ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
                 </div>`;
@@ -5809,7 +5813,7 @@ function renderR16SpecialsCard() {
                 const correct = isSettled && ans === correctAns;
                 const wrong = isSettled && ans && ans !== correctAns;
                 return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
-                    <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${name}${isMe ? '↩' : ''}</span>
+                    <span class="font-bold flex-shrink-0 w-16 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}</span>
                     <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${ans || '–'}</span>
                     ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
                 </div>`;
