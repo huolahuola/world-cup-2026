@@ -1674,6 +1674,31 @@ function renderKnockout() {
     container.innerHTML = magicBanner + r32SpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('') + roundStatsHtml;
 }
 
+function _calcPredAccuracy(pred, result) {
+    let correct = 0, total = 0;
+    if (!pred || !result) return { correct, total };
+    if (pred.result90) {
+        total++;
+        if (pred.result90 === result.outcome_90) correct++;
+    }
+    if (pred.advance) {
+        total++;
+        if (pred.advance === result.advance) correct++;
+    }
+    if (pred.scorer) {
+        total++;
+        if (pred.scorer === result.scorer) correct++;
+    }
+    if (pred.specials && result.specials) {
+        for (const [key, ans] of Object.entries(result.specials)) {
+            if (!ans || pred.specials[key] === undefined) continue;
+            total++;
+            if (pred.specials[key] === ans) correct++;
+        }
+    }
+    return { correct, total };
+}
+
 function renderRoundStats(round, roundMatches) {
     const finishedMatches = roundMatches.filter(([, m]) => m.status === 'finished' && m.result);
     if (!finishedMatches.length) return '';
@@ -1692,9 +1717,9 @@ function renderRoundStats(round, roundMatches) {
             const { pred } = isR32
                 ? _magicEffectiveKoPred(currentUser.name, mid)
                 : { pred: koPredsData[mid] || null };
-            if (!pred?.result90) continue;
-            myTotal++;
-            if (pred.result90 === match.result.outcome_90) myCorrect++;
+            const { correct, total } = _calcPredAccuracy(pred, match.result);
+            myCorrect += correct;
+            myTotal += total;
         }
     }
     if (!myTotal) return '';
@@ -1711,9 +1736,9 @@ function renderRoundStats(round, roundMatches) {
                     else if (s.name === swap.player2Name) effUid = nameToUid[swap.player1Name] || uid;
                 }
                 const pred = koAllPredsData[effUid]?.[mid];
-                if (!pred?.result90) continue;
-                total++;
-                if (pred.result90 === match.result.outcome_90) correct++;
+                const acc = _calcPredAccuracy(pred, match.result);
+                correct += acc.correct;
+                total += acc.total;
             }
             return { name: s.name, correct, total, isMe: s.name === currentUser?.name };
         })
@@ -1735,11 +1760,11 @@ function renderRoundStats(round, roundMatches) {
     return `<div class="glass rounded-2xl p-4 mt-3 mx-1">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-400">本轮猜对结果</span>
+                <span class="text-sm text-gray-400">本轮预测命中</span>
                 <span class="font-black text-lg ${myCorrect === myTotal ? 'text-green-400' : myCorrect === 0 ? 'text-gray-500' : 'text-yellow-400'}">${myCorrect}<span class="text-sm font-bold text-gray-500">/${myTotal}</span></span>
             </div>
             <button onclick="toggleRoundStats('${round}')" class="text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1 transition-colors">
-                大家正确率 <span id="${sid}-chev" class="ml-0.5">▶</span>
+                大家命中率 <span id="${sid}-chev" class="ml-0.5">▶</span>
             </button>
         </div>
         <div id="${sid}" class="hidden mt-3 space-y-1.5">
