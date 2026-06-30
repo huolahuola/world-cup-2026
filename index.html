@@ -1869,11 +1869,12 @@ function renderKoMatchCard(matchId, match) {
             return `${birthdate}（${age}岁${over30 ? ' ✅≥30岁' : ' ❌<30岁'}）`;
         };
 
-        // Line 1: first scorer — country + number only (no age)
+        // Line 1: first scorer — country + number + optional name (no age)
         let firstLine = '';
         if (result.scorer) {
             const { num, country } = _parseScorer(result.scorer);
-            firstLine = `<div class="text-gray-200">⚽ 首开 ${_getFlag(country)}${country} ${num}号</div>`;
+            const sName = result.scorerName ? ` ${result.scorerName}` : '';
+            firstLine = `<div class="text-gray-200">⚽ 首开 ${_getFlag(country)}${country} ${num}号${sName}</div>`;
         }
 
         // Advancing team flag
@@ -1885,8 +1886,9 @@ function renderKoMatchCard(matchId, match) {
         if (wArr && wArr.length > 0) {
             const rows = wArr.map(ws => {
                 const { num } = _parseScorer(ws.scorer);
+                const wName = ws.name ? ` ${ws.name}` : '';
                 const ageStr = ws.birthdate ? `📅 ${_ageHtml(ws.birthdate)}` : '';
-                return `<div class="text-gray-400 pl-1">· ${num}号 ${ageStr}</div>`;
+                return `<div class="text-gray-400 pl-1">· ${num}号${wName} ${ageStr}</div>`;
             }).join('');
             winnerLines = `<div class="text-gray-300">🏆 晋级方${advFlag}进球</div>${rows}`;
         } else {
@@ -2330,7 +2332,7 @@ function refreshKoAdmin() {
                         <option value="${m.home||'TBD'}">${m.homeFlag||''} ${m.home||'TBD'}</option>
                         <option value="${m.away||'TBD'}">${m.awayFlag||''} ${m.away||'TBD'}</option>`;
             document.getElementById('koScorerInputWrap').innerHTML = `
-                <div class="flex gap-2 mb-2">
+                <div class="flex gap-2 mb-1">
                     <select id="koResScorerTeam" class="flex-1 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
                         ${_teamOpts('无人进球')}
                     </select>
@@ -2338,13 +2340,16 @@ function refreshKoAdmin() {
                         <option value="">号码</option>
                         ${numOpts2}
                     </select>
-                </div>${specialsGradeHtml}`;
+                </div>
+                <input type="text" id="koResScorerName" placeholder="球员姓名（选填）" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none mb-2">
+                ${specialsGradeHtml}`;
             window._koAdminMatch = m;
             window._koAdminNumOpts = numOpts2;
             const _wsRowHtml = (i) => `
                 <div class="flex gap-1 mb-1 items-center" id="koWsRow-${i}">
                     <select id="koWsTeam-${i}" class="flex-1 glass-dark rounded-xl px-2 py-2 text-sm text-white focus:outline-none">${_teamOpts('无')}</select>
                     <select id="koWsNum-${i}" class="w-20 glass-dark rounded-xl px-2 py-2 text-sm text-white focus:outline-none"><option value="">号</option>${numOpts2}</select>
+                    <input type="text" id="koWsName-${i}" placeholder="姓名" class="w-20 glass-dark rounded-xl px-2 py-1 text-xs text-white focus:outline-none">
                     <input type="date" id="koWsBd-${i}" class="flex-1 glass-dark rounded-xl px-2 py-1 text-xs text-white focus:outline-none">
                 </div>`;
             document.getElementById('koWinnerScorerInputWrap').innerHTML = `
@@ -2491,6 +2496,7 @@ window.addKoWsRow = function() {
     rows.insertAdjacentHTML('beforeend', `<div class="flex gap-1 mb-1 items-center" id="koWsRow-${idx}">
         <select id="koWsTeam-${idx}" class="flex-1 glass-dark rounded-xl px-2 py-2 text-sm text-white focus:outline-none">${teamOpts}</select>
         <select id="koWsNum-${idx}" class="w-20 glass-dark rounded-xl px-2 py-2 text-sm text-white focus:outline-none"><option value="">号</option>${numOpts}</select>
+        <input type="text" id="koWsName-${idx}" placeholder="姓名" class="w-20 glass-dark rounded-xl px-2 py-1 text-xs text-white focus:outline-none">
         <input type="date" id="koWsBd-${idx}" class="flex-1 glass-dark rounded-xl px-2 py-1 text-xs text-white focus:outline-none">
     </div>`);
 };
@@ -2503,6 +2509,7 @@ window.submitKoResult = async function() {
     if (isNaN(hs) || isNaN(as)) { toast('请输入比分', 'error'); return; }
     const resScorerTeam = document.getElementById('koResScorerTeam')?.value || '';
     const resScorerNum  = document.getElementById('koResScorerNum')?.value || '';
+    const resScorerName = document.getElementById('koResScorerName')?.value.trim() || null;
     let scorer = (resScorerTeam && resScorerNum) ? `${resScorerNum}号 (${resScorerTeam})` : null;
     // Collect multiple winner scorers from dynamic rows
     const winnerScorers = [];
@@ -2510,8 +2517,9 @@ window.submitKoResult = async function() {
     while (document.getElementById(`koWsTeam-${_wsi}`)) {
         const wt = document.getElementById(`koWsTeam-${_wsi}`)?.value || '';
         const wn = document.getElementById(`koWsNum-${_wsi}`)?.value || '';
+        const wname = document.getElementById(`koWsName-${_wsi}`)?.value.trim() || null;
         const wb = document.getElementById(`koWsBd-${_wsi}`)?.value || null;
-        if (wt && wn) winnerScorers.push({ scorer: `${wn}号 (${wt})`, ...(wb ? { birthdate: wb } : {}) });
+        if (wt && wn) winnerScorers.push({ scorer: `${wn}号 (${wt})`, ...(wname ? { name: wname } : {}), ...(wb ? { birthdate: wb } : {}) });
         _wsi++;
     }
     const outcome_90 = hs > as ? 'W' : hs < as ? 'L' : 'D';
@@ -2523,6 +2531,7 @@ window.submitKoResult = async function() {
         if (ans) specialsResult[sp.key] = ans;
     });
     const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer,
+        ...(resScorerName ? { scorerName: resScorerName } : {}),
         ...(winnerScorers.length ? { winnerScorers } : {}),
         specials: Object.keys(specialsResult).length ? specialsResult : null };
 
