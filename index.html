@@ -995,10 +995,12 @@ setTimeout(function() {
                     <select id="koResAdvance" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-2 focus:outline-none focus:ring-1 focus:ring-yellow-400">
                         <option value="">— 选择晋级球队 —</option>
                     </select>
-                    <p class="text-xs text-gray-400 mb-1">首个进球者（90分钟内）</p>
+                    <p class="text-xs text-gray-400 mb-1">⚽ 首个进球者（90分钟内，任意队）</p>
                     <div id="koScorerInputWrap"></div>
-                    <p class="text-xs text-gray-400 mb-1 mt-2">进球者出生日期（用于特别竞猜核对）</p>
-                    <input type="date" id="koScorerBirthdate" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <p class="text-xs text-gray-400 mb-1 mt-3">🏆 晋级方进球者（特别竞猜2，含乌龙球）</p>
+                    <div id="koWinnerScorerInputWrap"></div>
+                    <p class="text-xs text-gray-400 mb-1 mt-2">晋级方进球者出生日期</p>
+                    <input type="date" id="koWinnerScorerBirthdate" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
             </div>
@@ -1850,24 +1852,44 @@ function renderKoMatchCard(matchId, match) {
     let scorerBlock = '';
     if (finished && result) {
         vsBlock = `<div class="text-2xl font-black text-yellow-400">${result.homeScore} : ${result.awayScore}</div>`;
+        const _parseScorer = (s) => {
+            const m = s ? s.match(/^(\d+)号\s*[（(](.+)[）)]$/) : null;
+            return { num: m ? m[1] : '', country: m ? m[2] : (s || '') };
+        };
+        const _getFlag = (country) => country === match.home ? (match.homeFlag || '🏳️') : country === match.away ? (match.awayFlag || '🏳️') : '🏳️';
+        const _ageHtml = (birthdate) => {
+            if (!birthdate) return '';
+            const bd = new Date(birthdate);
+            const ref = match.kickoff ? new Date(match.kickoff) : new Date();
+            let age = ref.getFullYear() - bd.getFullYear();
+            if (ref.getMonth() < bd.getMonth() || (ref.getMonth() === bd.getMonth() && ref.getDate() < bd.getDate())) age--;
+            const over30 = age >= 30;
+            return `${birthdate}（${age}岁${over30 ? ' ✅≥30岁' : ' ❌<30岁'}）`;
+        };
+
+        // Line 1: first scorer — country + number only (no age)
+        let firstLine = '';
         if (result.scorer) {
-            const sm = result.scorer.match(/^(\d+)号\s*[（(](.+)[）)]$/);
-            const sNum = sm ? sm[1] : '';
-            const sCountry = sm ? sm[2] : result.scorer;
-            const sFlag = sCountry === match.home ? (match.homeFlag || '') : sCountry === match.away ? (match.awayFlag || '') : '🏳️';
-            let ageHtml = '';
-            if (result.scorerBirthdate) {
-                const bd = new Date(result.scorerBirthdate);
-                const ref = match.kickoff ? new Date(match.kickoff) : new Date();
-                let age = ref.getFullYear() - bd.getFullYear();
-                if (ref.getMonth() < bd.getMonth() || (ref.getMonth() === bd.getMonth() && ref.getDate() < bd.getDate())) age--;
-                const over30 = age >= 30;
-                ageHtml = `<div class="text-gray-400">📅 ${result.scorerBirthdate}（${age}岁${over30 ? ' ✅≥30岁' : ' ❌<30岁'}）</div>`;
+            const { num, country } = _parseScorer(result.scorer);
+            firstLine = `<div class="text-gray-200">⚽ 首开 ${_getFlag(country)}${country} ${num}号</div>`;
+        }
+
+        // Line 2: winner's scorer — country+number + birthdate+age
+        // Use result.winnerScorer + result.winnerScorerBirthdate if available,
+        // else fall back to result.scorerBirthdate (backward compat for existing data)
+        let winnerLine = '';
+        const wBirthdate = result.winnerScorerBirthdate || result.scorerBirthdate || null;
+        if (wBirthdate) {
+            let wWho = '';
+            if (result.winnerScorer) {
+                const { num: wNum, country: wCountry } = _parseScorer(result.winnerScorer);
+                wWho = `${_getFlag(wCountry)}${wCountry} ${wNum}号 · `;
             }
-            scorerBlock = `<div class="mt-2 pt-2 border-t border-white/8 text-xs space-y-0.5">
-                <div class="text-gray-200">⚽ ${sFlag}${sCountry} ${sNum}号</div>
-                ${ageHtml}
-            </div>`;
+            winnerLine = `<div class="text-gray-400">🏆 晋级方 ${wWho}📅 ${_ageHtml(wBirthdate)}</div>`;
+        }
+
+        if (firstLine || winnerLine) {
+            scorerBlock = `<div class="mt-2 pt-2 border-t border-white/8 text-xs space-y-0.5">${firstLine}${winnerLine}</div>`;
         }
     } else {
         vsBlock = `<div class="text-gray-600 font-black text-xl">VS</div>`;
@@ -2289,18 +2311,29 @@ function refreshKoAdmin() {
                     <option value="">— 正确答案 —</option>${opts}
                 </select>`;
             }).join('');
+            const _teamOpts = (noneLabel) => `<option value="">${noneLabel}</option>
+                        <option value="${m.home||'TBD'}">${m.homeFlag||''} ${m.home||'TBD'}</option>
+                        <option value="${m.away||'TBD'}">${m.awayFlag||''} ${m.away||'TBD'}</option>`;
             document.getElementById('koScorerInputWrap').innerHTML = `
                 <div class="flex gap-2 mb-2">
                     <select id="koResScorerTeam" class="flex-1 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
-                        <option value="">无人进球</option>
-                        <option value="${m.home||'TBD'}">${m.homeFlag||''} ${m.home||'TBD'}</option>
-                        <option value="${m.away||'TBD'}">${m.awayFlag||''} ${m.away||'TBD'}</option>
+                        ${_teamOpts('无人进球')}
                     </select>
                     <select id="koResScorerNum" class="w-24 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
                         <option value="">号码</option>
                         ${numOpts2}
                     </select>
                 </div>${specialsGradeHtml}`;
+            document.getElementById('koWinnerScorerInputWrap').innerHTML = `
+                <div class="flex gap-2 mb-2">
+                    <select id="koResWinnerScorerTeam" class="flex-1 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                        ${_teamOpts('无人进球（不含）')}
+                    </select>
+                    <select id="koResWinnerScorerNum" class="w-24 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                        <option value="">号码</option>
+                        ${numOpts2}
+                    </select>
+                </div>`;
         };
     }
 
@@ -2441,7 +2474,10 @@ window.submitKoResult = async function() {
     const resScorerTeam = document.getElementById('koResScorerTeam')?.value || '';
     const resScorerNum  = document.getElementById('koResScorerNum')?.value || '';
     let scorer = (resScorerTeam && resScorerNum) ? `${resScorerNum}号 (${resScorerTeam})` : null;
-    const scorerBirthdate = document.getElementById('koScorerBirthdate')?.value || null;
+    const resWinnerScorerTeam = document.getElementById('koResWinnerScorerTeam')?.value || '';
+    const resWinnerScorerNum  = document.getElementById('koResWinnerScorerNum')?.value || '';
+    const winnerScorer = (resWinnerScorerTeam && resWinnerScorerNum) ? `${resWinnerScorerNum}号 (${resWinnerScorerTeam})` : null;
+    const winnerScorerBirthdate = document.getElementById('koWinnerScorerBirthdate')?.value || null;
     const outcome_90 = hs > as ? 'W' : hs < as ? 'L' : 'D';
     const advance = document.getElementById('koResAdvance')?.value || null;
     const match = koMatchesData[matchId];
@@ -2451,7 +2487,8 @@ window.submitKoResult = async function() {
         if (ans) specialsResult[sp.key] = ans;
     });
     const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer,
-        ...(scorerBirthdate ? { scorerBirthdate } : {}),
+        ...(winnerScorer ? { winnerScorer } : {}),
+        ...(winnerScorerBirthdate ? { winnerScorerBirthdate } : {}),
         specials: Object.keys(specialsResult).length ? specialsResult : null };
 
     // Score all predictions for this match — both rooms
