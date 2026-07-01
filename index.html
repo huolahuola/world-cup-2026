@@ -3464,16 +3464,14 @@ function _scoreRange(uid) {
         settle(`✨ 双选一致奖励 ${cp.champion}`, cp.bonusPoints, bonusMax);
     }
 
-    // Top scorer
-    if (cp.topScorer) {
-        const max = cp.topScorerMaxPts || getTopScorerPts(cp.topScorer);
-        settle(`⚽ 小组赛射手 ${cp.topScorer}`, cp.topScorerPoints, max);
+    // Top scorer — only show if already settled (avoid showing "最多+Xpts" before result)
+    if (cp.topScorer && cp.topScorerPoints != null) {
+        settle(`⚽ 小组赛射手 ${cp.topScorer}`, cp.topScorerPoints, cp.topScorerPoints);
     }
 
-    // Golden boot
-    if (cp.goldenBoot) {
-        const max = cp.goldenBootMaxPts || getTopScorerPts(cp.goldenBoot);
-        settle(`👟 金靴奖 ${cp.goldenBoot}`, cp.goldenBootPoints, max);
+    // Golden boot — only show if already settled
+    if (cp.goldenBoot && cp.goldenBootPoints != null) {
+        settle(`👟 金靴奖 ${cp.goldenBoot}`, cp.goldenBootPoints, cp.goldenBootPoints);
     }
 
     // Group predictions (max 4 per group: +2 per team in correct position)
