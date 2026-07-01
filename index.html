@@ -3103,13 +3103,14 @@ function _calcSimScores() {
         const tPts = myThirds.filter(t => best8Third.has(t)).length;
         if (tPts) { simPts += tPts; breakdown.push(`第三名 +${tPts}`); }
 
-        // Top scorer prediction
-        if (topScorerEng && topScorerGoals > 0) {
+        // Top scorer prediction — only after admin officially settles it
+        const settledTopScorer = roomSettingsData?.topScorer || '';
+        if (settledTopScorer) {
             const cp = champPredsData[uid];
             const userPick = cp?.topScorer || '';
-            const matches = userPick === topScorerEng || userPick === topScorerCN;
+            const matches = userPick === settledTopScorer || userPick === _playerCN(settledTopScorer);
             if (matches) {
-                const pts = cp?.topScorerMaxPts || 20;
+                const pts = cp?.topScorerMaxPts || 10;
                 simPts += pts;
                 breakdown.push(`射手 +${pts}`);
             }
