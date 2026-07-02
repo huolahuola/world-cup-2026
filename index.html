@@ -1001,6 +1001,21 @@ setTimeout(function() {
                     <div id="koWinnerScorerInputWrap"></div>
                 </div>
                 <button onclick="submitKoResult()" class="w-full gold text-black font-bold py-3 rounded-xl">确认结果并结算</button>
+                <button onclick="openBatchKoModal()" class="w-full mt-2 bg-blue-900/40 border border-blue-500/40 text-blue-300 font-bold py-2.5 rounded-xl text-sm">🚀 批量录入多场结果</button>
+                <button onclick="submitKnownR32Results()" class="w-full mt-2 bg-green-900/50 border border-green-400/50 text-green-300 font-bold py-2.5 rounded-xl text-sm">⚡ 一键录入已完成的10场R32结果</button>
+            </div>
+
+            <!-- Batch KO Results Modal -->
+            <div id="batchKoModal" class="hidden fixed inset-0 z-50 flex items-start justify-center pt-4 px-2 pb-4" style="background:rgba(0,0,0,0.85)">
+                <div class="glass rounded-2xl p-4 w-full max-w-lg max-h-[92vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-yellow-400">🚀 批量录入淘汰赛结果</h3>
+                        <button onclick="document.getElementById('batchKoModal').classList.add('hidden')" class="text-gray-400 text-xl font-bold">✕</button>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">填好的比赛点击结算，空着的自动跳过</p>
+                    <div id="batchKoList" class="space-y-2 mb-4"></div>
+                    <button onclick="batchSubmitKoResults()" class="w-full gold text-black font-bold py-3 rounded-xl">全部结算已填结果</button>
+                </div>
             </div>
 
             <!-- R32 Round Special Questions -->
@@ -2595,6 +2610,206 @@ window.submitKoResult = async function() {
     toast('✅ 淘汰赛结果已录入，积分已结算');
 };
 
+const KNOWN_R32_RESULTS = [
+    { matchId:'m73', homeScore:0, awayScore:1, advance:'加拿大' },
+    { matchId:'m74', homeScore:1, awayScore:1, advance:'巴拉圭' },
+    { matchId:'m75', homeScore:1, awayScore:1, advance:'摩洛哥' },
+    { matchId:'m76', homeScore:2, awayScore:1, advance:'巴西' },
+    { matchId:'m77', homeScore:3, awayScore:0, advance:'法国' },
+    { matchId:'m78', homeScore:1, awayScore:2, advance:'挪威' },
+    { matchId:'m79', homeScore:2, awayScore:0, advance:'墨西哥' },
+    { matchId:'m80', homeScore:2, awayScore:1, advance:'英格兰' },
+    { matchId:'m81', homeScore:2, awayScore:0, advance:'美国' },
+    { matchId:'m82', homeScore:2, awayScore:2, advance:'比利时' },
+];
+
+window.submitKnownR32Results = async function() {
+    const toSettle = KNOWN_R32_RESULTS.filter(r => {
+        const m = koMatchesData[r.matchId];
+        return m && m.status !== 'finished';
+    });
+    if (!toSettle.length) { toast('这10场已全部结算过了'); return; }
+    const names = toSettle.map(r => {
+        const m = koMatchesData[r.matchId];
+        return `${m.homeFlag||''}${m.home} ${r.homeScore}-${r.awayScore} ${m.awayFlag||''}${m.away} → ${r.advance}`;
+    }).join('\n');
+    if (!confirm(`即将结算以下 ${toSettle.length} 场比赛：\n\n${names}\n\n确认吗？`)) return;
+
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = '结算中…'; }
+    try {
+        if (demoMode) {
+            toSettle.forEach(({ matchId, homeScore, awayScore, advance }) => {
+                const outcome_90 = homeScore > awayScore ? 'W' : homeScore < awayScore ? 'L' : 'D';
+                koMatchesData[matchId] = { ...koMatchesData[matchId], status:'finished', result:{ homeScore, awayScore, outcome_90, advance, scorer:null, specials:null } };
+            });
+            renderKnockout(); refreshKoAdmin();
+            toast(`✅ 已结算 ${toSettle.length} 场R32结果`);
+            return;
+        }
+        const [p0,s0,p1,s1,mgSnap] = await Promise.all([
+            get(ref(db,`rooms/${PRIZE_ROOM}/ko/preds`)),
+            get(ref(db,`rooms/${PRIZE_ROOM}/scores`)),
+            get(ref(db,`rooms/${FREE_ROOM}/ko/preds`)),
+            get(ref(db,`rooms/${FREE_ROOM}/scores`)),
+            get(ref(db,`rooms/${PRIZE_ROOM}/r32magic`)),
+        ]);
+        const allPreds = { [PRIZE_ROOM]: p0.exists()?p0.val():{}, [FREE_ROOM]: p1.exists()?p1.val():{} };
+        const allScores = { [PRIZE_ROOM]: s0.exists()?s0.val():{}, [FREE_ROOM]: s1.exists()?s1.val():{} };
+        const mgSwap = mgSnap.exists() ? Object.values(mgSnap.val()).find(m=>m.type==='soul_swap') : null;
+        const updates = {};
+        for (const { matchId, homeScore, awayScore, advance } of toSettle) {
+            const match = koMatchesData[matchId];
+            if (!match) continue;
+            const outcome_90 = homeScore > awayScore ? 'W' : homeScore < awayScore ? 'L' : 'D';
+            const result = { homeScore, awayScore, outcome_90, advance, scorer:null, specials:null };
+            for (const room of [PRIZE_ROOM, FREE_ROOM]) {
+                updates[`rooms/${room}/ko/matches/${matchId}/status`] = 'finished';
+                updates[`rooms/${room}/ko/matches/${matchId}/result`] = result;
+                const preds = allPreds[room]; const scores = allScores[room];
+                const nameToUid = Object.fromEntries(Object.entries(scores).map(([u,s])=>[s.name,u]));
+                Object.entries(preds).forEach(([uid, userPreds]) => {
+                    const ownPred = userPreds?.[matchId];
+                    if (!ownPred || ownPred.points != null) return;
+                    let pred = ownPred;
+                    if (mgSwap && match.round==='r32') {
+                        const uName = scores[uid]?.name;
+                        let swapUid = null;
+                        if (uName===mgSwap.player1Name) swapUid=nameToUid[mgSwap.player2Name];
+                        else if (uName===mgSwap.player2Name) swapUid=nameToUid[mgSwap.player1Name];
+                        if (swapUid && preds[swapUid]?.[matchId]) pred=preds[swapUid][matchId];
+                    }
+                    const pts = calcKoPts(pred, result);
+                    updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
+                    const s = scores[uid] || { name:'', total:0 };
+                    s.total = (s.total||0) + pts;
+                    scores[uid] = s;
+                    updates[`rooms/${room}/scores/${uid}`] = { ...s };
+                });
+            }
+        }
+        await update(ref(db,'/'), updates);
+        toast(`✅ 已结算 ${toSettle.length} 场R32结果，积分已更新`);
+        refreshKoAdmin();
+    } catch(e) {
+        toast('❌ 结算失败: '+e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled=false; btn.textContent='⚡ 一键录入已完成的10场R32结果'; }
+    }
+};
+
+window.openBatchKoModal = function() {
+    const modal = document.getElementById('batchKoModal');
+    const list = document.getElementById('batchKoList');
+    const unfinished = Object.entries(koMatchesData)
+        .filter(([, m]) => m.round === 'r32' && m.status !== 'finished')
+        .sort((a, b) => (a[1].kickoff || '').localeCompare(b[1].kickoff || ''));
+    if (!unfinished.length) { toast('所有R32比赛已结算', 'error'); return; }
+    list.innerHTML = unfinished.map(([mid, m]) => `
+        <div class="batch-ko-row glass-dark rounded-xl p-3" data-match-id="${mid}">
+            <div class="flex items-center gap-1 mb-2">
+                <span class="text-xs text-gray-400">${m.kickoff ? new Date(m.kickoff).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}) : ''}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="flex-1 text-right text-sm font-bold text-white truncate">${m.homeFlag||''} ${m.home||'TBD'}</span>
+                <input type="number" min="0" max="30" placeholder="-" class="batch-home-score w-12 h-10 text-center text-lg font-black bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-yellow-400">
+                <span class="text-gray-500 font-black">:</span>
+                <input type="number" min="0" max="30" placeholder="-" class="batch-away-score w-12 h-10 text-center text-lg font-black bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-yellow-400">
+                <span class="flex-1 text-left text-sm font-bold text-white truncate">${m.awayFlag||''} ${m.away||'TBD'}</span>
+            </div>
+            <div class="mt-2">
+                <select class="batch-advance w-full glass-dark rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-yellow-400">
+                    <option value="">— 晋级球队（必填）—</option>
+                    <option value="${m.home||'TBD'}">${m.homeFlag||''} ${m.home||'TBD'}</option>
+                    <option value="${m.away||'TBD'}">${m.awayFlag||''} ${m.away||'TBD'}</option>
+                </select>
+            </div>
+        </div>`).join('');
+    modal.classList.remove('hidden');
+};
+
+window.batchSubmitKoResults = async function() {
+    const rows = document.querySelectorAll('.batch-ko-row');
+    const entries = [];
+    rows.forEach(row => {
+        const mid = row.dataset.matchId;
+        const hs = parseInt(row.querySelector('.batch-home-score').value);
+        const as = parseInt(row.querySelector('.batch-away-score').value);
+        const advance = row.querySelector('.batch-advance').value;
+        if (!isNaN(hs) && !isNaN(as) && advance) entries.push({ matchId: mid, homeScore: hs, awayScore: as, advance });
+    });
+    if (!entries.length) { toast('请至少填写一场结果', 'error'); return; }
+
+    const btn = document.querySelector('#batchKoModal button:last-child');
+    if (btn) { btn.disabled = true; btn.textContent = '结算中…'; }
+
+    try {
+        if (demoMode) {
+            entries.forEach(({ matchId, homeScore, awayScore, advance }) => {
+                const outcome_90 = homeScore > awayScore ? 'W' : homeScore < awayScore ? 'L' : 'D';
+                koMatchesData[matchId] = { ...koMatchesData[matchId], status: 'finished', result: { homeScore, awayScore, outcome_90, advance, scorer: null, specials: null } };
+            });
+            renderKnockout(); refreshKoAdmin();
+            toast(`✅ 已结算 ${entries.length} 场结果`);
+            document.getElementById('batchKoModal').classList.add('hidden');
+            return;
+        }
+
+        const [p0, s0, p1, s1, mgSnap] = await Promise.all([
+            get(ref(db, `rooms/${PRIZE_ROOM}/ko/preds`)),
+            get(ref(db, `rooms/${PRIZE_ROOM}/scores`)),
+            get(ref(db, `rooms/${FREE_ROOM}/ko/preds`)),
+            get(ref(db, `rooms/${FREE_ROOM}/scores`)),
+            get(ref(db, `rooms/${PRIZE_ROOM}/r32magic`)),
+        ]);
+        const allPreds = { [PRIZE_ROOM]: p0.exists() ? p0.val() : {}, [FREE_ROOM]: p1.exists() ? p1.val() : {} };
+        const allScores = { [PRIZE_ROOM]: s0.exists() ? s0.val() : {}, [FREE_ROOM]: s1.exists() ? s1.val() : {} };
+        const roomMagic = mgSnap.exists() ? mgSnap.val() : null;
+        const mgSwap = roomMagic ? Object.values(roomMagic).find(m => m.type === 'soul_swap') : null;
+
+        const updates = {};
+        for (const { matchId, homeScore, awayScore, advance } of entries) {
+            const match = koMatchesData[matchId];
+            if (!match) continue;
+            const outcome_90 = homeScore > awayScore ? 'W' : homeScore < awayScore ? 'L' : 'D';
+            const result = { homeScore, awayScore, outcome_90, advance, scorer: null, specials: null };
+            for (const room of [PRIZE_ROOM, FREE_ROOM]) {
+                updates[`rooms/${room}/ko/matches/${matchId}/status`] = 'finished';
+                updates[`rooms/${room}/ko/matches/${matchId}/result`] = result;
+                const preds = allPreds[room];
+                const scores = allScores[room];
+                const nameToUid = Object.fromEntries(Object.entries(scores).map(([u, s]) => [s.name, u]));
+                Object.entries(preds).forEach(([uid, userPreds]) => {
+                    const ownPred = userPreds?.[matchId];
+                    if (!ownPred || ownPred.points != null) return;
+                    let pred = ownPred;
+                    if (mgSwap && match.round === 'r32') {
+                        const uName = scores[uid]?.name;
+                        let swapUid = null;
+                        if (uName === mgSwap.player1Name) swapUid = nameToUid[mgSwap.player2Name];
+                        else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
+                        if (swapUid && preds[swapUid]?.[matchId]) pred = preds[swapUid][matchId];
+                    }
+                    const pts = calcKoPts(pred, result);
+                    updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
+                    const s = scores[uid] || { name: '', total: 0 };
+                    s.total = (s.total || 0) + pts;
+                    scores[uid] = s;
+                    updates[`rooms/${room}/scores/${uid}`] = { ...s };
+                });
+            }
+        }
+        await update(ref(db, '/'), updates);
+        toast(`✅ 已结算 ${entries.length} 场结果`);
+        document.getElementById('batchKoModal').classList.add('hidden');
+        refreshKoAdmin();
+    } catch (e) {
+        toast('❌ 结算失败: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '全部结算已填结果'; }
+    }
+};
+
 window.clearPublicRoom = async function() {
     if (!confirm('确认删除 public 房间所有数据？此操作不可撤销！')) return;
     if (demoMode) { toast('演示模式无需清除'); return; }
@@ -2790,15 +3005,15 @@ function renderKoCompletionStatus() {
         }
     }
 
-    // ── 16场R32赛果（每场三个：90分钟结果 / 晋级球队 / 进球者）──
-    const r32Matches = Object.entries(koMatchesData)
-        .filter(([,m]) => m.round === 'r32')
+    // ── 8场R16赛果（每场三个：90分钟结果 / 晋级球队 / 进球者）──
+    const r16Matches = Object.entries(koMatchesData)
+        .filter(([,m]) => m.round === 'r16')
         .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
-    const matchRows = r32Matches.map(([mid, m]) => {
+    const matchRows = r16Matches.map(([mid, m]) => {
         const userPreds = Object.values(koAllPredsData).map(u => u[mid]).filter(Boolean);
         const nResult  = userPreds.filter(p => p.result90).length;
         const nAdvance = userPreds.filter(p => p.advance).length;
-        const nScorer  = userPreds.filter(p => p.scorer || p.scorerPicked || p.advance).length;
+        const nScorer  = userPreds.filter(p => p.scorer || p.scorerPicked).length;
         const dateStr = m.kickoff ? new Date(m.kickoff).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}) : '';
         const allFull = nResult >= totalUsers && nAdvance >= totalUsers && nScorer >= totalUsers;
         const rowCls = allFull ? 'opacity-50' : '';
@@ -2827,7 +3042,7 @@ function renderKoCompletionStatus() {
             <p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">冠军 & 射手</p>
             ${champRows}
             ${specialRows ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">R32 特别竞猜</p>${specialRows}` : ''}
-            ${r32Matches.length ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">16场赛果</p>${matchRows}` : ''}
+            ${r16Matches.length ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">16进8赛果</p>${matchRows}` : ''}
             </div>
         </div>
     </div>`;
