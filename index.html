@@ -2988,23 +2988,8 @@ function renderKoCompletionStatus() {
             <span class="text-xs text-gray-400">${icon} ${label}</span>${badge(n)}</div>`;
     }
 
-    // ── 冠军 & 射手 ──────────────────────────────────────
-    const nMidway  = Object.values(champPredsData).filter(p => p?.midway).length;
-    const nGolden  = Object.values(champPredsData).filter(p => p?.goldenBoot).length;
-    const champRows = row('🎯','半程冠军', nMidway) + row('🥇','金靴奖', nGolden);
-
-    // ── R32 特别竞猜（仅懂球弟妹房间）────────────────────
+    // ── R16 特别竞猜（仅懂球弟妹房间）────────────────────
     let specialRows = '';
-    if (currentRoom !== FREE_ROOM) {
-        if (r32SpecialsData.q1?.q) {
-            const n1 = Object.values(r32AllSpecialPredsData).filter(p => p?.q1).length;
-            specialRows += row('✨', '特别竞猜①', n1);
-        }
-        if (r32SpecialsData.q2?.q) {
-            const n2 = Object.values(r32AllSpecialPredsData).filter(p => p?.q2).length;
-            specialRows += row('✨', '特别竞猜②', n2);
-        }
-    }
 
     // ── 8场R16赛果（每场三个：90分钟结果 / 晋级球队 / 进球者）──
     const r16Matches = Object.entries(koMatchesData)
@@ -3040,9 +3025,7 @@ function renderKoCompletionStatus() {
         </button>
         <div id="${bodyId}" style="display:${wasOpen ? 'block' : 'none'}">
             <div class="mt-2">
-            <p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">冠军 & 射手</p>
-            ${champRows}
-            ${specialRows ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">R32 特别竞猜</p>${specialRows}` : ''}
+            ${specialRows ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">R16 特别竞猜</p>${specialRows}` : `<p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">R16 特别竞猜</p><div class="text-xs text-gray-600 py-1.5">（即将开始）</div>`}
             ${r16Matches.length ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">16进8赛果</p>${matchRows}` : ''}
             </div>
         </div>
