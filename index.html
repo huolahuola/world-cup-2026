@@ -992,11 +992,19 @@ setTimeout(function() {
                             <input type="number" id="koResAwayScore" min="0" max="99" placeholder="0" class="score-input w-full rounded-xl text-center">
                         </div>
                     </div>
+                    <div id="koResScore120Wrap" class="hidden">
+                        <p class="text-xs text-gray-400 mb-1.5 mt-2">📊 120分钟内比分（含加时，不含点球）</p>
+                        <div class="flex gap-3 mb-2">
+                            <input type="number" id="koResScore120Home" min="0" max="20" placeholder="0" class="score-input flex-1 rounded-xl text-center">
+                            <div class="flex items-center text-xl font-black text-gray-500">:</div>
+                            <input type="number" id="koResScore120Away" min="0" max="20" placeholder="0" class="score-input flex-1 rounded-xl text-center">
+                        </div>
+                    </div>
                     <p class="text-xs text-gray-400 mb-1 mt-3">最终晋级球队</p>
                     <select id="koResAdvance" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-2 focus:outline-none focus:ring-1 focus:ring-yellow-400">
                         <option value="">— 选择晋级球队 —</option>
                     </select>
-                    <p class="text-xs text-gray-400 mb-1">⚽ 首个进球者（90分钟内，任意队）</p>
+                    <p class="text-xs text-gray-400 mb-1">⚽ 首个进球者（任意队）</p>
                     <div id="koScorerInputWrap"></div>
                     <p class="text-xs text-gray-400 mb-1 mt-3">🏆 晋级方进球者（特别竞猜2，含乌龙球，每人填队+号码+生日）</p>
                     <div id="koWinnerScorerInputWrap"></div>
@@ -1952,11 +1960,14 @@ function renderKoMatchCard(matchId, match) {
         }).join('');
         const magicSwapNote = predWasSwapped
             ? `<div class="text-xs text-violet-400 mt-1">🃏 灵魂互换：积分将按此预测（被交换玩家的原始选择）计算</div>` : '';
+        const esLabel = (myPred.exactScoreHome != null && myPred.exactScoreAway != null)
+            ? `<span class="text-cyan-300">📊 ${myPred.exactScoreHome}:${myPred.exactScoreAway}</span>` : '';
         predBlock = `<div class="mt-2 pt-2 border-t border-white/10 text-xs text-gray-400 flex items-center gap-1.5 flex-wrap">
             <span>${predWasSwapped ? '🃏 生效预测：' : '我预测：'}</span>
             <span class="font-bold text-blue-300">${r90label}</span>
             ${myPred.advance ? `<span class="text-green-300">⬆️ ${myPred.advance}</span>` : ''}
             ${myPred.scorer ? `<span class="text-orange-300">⚽ ${myPred.scorer}</span>` : (myPred.scorerPicked || myPred.advance ? '<span class="text-gray-500">⚽ 无人进球</span>' : '')}
+            ${esLabel}
             ${spItems}
             ${ptsBadge}
         </div>${magicSwapNote}`;
@@ -1989,17 +2000,32 @@ function renderKoMatchCard(matchId, match) {
             <input type="hidden" id="ko-sp-${matchId}-${sp.key}" value="${myAns}">
             <div class="flex gap-2 mb-3">${opts}</div>`;
         }).join('') : `<p class="text-xs text-gray-600 text-center py-1 mb-2">✨ 特别竞猜 · 即将开放</p>`;
+        const isR16form = match.round !== 'r32';
+        const r90PtsLabel  = isR16form ? '+3分' : '+2分';
+        const advPtsLabel  = isR16form ? '+3分' : '+2分';
+        const scorerPtsLabel = isR16form ? '+5分' : '+4分';
+        const curESH = myPredOriginal?.exactScoreHome ?? '';
+        const curESA = myPredOriginal?.exactScoreAway ?? '';
+        const exactScoreHtml = isR16form ? `
+            <p class="text-xs text-gray-500 mb-1.5">📊 120分钟内比分（主队:客队，不含点球） <span class="text-cyan-400 font-bold">+5分</span></p>
+            <div class="flex items-center gap-2 mb-3">
+                <input type="number" id="ko-es-home-${matchId}" min="0" max="20" placeholder="0" value="${curESH}"
+                    class="flex-1 glass-dark rounded-xl px-3 py-2.5 text-lg font-black text-white text-center focus:outline-none focus:ring-1 focus:ring-cyan-400">
+                <span class="text-xl font-black text-gray-500">:</span>
+                <input type="number" id="ko-es-away-${matchId}" min="0" max="20" placeholder="0" value="${curESA}"
+                    class="flex-1 glass-dark rounded-xl px-3 py-2.5 text-lg font-black text-white text-center focus:outline-none focus:ring-1 focus:ring-cyan-400">
+            </div>` : '';
         predForm = `<div class="mt-3 pt-3 border-t border-white/10">
             <input type="hidden" id="ko-r90-${matchId}" value="${curR90}">
-            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="text-green-400 font-bold">+2分</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="text-green-400 font-bold">${r90PtsLabel}</span></p>
             <div class="flex gap-2 mb-3">${r90Btns}</div>
-            <p class="text-xs text-gray-500 mb-1.5">⬆️ 最终晋级球队 <span class="text-yellow-400 font-bold">+2分</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">⬆️ 最终晋级球队 <span class="text-yellow-400 font-bold">${advPtsLabel}</span></p>
             <select id="ko-advance-${matchId}" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none">
                 <option value="">— 选择晋级球队 —</option>
                 <option value="${match.home||'TBD'}" ${myPred?.advance===match.home?'selected':''}>${match.homeFlag||''} ${match.home||'TBD'}</option>
                 <option value="${match.away||'TBD'}" ${myPred?.advance===match.away?'selected':''}>${match.awayFlag||''} ${match.away||'TBD'}</option>
             </select>
-            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者（90分钟内） <span class="text-orange-400 font-bold">+4分</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者 <span class="text-orange-400 font-bold">${scorerPtsLabel}</span></p>
             <div class="flex gap-2 mb-3">
                 <select id="ko-scorer-team-${matchId}" class="flex-1 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
                     <option value="">无人进球</option>
@@ -2011,6 +2037,7 @@ function renderKoMatchCard(matchId, match) {
                     ${numOpts}
                 </select>
             </div>
+            ${exactScoreHtml}
             ${specialsFormHtml}
             <button onclick="submitKoPred('${matchId}')" class="w-full ${myPred ? 'glass border border-blue-500/40 text-blue-300' : 'gold text-black'} font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-transform">
                 ${myPred ? '✏️ 更新预测' : '🎯 提交预测'}
@@ -2032,6 +2059,7 @@ function renderKoMatchCard(matchId, match) {
         ${miniR90 ? `<span class="text-blue-300 text-[11px] font-bold">${miniR90}</span>` : ''}
         ${myPred.advance ? `<span class="text-green-300 text-[11px]">⬆️ ${myPred.advance}</span>` : ''}
         ${myPred.scorer ? `<span class="text-orange-300 text-[11px]">⚽ ${myPred.scorer}</span>` : ''}
+        ${(myPred.exactScoreHome != null && myPred.exactScoreAway != null) ? `<span class="text-cyan-300 text-[11px]">📊 ${myPred.exactScoreHome}:${myPred.exactScoreAway}</span>` : ''}
         ${myPred.points != null ? `<span class="text-yellow-400 text-[11px] font-bold">+${myPred.points}分</span>` : `<span class="text-gray-500 text-[11px]">待揭晓</span>`}
     </div>` : (!locked ? `<span class="text-red-400 text-[11px]">⚠️ 未预测</span>` : '');
 
@@ -2098,8 +2126,14 @@ window.submitKoPred = async function(matchId) {
         const val = document.getElementById(`ko-sp-${matchId}-${sp.key}`)?.value || '';
         if (val) specials[sp.key] = val;
     });
+    const esHomeRaw = document.getElementById(`ko-es-home-${matchId}`)?.value;
+    const esAwayRaw = document.getElementById(`ko-es-away-${matchId}`)?.value;
+    const exactScoreHome = esHomeRaw !== '' && esHomeRaw != null ? parseInt(esHomeRaw) : null;
+    const exactScoreAway = esAwayRaw !== '' && esAwayRaw != null ? parseInt(esAwayRaw) : null;
     const pred = { result90, advance, scorer, scorerTeam: scorerTeam||null, scorerNum: scorerNum||null,
-        scorerPicked: true, specials: Object.keys(specials).length ? specials : null, points: null };
+        scorerPicked: true, specials: Object.keys(specials).length ? specials : null,
+        ...(exactScoreHome != null && exactScoreAway != null ? { exactScoreHome, exactScoreAway } : {}),
+        points: null };
 
     if (demoMode) {
         koPredsData[matchId] = pred;
@@ -2111,11 +2145,15 @@ window.submitKoPred = async function(matchId) {
     }
 };
 
-function calcKoPts(pred, result) {
+function calcKoPts(pred, result, round) {
     let pts = 0;
+    const isR16plus = round && round !== 'r32';
+    const r90Pts    = isR16plus ? 3 : 2;
+    const advPts    = isR16plus ? 3 : 2;
+    const scorerPts = isR16plus ? 5 : 4;
     if (pred.result90) {
-        if (pred.result90 === result.outcome_90) pts += 2;
-        if (pred.advance && result.advance && pred.advance === result.advance) pts += 2;
+        if (pred.result90 === result.outcome_90) pts += r90Pts;
+        if (pred.advance && result.advance && pred.advance === result.advance) pts += advPts;
     } else if (pred.homeScore != null) {
         // Legacy format
         if (pred.homeScore === result.homeScore && pred.awayScore === result.awayScore) {
@@ -2126,7 +2164,11 @@ function calcKoPts(pred, result) {
             if (pOut === rOut) pts += 2;
         }
     }
-    if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += 4;
+    if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += scorerPts;
+    if (isR16plus && pred.exactScoreHome != null && pred.exactScoreAway != null &&
+        result.score120Home != null && result.score120Away != null) {
+        if (Number(pred.exactScoreHome) === result.score120Home && Number(pred.exactScoreAway) === result.score120Away) pts += 5;
+    }
     if (pred.specials && result.specials) {
         Object.entries(result.specials).forEach(([key, ans]) => {
             if (ans && pred.specials[key] === ans) pts += 5;
@@ -2177,7 +2219,9 @@ function renderKoPublicPredsSection(matchId, match) {
             <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(u.name)}${u.isSwapped ? '🃏' : ''}${isMe ? '↩' : ''}</span>
             <span class="text-gray-400 flex-shrink-0">${r90}</span>
             ${p.advance ? `<span class="text-green-400 flex-shrink-0">▶${p.advance}</span>` : ''}
-            ${p.scorer ? `<span class="text-orange-300 flex-1 truncate">⚽${p.scorer}</span>` : '<span class="flex-1"></span>'}
+            ${p.scorer ? `<span class="text-orange-300 truncate">⚽${p.scorer}</span>` : ''}
+            ${(p.exactScoreHome != null && p.exactScoreAway != null) ? `<span class="text-cyan-300 flex-shrink-0">📊${p.exactScoreHome}:${p.exactScoreAway}</span>` : ''}
+            <span class="flex-1"></span>
             ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
         </div>`;
     }).join('');
@@ -2331,6 +2375,8 @@ function refreshKoAdmin() {
             }
             document.getElementById('koResHomeLabel').textContent = m.home||'主队';
             document.getElementById('koResAwayLabel').textContent = m.away||'客队';
+            const s120wrap = document.getElementById('koResScore120Wrap');
+            if (s120wrap) s120wrap.classList.toggle('hidden', m.round === 'r32');
             if (advSel) {
                 advSel.innerHTML = `<option value="">— 选择晋级球队 —</option>
                     <option value="${m.home||'TBD'}">${m.homeFlag||''} ${m.home||'TBD'}</option>
@@ -2541,6 +2587,11 @@ window.submitKoResult = async function() {
     const outcome_90 = hs > as ? 'W' : hs < as ? 'L' : 'D';
     const advance = document.getElementById('koResAdvance')?.value || null;
     const match = koMatchesData[matchId];
+    const isR16plus = match?.round && match.round !== 'r32';
+    const s120hRaw = document.getElementById('koResScore120Home')?.value;
+    const s120aRaw = document.getElementById('koResScore120Away')?.value;
+    const score120Home = (isR16plus && s120hRaw !== '' && s120hRaw != null) ? parseInt(s120hRaw) : null;
+    const score120Away = (isR16plus && s120aRaw !== '' && s120aRaw != null) ? parseInt(s120aRaw) : null;
     const specialsResult = {};
     (match?.specials || []).forEach(sp => {
         const ans = document.getElementById(`koResSpecial-${sp.key}`)?.value || '';
@@ -2549,6 +2600,7 @@ window.submitKoResult = async function() {
     const result = { homeScore: hs, awayScore: as, outcome_90, advance, scorer,
         ...(resScorerName ? { scorerName: resScorerName } : {}),
         ...(winnerScorers.length ? { winnerScorers } : {}),
+        ...(score120Home != null && score120Away != null ? { score120Home, score120Away } : {}),
         specials: Object.keys(specialsResult).length ? specialsResult : null };
 
     // Score all predictions for this match — both rooms
@@ -2593,7 +2645,7 @@ window.submitKoResult = async function() {
                     else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
                     if (swapUid && allPreds[swapUid]?.[matchId]) pred = allPreds[swapUid][matchId];
                 }
-                const pts = calcKoPts(pred, result);
+                const pts = calcKoPts(pred, result, match?.round);
                 updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
                 const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
                 s.total = (s.total||0) + pts;
@@ -2680,7 +2732,7 @@ window.submitKnownR32Results = async function() {
                         else if (uName===mgSwap.player2Name) swapUid=nameToUid[mgSwap.player1Name];
                         if (swapUid && preds[swapUid]?.[matchId]) pred=preds[swapUid][matchId];
                     }
-                    const pts = calcKoPts(pred, result);
+                    const pts = calcKoPts(pred, result, match.round);
                     updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
                     const s = scores[uid] || { name:'', total:0 };
                     s.total = (s.total||0) + pts;
@@ -2791,7 +2843,7 @@ window.batchSubmitKoResults = async function() {
                         else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
                         if (swapUid && preds[swapUid]?.[matchId]) pred = preds[swapUid][matchId];
                     }
-                    const pts = calcKoPts(pred, result);
+                    const pts = calcKoPts(pred, result, match.round);
                     updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
                     const s = scores[uid] || { name: '', total: 0 };
                     s.total = (s.total || 0) + pts;
@@ -3000,18 +3052,20 @@ function renderKoCompletionStatus() {
         const nResult  = userPreds.filter(p => p.result90).length;
         const nAdvance = userPreds.filter(p => p.advance).length;
         const nScorer  = userPreds.filter(p => p.scorer || p.scorerPicked).length;
+        const nExact   = userPreds.filter(p => p.exactScoreHome != null && p.exactScoreAway != null).length;
         const dateStr = m.kickoff ? new Date(m.kickoff).toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'}) : '';
-        const allFull = nResult >= totalUsers && nAdvance >= totalUsers && nScorer >= totalUsers;
+        const allFull = nResult >= totalUsers && nAdvance >= totalUsers && nScorer >= totalUsers && nExact >= totalUsers;
         const rowCls = allFull ? 'opacity-50' : '';
         return `<div class="py-1.5 border-b border-white/5 last:border-0 ${rowCls}">
             <div class="flex items-center justify-between mb-0.5">
                 <span class="text-xs text-gray-300 truncate flex-1">${m.homeFlag||''}${m.home} vs ${m.awayFlag||''}${m.away}</span>
                 <span class="text-[10px] text-gray-600 shrink-0 ml-1">${dateStr}</span>
             </div>
-            <div class="flex gap-3 text-[11px]">
+            <div class="flex gap-3 text-[11px] flex-wrap">
                 <span class="text-gray-500">赛果 ${badge(nResult)}</span>
                 <span class="text-gray-500">晋级 ${badge(nAdvance)}</span>
                 <span class="text-gray-500">射手 ${badge(nScorer)}</span>
+                <span class="text-gray-500">比分 ${badge(nExact)}</span>
             </div>
         </div>`;
     }).join('');
