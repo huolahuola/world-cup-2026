@@ -5775,6 +5775,7 @@ function renderR32SpecialsCard() {
         // Public picks for this question
         const SIM_EXCLUDE = ['小助手'];
         const _nameOf = uid => scoresData[uid]?.name || usersTableData[uid]?.name || null;
+        const { flip: _r32flip, swap: _r32swap } = _magicGet();
         const pubEntries = Object.entries(r32AllSpecialPredsData)
             .filter(([uid, p]) => {
                 const name = _nameOf(uid);
@@ -5782,14 +5783,19 @@ function renderR32SpecialsCard() {
             })
             .map(([uid, p]) => {
                 const name = _nameOf(uid);
-                const { answer: eff, wasFlipped, wasSwapped } = _magicEffectiveSpecial(name, key);
+                let eff = p[key] || null, wasSwapped = false, wasFlipped = false;
+                if (_r32swap) {
+                    if (name === _r32swap.player1Name) { const ou = _magicFindUid(_r32swap.player2Name); if (ou) { eff = r32AllSpecialPredsData[ou]?.[key] || null; wasSwapped = true; } }
+                    else if (name === _r32swap.player2Name) { const ou = _magicFindUid(_r32swap.player1Name); if (ou) { eff = r32AllSpecialPredsData[ou]?.[key] || null; wasSwapped = true; } }
+                }
+                if (_r32flip && name === _r32flip.targetName && eff) { eff = _magicFlipAnswer(eff); wasFlipped = true; }
                 const isMe = currentUser?.id === uid || currentUser?.name === name;
                 const pts = p[key + 'Points'];
                 const correct = isSettled && eff === correctAns;
                 const wrong = isSettled && eff && eff !== correctAns;
                 return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
                     <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}${wasFlipped ? '🃏' : ''}${wasSwapped ? '🔀' : ''}</span>
-                    <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${eff || p[key] || '–'}</span>
+                    <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${eff || '–'}</span>
                     ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
                 </div>`;
             });
@@ -6016,14 +6022,14 @@ function renderR16SpecialsCard() {
             .filter(([uid, p]) => { const name = _nameOf(uid); return name && !SIM_EXCLUDE.includes(name) && p[key]; })
             .map(([uid, p]) => {
                 const name = _nameOf(uid);
+                const eff = p[key] || null;
                 const isMe = currentUser?.id === uid || currentUser?.name === name;
-                const ans = p[key];
                 const pts = p[key + 'Points'];
-                const correct = isSettled && ans === correctAns;
-                const wrong = isSettled && ans && ans !== correctAns;
+                const correct = isSettled && eff === correctAns;
+                const wrong = isSettled && eff && eff !== correctAns;
                 return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
                     <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}</span>
-                    <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${ans || '–'}</span>
+                    <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${eff || '–'}</span>
                     ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
                 </div>`;
             });
