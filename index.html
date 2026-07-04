@@ -3113,7 +3113,7 @@ function renderLeaderboard() {
         const qfPts        = _koRoundPts(uid, 'qf');
         const sfPts        = _koRoundPts(uid, 'sf');
         const finalPts     = _koRoundPts(uid, 'final');
-        const koTotal      = r32Pts + r16Pts + qfPts + sfPts + finalPts;
+        const grandTotal   = s.total || 0;
         const isMe = s.name === currentUser.name;
         const c = (v, cls) => v > 0 ? `<td class="text-center py-1.5 px-0.5 text-xs ${cls} font-bold">${v}</td>`
                                     : `<td class="text-center py-1.5 px-0.5 text-xs text-gray-600">–</td>`;
@@ -3129,7 +3129,7 @@ function renderLeaderboard() {
             ${c(qfPts,      'text-blue-400')}
             ${c(sfPts,      'text-blue-400')}
             ${c(finalPts,   'text-blue-400')}
-            <td class="text-right py-1.5 pl-1.5 font-bold text-xs ${koTotal>0?'text-blue-300':'text-gray-600'}">${koTotal||'–'}</td>
+            <td class="text-right py-1.5 pl-1.5 font-bold text-xs text-white">${grandTotal}</td>
         </tr>`;
     }).join('');
 
@@ -3153,7 +3153,7 @@ function renderLeaderboard() {
                         <th class="text-center py-1.5 px-0.5 text-blue-400">8进4</th>
                         <th class="text-center py-1.5 px-0.5 text-blue-400">半决赛</th>
                         <th class="text-center py-1.5 px-0.5 text-blue-400">决赛</th>
-                        <th class="text-right py-1.5 pl-1.5">淘汰合计</th>
+                        <th class="text-right py-1.5 pl-1.5 text-white">总分合计</th>
                     </tr>
                 </thead>
                 <tbody>${koTableRows}</tbody>
