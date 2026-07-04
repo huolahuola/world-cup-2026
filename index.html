@@ -5818,7 +5818,7 @@ function renderR32SpecialsCard() {
 
     const q1Html = renderQ('q1', q1);
     const q2Html = renderQ('q2', q2);
-    const hasForm = (q1?.open || q2?.open) && _isUserUnlocked && !(q1?.settled && (!q2?.q || q2?.settled));
+    const hasForm = (q1?.open || q2?.open) && !(q1?.settled && (!q2?.q || q2?.settled));
 
     // Build age summary toggle for q2
     function buildQ2AgeToggle() {
@@ -6050,7 +6050,7 @@ function renderR16SpecialsCard() {
 
     const q1Html = renderQ('q1', q1);
     const q2Html = renderQ('q2', q2);
-    const hasForm = (q1?.open || q2?.open) && _isUserUnlocked && !(q1?.settled && (!q2?.q || q2?.settled));
+    const hasForm = (q1?.open || q2?.open) && !(q1?.settled && (!q2?.q || q2?.settled));
 
     const wasOpen = !document.getElementById('r16SpecialsBody')?.classList.contains('hidden') && !!document.getElementById('r16SpecialsBody');
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
