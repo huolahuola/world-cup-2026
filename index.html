@@ -2095,7 +2095,7 @@ function renderKoMatchCard(matchId, match) {
             ${scorerBlock}
             ${predBlock}
             ${predForm}
-            ${(match.round === 'r32' || match.status === 'finished') ? renderKoPublicPredsSection(matchId, match) : ''}
+            ${renderKoPublicPredsSection(matchId, match)}
         </div>
     </div>`;
 }
