@@ -1539,6 +1539,7 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
             koAllPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
+            if (!document.getElementById('content-knockout').classList.contains('hidden')) renderKnockout();
         });
         onValue(ref(db, `rooms/${currentRoom}/r32magic`), snap => {
             r32MagicData = snap.exists() ? snap.val() : {};
