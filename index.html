@@ -5729,7 +5729,7 @@ function renderR32SpecialsCard() {
         if (!qData?.q) return '';
         const opts = qData.opts || [];
         const isOpen = !!qData.open;
-        const effectiveOpen = isOpen && _isUserUnlocked;
+        const effectiveOpen = isOpen || _isUserUnlocked;
         const isSettled = !!qData.settled;
         const correctAns = qData.answer || null;
         const myAns = r32SpecialPredsData[key] || null; // original answer
@@ -5978,7 +5978,7 @@ function renderR16SpecialsCard() {
         if (!qData?.q) return '';
         const opts = qData.opts || [];
         const isOpen = !!qData.open;
-        const effectiveOpen = isOpen && _isUserUnlocked;
+        const effectiveOpen = isOpen || _isUserUnlocked;
         const isSettled = !!qData.settled;
         const correctAns = qData.answer || null;
         const myAns = r16SpecialPredsData[key] || null;
