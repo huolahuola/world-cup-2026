@@ -3336,29 +3336,40 @@ function _calcSimScores() {
         let simPts = 0;
         const breakdown = [];
 
-        // Group prediction scoring — iterate ESPN groups, not Firebase groupsData
+        // Group prediction scoring — use settled Firebase points if available, else ESPN live
         for (const gid of Object.keys(simSt)) {
             const st = simSt[gid];
             if (!st?.some(t=>t.gp>0)) continue;
             const pred = groupPredsData[`${uid}_${gid}`];
             if (!pred?.qualified?.length) continue;
-            let gPts = 0;
-            (pred.qualified||[]).forEach(team => {
-                if (!team) return;
-                const isQ1 = team === st[0]?.cn;
-                const isQ2 = team === st[1]?.cn;
-                if (isQ1 || isQ2) {
-                    const predWinner = team === pred.winner;
-                    if (predWinner === isQ1) gPts += 2;
-                    else gPts += 1;
-                }
-            });
+            let gPts;
+            if (pred.points != null) {
+                gPts = pred.points;
+            } else {
+                gPts = 0;
+                (pred.qualified||[]).forEach(team => {
+                    if (!team) return;
+                    const isQ1 = team === st[0]?.cn;
+                    const isQ2 = team === st[1]?.cn;
+                    if (isQ1 || isQ2) {
+                        const predWinner = team === pred.winner;
+                        if (predWinner === isQ1) gPts += 2;
+                        else gPts += 1;
+                    }
+                });
+            }
             if (gPts) { simPts += gPts; breakdown.push(`${gid}组 +${gPts}`); }
         }
 
-        // Third-place picks
-        const myThirds = thirdPicksData[uid]?.picks || [];
-        const tPts = myThirds.filter(t => best8Third.has(t)).length;
+        // Third-place picks — use settled Firebase points if available, else ESPN live
+        const thirdEntry = thirdPicksData[uid];
+        let tPts;
+        if (thirdEntry?.points != null) {
+            tPts = thirdEntry.points;
+        } else {
+            const myThirds = thirdEntry?.picks || [];
+            tPts = myThirds.filter(t => best8Third.has(t)).length;
+        }
         if (tPts) { simPts += tPts; breakdown.push(`第三名 +${tPts}`); }
 
         // Top scorer prediction — only after admin officially settles it
