@@ -2198,7 +2198,6 @@ window.selectKoResult = function(matchId, val) {
 };
 
 function renderKoPublicPredsSection(matchId, match) {
-    if (match?.round === 'r16' && match?.status !== 'finished') return '';
     const isR32 = match?.round === 'r32';
     const { swap } = isR32 ? _magicGet() : { swap: null };
     const nameToUid = {};
