@@ -2106,7 +2106,7 @@ function renderKoMatchCard(matchId, match) {
             ${scorerBlock}
             ${predBlock}
             ${predForm}
-            ${renderKoPublicPredsSection(matchId, match)}
+            ${locked ? renderKoPublicPredsSection(matchId, match) : ''}
         </div>
     </div>`;
 }
