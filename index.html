@@ -1741,6 +1741,10 @@ function _calcPredAccuracy(pred, result) {
         total++;
         if (pred.scorer === result.scorer) correct++;
     }
+    if (pred.exactScoreHome != null && pred.exactScoreAway != null && result.homeScore != null) {
+        total++;
+        if (pred.exactScoreHome === result.homeScore && pred.exactScoreAway === result.awayScore) correct++;
+    }
     if (pred.specials && result.specials) {
         for (const [key, ans] of Object.entries(result.specials)) {
             if (!ans || pred.specials[key] === undefined) continue;
