@@ -2098,12 +2098,29 @@ function renderKoMatchCard(matchId, match) {
         ${myPred.points != null ? `<span class="text-yellow-400 text-[11px] font-bold">+${myPred.points}分</span>` : `<span class="text-gray-500 text-[11px]">待揭晓</span>`}
     </div>` : (!locked ? `<span class="text-red-400 text-[11px]">⚠️ 未预测</span>` : '');
 
+    // Average score for this match across all players in current room
+    let avgBadge = '';
+    if (finished) {
+        const SIM_EXCL = ['小助手'];
+        const ptsList = Object.entries(koAllPredsData)
+            .filter(([uid, preds]) => {
+                const name = scoresData[uid]?.name || usersTableData[uid]?.name;
+                return name && !SIM_EXCL.includes(name) && preds[matchId]?.points != null;
+            })
+            .map(([uid, preds]) => preds[matchId].points);
+        if (ptsList.length) {
+            const avg = ptsList.reduce((s, v) => s + v, 0) / ptsList.length;
+            avgBadge = `<span class="text-[10px] text-gray-400 bg-white/8 px-1.5 py-0.5 rounded-full">均${avg % 1 === 0 ? avg : avg.toFixed(1)}分</span>`;
+        }
+    }
+
     return `<div class="glass rounded-2xl mb-3 overflow-hidden">
         <div onclick="toggleKoCard('${matchId}')" class="flex items-center gap-2 px-4 py-3 cursor-pointer select-none active:bg-white/5">
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                     ${roundBadge}
                     <span class="text-sm font-bold text-white">${match.homeFlag||'🏳️'} ${match.home||'TBD'} vs ${match.awayFlag||'🏳️'} ${match.away||'TBD'}</span>
+                    ${avgBadge}
                 </div>
                 <div id="ko-mini-${matchId}" class="${expanded ? 'hidden' : ''}">${miniPred}</div>
             </div>
