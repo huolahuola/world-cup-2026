@@ -5740,56 +5740,76 @@ function _refreshMagicStatus() {
 
 // ─── R16 Magic banner ─────────────────────────────────────────
 function _r16MagicBannerHtml() {
-    const { flip } = _r16MagicGet();
-    if (!flip) return '';
+    const { flip, disarm } = _r16MagicGet();
+    if (!flip && !disarm) return '';
 
-    // Calculate impact on target
-    const tUid = _magicFindUid(flip.targetName);
     const _manaTag = (val, lines) => {
-        if (!lines.length) return `<span class="text-gray-500">⚡ 法力值：结算中…</span>`;
+        if (!lines?.length) return `<span class="text-gray-500">⚡ 法力值：结算中…</span>`;
         const color = val < 0 ? 'text-red-400' : val > 0 ? 'text-green-400' : 'text-gray-400';
         return `<span class="${color}">⚡ 法力值 ${val>0?'+':''}${val} 分 <span class="text-gray-500">(${lines.join(' / ')})</span></span>`;
     };
-    let impact = 0; const lines = [];
-    if (tUid) {
-        const myP = r16AllSpecialPredsData[tUid] || {};
-        for (const key of ['q1', 'q2']) {
-            const qd = r16SpecialsData[key] || {};
-            if (!qd.settled || !qd.answer) continue;
-            const own = myP[key]; if (!own) continue;
-            const ownPts = own === qd.answer ? 8 : 0;
-            const flipped = own === 'Y' ? 'N' : own === 'N' ? 'Y' : own;
-            const flipPts = flipped === qd.answer ? 8 : 0;
-            const d = flipPts - ownPts;
-            if (d !== 0) { impact += d; lines.push(`题${key.slice(1)} ${d>0?'+':''}${d}`); }
-            else if (ownPts > 0 && flipPts === 0) { impact += -8; lines.push(`题${key.slice(1)} -8`); }
-            else if (ownPts === 0 && flipPts > 0) { impact += 8; lines.push(`题${key.slice(1)} +8`); }
+
+    let items = '';
+
+    if (flip) {
+        const tUid = _magicFindUid(flip.targetName);
+        let impact = 0; const lines = [];
+        if (tUid) {
+            const myP = r16AllSpecialPredsData[tUid] || {};
+            for (const key of ['q1','q2']) {
+                const qd = r16SpecialsData[key] || {};
+                if (!qd.settled || !qd.answer) continue;
+                const own = myP[key]; if (!own) continue;
+                const ownPts = own === qd.answer ? 8 : 0;
+                const flipped = own === 'Y' ? 'N' : own === 'N' ? 'Y' : own;
+                const flipPts = flipped === qd.answer ? 8 : 0;
+                const d = flipPts - ownPts;
+                if (d !== 0) { impact += d; lines.push(`题${key.slice(1)} ${d>0?'+':''}${d}`); }
+                else if (ownPts > 0 && flipPts === 0) { impact += -8; lines.push(`题${key.slice(1)} -8`); }
+                else if (ownPts === 0 && flipPts > 0) { impact += 8; lines.push(`题${key.slice(1)} +8`); }
+            }
         }
-    }
-    const manaHtml = `<div class="mt-1">${_manaTag(impact, lines)} 作用于 ${flip.targetName}</div>`;
-    return `<div class="glass rounded-2xl p-4 mb-3 border border-amber-500/30 bg-amber-900/10">
-        <div class="flex items-center gap-2 mb-2"><span class="text-base">✨</span><p class="font-black text-sm text-amber-300">本轮魔法牌效果</p></div>
-        <div class="flex items-start gap-2 text-xs">
+        items += `<div class="flex items-start gap-2 text-xs">
         <span class="text-2xl leading-none">🃏</span>
         <div><span class="font-black text-amber-300">${flip.displayName || '乐极生悲'}</span>
         <span class="text-gray-300"> · ${flip.usedBy || flip.caster} 使用</span>
         <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${flip.targetName}</b> 的 Y/N 答案全部对调</div>
-        ${manaHtml}
-        </div></div>
+        <div class="mt-1">${_manaTag(impact, lines)} 作用于 ${flip.targetName}</div>
+        </div></div>`;
+    }
+
+    if (disarm) {
+        const nullified = disarm.nullified || {};
+        const matchLabels = Object.entries(nullified).map(([mid, opts]) => {
+            const m = koMatchesData[mid] || {};
+            const label = m.home && m.away ? `${m.home}vs${m.away}` : mid;
+            const optNames = opts.map(o => o === 'result90' ? '90分结果' : o === 'advance' ? '晋级球队' : o === 'exactScore' ? '比分' : o);
+            return `${label}（${optNames.join('/')}）`;
+        });
+        const impact = disarm.netScoreChange || 0;
+        const impactLines = impact !== 0 ? [`${impact>0?'+':''}${impact}`] : ['±0'];
+        items += `<div class="flex items-start gap-2 text-xs ${flip ? 'mt-3' : ''}">
+        <span class="text-2xl leading-none">🃏</span>
+        <div><span class="font-black text-red-300">${disarm.displayName || '除你武器'}</span>
+        <span class="text-gray-300"> · ${disarm.usedBy} 使用</span>
+        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${disarm.targetName}</b> 指定选项积分清零</div>
+        <div class="text-gray-500 mt-0.5 text-[10px]">${matchLabels.join(' · ')}</div>
+        <div class="mt-1">${_manaTag(impact, impactLines)} 作用于 ${disarm.targetName}</div>
+        </div></div>`;
+    }
+
+    return `<div class="glass rounded-2xl p-4 mb-3 border border-amber-500/30 bg-amber-900/10">
+        <div class="flex items-center gap-2 mb-2"><span class="text-base">✨</span><p class="font-black text-sm text-amber-300">本轮魔法牌效果</p></div>
+        ${items}
     </div>`;
 }
 
 // ─── R16 Magic helpers ────────────────────────────────────────
 function _r16MagicGet() {
-    // r16magic may be a flat object or a keyed map of objects
-    let vals;
-    if (r16MagicData && (r16MagicData.effect || r16MagicData.type)) {
-        vals = [r16MagicData];
-    } else {
-        vals = Object.values(r16MagicData || {});
-    }
+    const vals = Object.values(r16MagicData || {});
     return {
-        flip: vals.find(m => m.effect === 'yn_flip' || m.type === 'flip_yesno' || m.type === 'joy_to_sorrow') || null,
+        flip:   vals.find(m => m.effect === 'yn_flip' || m.type === 'flip_yesno' || m.type === 'joy_to_sorrow') || null,
+        disarm: vals.find(m => m.effect === 'nullify_options' || m.type === 'disarm') || null,
     };
 }
 function _r16MagicEffectiveSpecial(userName, key) {
