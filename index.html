@@ -1249,6 +1249,7 @@ let r16SpecialsData    = {};
 let r16SpecialPredsData = {};
 let r16AllSpecialPredsData = {};
 let r32MagicData = {};
+let r16MagicData = {};
 let currentKoRound = 'r32';
 let _koRoundAutoSet = false;
 let presenceData   = {};
@@ -1544,6 +1545,10 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/r32magic`), snap => {
             r32MagicData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/r16magic`), snap => {
+            r16MagicData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r16') renderKnockout();
         });
 
         // ── Presence ──
@@ -5733,6 +5738,25 @@ function _refreshMagicStatus() {
     }
 }
 
+// ─── R16 Magic helpers ────────────────────────────────────────
+function _r16MagicGet() {
+    const vals = Object.values(r16MagicData || {});
+    return {
+        flip: vals.find(m => m.effect === 'yn_flip' || m.type === 'flip_yesno') || null,
+    };
+}
+function _r16MagicEffectiveSpecial(userName, key) {
+    const { flip } = _r16MagicGet();
+    const myAns = r16SpecialPredsData[key] || null;
+    let answer = myAns;
+    let wasFlipped = false;
+    if (flip && userName === flip.targetName && answer) {
+        answer = answer === 'Y' ? 'N' : answer === 'N' ? 'Y' : answer;
+        wasFlipped = true;
+    }
+    return { answer, wasFlipped };
+}
+
 // ─── R32 Round Special Questions ─────────────────────────────
 function renderR32SpecialsCard() {
     const q1 = r32SpecialsData.q1 || null;
@@ -6006,7 +6030,14 @@ function renderR16SpecialsCard() {
         const correctAns = qData.answer || null;
         const myAns = r16SpecialPredsData[key] || null;
         const myPts = r16SpecialPredsData[key + 'Points'];
-        const gotIt = isSettled && myAns && myAns === correctAns;
+
+        // Apply R16 magic effects
+        const { answer: effectiveAns, wasFlipped } = _r16MagicEffectiveSpecial(currentUser?.name, key);
+        const displayAns = effectiveAns;
+        const gotIt = isSettled && displayAns && displayAns === correctAns;
+
+        let magicNote = '';
+        if (wasFlipped) magicNote = `<p class="text-xs text-amber-400 mt-1">🃏 乐极生悲：你的答案已被反转（原选：${myAns || '未选'}）</p>`;
 
         let badge = '';
         if (isSettled) {
@@ -6020,7 +6051,7 @@ function renderR16SpecialsCard() {
         }
 
         const optsHtml = opts.map(opt => {
-            const sel = myAns === opt;
+            const sel = displayAns === opt;
             const isCorrect = isSettled && opt === correctAns;
             let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
             if (isCorrect) cls += 'bg-green-500/20 border border-green-500/30 text-green-200';
@@ -6039,13 +6070,17 @@ function renderR16SpecialsCard() {
             .filter(([uid, p]) => { const name = _nameOf(uid); return name && !SIM_EXCLUDE.includes(name) && p[key]; })
             .map(([uid, p]) => {
                 const name = _nameOf(uid);
-                const eff = p[key] || null;
+                const rawAns = p[key] || null;
+                const { flip: _r16f } = _r16MagicGet();
+                const isTarget = _r16f && name === _r16f.targetName;
+                const eff = isTarget && rawAns ? (rawAns === 'Y' ? 'N' : rawAns === 'N' ? 'Y' : rawAns) : rawAns;
                 const isMe = currentUser?.id === uid || currentUser?.name === name;
                 const pts = p[key + 'Points'];
                 const correct = isSettled && eff === correctAns;
                 const wrong = isSettled && eff && eff !== correctAns;
+                const magicTag = isTarget ? ' 🃏' : '';
                 return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
-                    <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}</span>
+                    <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${magicTag}${isMe ? '↩' : ''}</span>
                     <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${eff || '–'}</span>
                     ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
                 </div>`;
@@ -6061,12 +6096,15 @@ function renderR16SpecialsCard() {
             <div id="${pubBodyId}" class="${pubOpen ? 'mt-1' : 'hidden'}">${pubEntries.join('')}</div>
         </div>` : '';
 
+        const prevNote = (isSettled && displayAns && !gotIt) ? `<p class="text-xs text-gray-500 mt-1">生效答案：${displayAns}</p>` : '';
+
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
                 <p class="text-xs font-bold text-gray-200 flex-1">${qData.q}</p>
                 ${badge}
             </div>
             <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
+            ${magicNote}${prevNote}
             ${pubHtml}
         </div>`;
     }
@@ -6074,6 +6112,11 @@ function renderR16SpecialsCard() {
     const q1Html = renderQ('q1', q1);
     const q2Html = renderQ('q2', q2);
     const hasForm = (q1?.open || q2?.open) && !(q1?.settled && (!q2?.q || q2?.settled));
+
+    const { flip: r16flip } = _r16MagicGet();
+    const magicBanner = r16flip
+        ? `<div class="text-xs text-amber-300 mt-1">🃏 乐极生悲：${r16flip.usedBy || r16flip.caster} → ${r16flip.targetName}</div>`
+        : '';
 
     const wasOpen = !document.getElementById('r16SpecialsBody')?.classList.contains('hidden') && !!document.getElementById('r16SpecialsBody');
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
@@ -6085,6 +6128,7 @@ function renderR16SpecialsCard() {
             </div>
             <span id="r16SpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
+        ${magicBanner}
         <div id="r16SpecialsBody" class="${wasOpen ? 'mt-3' : 'hidden'}">
             ${q1Html}${q2Html}
             ${hasForm ? '<button onclick="saveR16SpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交竞猜</button>' : ''}
