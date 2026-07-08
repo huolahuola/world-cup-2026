@@ -5957,7 +5957,7 @@ function renderR32SpecialsCard() {
 
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
-                <p class="text-xs font-bold text-gray-200 flex-1">${qData.q}</p>
+                <p class="text-xs font-bold text-gray-200 flex-1">${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
                 ${badge}
             </div>
             <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
@@ -6205,7 +6205,7 @@ function renderR16SpecialsCard() {
 
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
-                <p class="text-xs font-bold text-gray-200 flex-1">${qData.q}</p>
+                <p class="text-xs font-bold text-gray-200 flex-1">${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
                 ${badge}
             </div>
             <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
@@ -6344,7 +6344,7 @@ function renderQfSpecialsCard() {
 
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
-                <p class="text-xs font-bold text-gray-200 flex-1">${qData.q}</p>
+                <p class="text-xs font-bold text-gray-200 flex-1">${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
                 ${badge}
             </div>
             <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
