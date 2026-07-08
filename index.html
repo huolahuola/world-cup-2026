@@ -2219,7 +2219,10 @@ function calcKoPts(pred, result, round) {
             if (pOut === rOut) pts += 2;
         }
     }
-    if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += scorerPts;
+    const noScorer = !result.scorer || result.scorer === '';
+    const predNoScorer = (pred.scorerPicked === true || pred.scorerPicked === 'true') && !pred.scorer;
+    if (noScorer && predNoScorer) pts += scorerPts;
+    else if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += scorerPts;
     if (isR16up && pred.exactScoreHome != null && pred.exactScoreAway != null &&
         result.score120Home != null && result.score120Away != null) {
         if (Number(pred.exactScoreHome) === result.score120Home && Number(pred.exactScoreAway) === result.score120Away) pts += exactPts;
