@@ -2034,13 +2034,15 @@ function renderKoMatchCard(matchId, match) {
             <div class="flex gap-2 mb-3">${opts}</div>`;
         }).join('') : `<p class="text-xs text-gray-600 text-center py-1 mb-2">✨ 特别竞猜 · 即将开放</p>`;
         const isR16form = match.round !== 'r32';
-        const r90PtsLabel  = isR16form ? '+3分' : '+2分';
-        const advPtsLabel  = isR16form ? '+3分' : '+2分';
-        const scorerPtsLabel = isR16form ? '+5分' : '+4分';
+        const isQFform  = match.round === 'qf' || match.round === 'sf' || match.round === 'final';
+        const r90PtsLabel    = isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
+        const advPtsLabel    = isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
+        const scorerPtsLabel = isQFform ? '+10分' : isR16form ? '+5分' : '+4分';
+        const exactPtsLabel  = isQFform ? '+8分' : '+5分';
         const curESH = myPredOriginal?.exactScoreHome ?? '';
         const curESA = myPredOriginal?.exactScoreAway ?? '';
         const exactScoreHtml = isR16form ? `
-            <p class="text-xs text-gray-500 mb-1.5">📊 120分钟内比分（主队:客队，不含点球） <span class="text-cyan-400 font-bold">+5分</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">📊 120分钟内比分（主队:客队，不含点球） <span class="text-cyan-400 font-bold">${exactPtsLabel}</span></p>
             <div class="flex items-center gap-2 mb-3">
                 <input type="number" id="ko-es-home-${matchId}" min="0" max="20" placeholder="0" value="${curESH}"
                     class="flex-1 glass-dark rounded-xl px-3 py-2.5 text-lg font-black text-white text-center focus:outline-none focus:ring-1 focus:ring-cyan-400">
