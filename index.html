@@ -3330,7 +3330,14 @@ function _calcSimScores() {
         // Add settled R32 special question points
         const mySpecials = r32AllSpecialPredsData[uid] || {};
         const settledSpPts = (mySpecials.q1Points || 0) + (mySpecials.q2Points || 0);
-        if (settledSpPts > 0) { simPts += settledSpPts; breakdown.push(`特别竞猜 +${settledSpPts}`); }
+        if (settledSpPts > 0) { simPts += settledSpPts; breakdown.push(`R32特别 +${settledSpPts}`); }
+
+        // Add settled R16 special question points
+        const myR16Specials = r16AllSpecialPredsData[uid] || {};
+        let r16SpPts = 0;
+        if (r16SpecialsData?.q1?.settled && myR16Specials.q1 === r16SpecialsData.q1.answer) r16SpPts += 8;
+        if (r16SpecialsData?.q2?.settled && myR16Specials.q2 === r16SpecialsData.q2.answer) r16SpPts += 8;
+        if (r16SpPts > 0) { simPts += r16SpPts; breakdown.push(`R16特别 +${r16SpPts}`); }
 
         scores.push({ uid, name: user.name, simPts, breakdown });
     }
