@@ -1726,7 +1726,7 @@ function renderKnockout() {
     }
     const r32SpecialsHtml = (currentKoRound === 'r32' && currentRoom !== FREE_ROOM) ? renderR32SpecialsCard() : '';
     const r16SpecialsHtml = (currentKoRound === 'r16' && currentRoom !== FREE_ROOM) ? renderR16SpecialsCard() : '';
-    const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : '';
+    const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : currentKoRound === 'r16' ? _r16MagicBannerHtml() : '';
     const roundStatsHtml = renderRoundStats(currentKoRound, roundMatches);
     container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
 }
@@ -5738,6 +5738,47 @@ function _refreshMagicStatus() {
     }
 }
 
+// ─── R16 Magic banner ─────────────────────────────────────────
+function _r16MagicBannerHtml() {
+    const { flip } = _r16MagicGet();
+    if (!flip) return '';
+
+    // Calculate impact on target
+    const tUid = _magicFindUid(flip.targetName);
+    const _manaTag = (val, lines) => {
+        if (!lines.length) return `<span class="text-gray-500">⚡ 法力值：结算中…</span>`;
+        const color = val < 0 ? 'text-red-400' : val > 0 ? 'text-green-400' : 'text-gray-400';
+        return `<span class="${color}">⚡ 法力值 ${val>0?'+':''}${val} 分 <span class="text-gray-500">(${lines.join(' / ')})</span></span>`;
+    };
+    let impact = 0; const lines = [];
+    if (tUid) {
+        const myP = r16AllSpecialPredsData[tUid] || {};
+        for (const key of ['q1', 'q2']) {
+            const qd = r16SpecialsData[key] || {};
+            if (!qd.settled || !qd.answer) continue;
+            const own = myP[key]; if (!own) continue;
+            const ownPts = own === qd.answer ? 8 : 0;
+            const flipped = own === 'Y' ? 'N' : own === 'N' ? 'Y' : own;
+            const flipPts = flipped === qd.answer ? 8 : 0;
+            const d = flipPts - ownPts;
+            if (d !== 0) { impact += d; lines.push(`题${key.slice(1)} ${d>0?'+':''}${d}`); }
+            else if (ownPts > 0 && flipPts === 0) { impact += -8; lines.push(`题${key.slice(1)} -8`); }
+            else if (ownPts === 0 && flipPts > 0) { impact += 8; lines.push(`题${key.slice(1)} +8`); }
+        }
+    }
+    const manaHtml = `<div class="mt-1">${_manaTag(impact, lines)} 作用于 ${flip.targetName}</div>`;
+    return `<div class="glass rounded-2xl p-4 mb-3 border border-amber-500/30 bg-amber-900/10">
+        <div class="flex items-center gap-2 mb-2"><span class="text-base">✨</span><p class="font-black text-sm text-amber-300">本轮魔法牌效果</p></div>
+        <div class="flex items-start gap-2 text-xs">
+        <span class="text-2xl leading-none">🃏</span>
+        <div><span class="font-black text-amber-300">${flip.displayName || '乐极生悲'}</span>
+        <span class="text-gray-300"> · ${flip.usedBy || flip.caster} 使用</span>
+        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${flip.targetName}</b> 的 Y/N 答案全部对调</div>
+        ${manaHtml}
+        </div></div>
+    </div>`;
+}
+
 // ─── R16 Magic helpers ────────────────────────────────────────
 function _r16MagicGet() {
     // r16magic may be a flat object or a keyed map of objects
@@ -6119,11 +6160,6 @@ function renderR16SpecialsCard() {
     const q2Html = renderQ('q2', q2);
     const hasForm = (q1?.open || q2?.open) && !(q1?.settled && (!q2?.q || q2?.settled));
 
-    const { flip: r16flip } = _r16MagicGet();
-    const magicBanner = r16flip
-        ? `<div class="text-xs text-amber-300 mt-1">🃏 乐极生悲：${r16flip.usedBy || r16flip.caster} → ${r16flip.targetName}</div>`
-        : '';
-
     const wasOpen = !document.getElementById('r16SpecialsBody')?.classList.contains('hidden') && !!document.getElementById('r16SpecialsBody');
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
         <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleR16SpecialsCard()">
@@ -6134,7 +6170,6 @@ function renderR16SpecialsCard() {
             </div>
             <span id="r16SpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
-        ${magicBanner}
         <div id="r16SpecialsBody" class="${wasOpen ? 'mt-3' : 'hidden'}">
             ${q1Html}${q2Html}
             ${hasForm ? '<button onclick="saveR16SpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交竞猜</button>' : ''}
