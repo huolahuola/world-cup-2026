@@ -1543,6 +1543,7 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/qfspecials`), snap => {
             qfSpecialsData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'qf') renderKnockout();
+            renderLeaderboard();
         });
         onValue(ref(db, `rooms/${currentRoom}/qfspecialPreds/${currentUser.id}`), snap => {
             qfSpecialPredsData = snap.exists() ? snap.val() : {};
@@ -1550,6 +1551,7 @@ function startApp() {
         });
         onValue(ref(db, `rooms/${currentRoom}/qfspecialPreds`), snap => {
             qfAllSpecialPredsData = snap.exists() ? snap.val() : {};
+            renderLeaderboard();
         });
         onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
             koAllPredsData = snap.exists() ? snap.val() : {};
@@ -3097,14 +3099,22 @@ function renderKoCompletionStatus() {
             <span class="text-xs text-gray-400">${icon} ${label}</span>${badge(n)}</div>`;
     }
 
-    // ── R16 特别竞猜（仅懂球弟妹房间）────────────────────
+    // ── QF 特别竞猜 ────────────────────────────────────────
     let specialRows = '';
+    if (qfSpecialsData && (qfSpecialsData.q1?.q || qfSpecialsData.q2?.q)) {
+        ['q1','q2'].forEach(key => {
+            const q = qfSpecialsData[key];
+            if (!q?.q) return;
+            const n = Object.values(qfAllSpecialPredsData).filter(p => p[key]).length;
+            specialRows += row('✨', q.q.split('\n')[0].slice(0, 28) + (q.q.length > 28 ? '…' : ''), n);
+        });
+    }
 
-    // ── 8场R16赛果（每场三个：90分钟结果 / 晋级球队 / 进球者）──
-    const r16Matches = Object.entries(koMatchesData)
-        .filter(([,m]) => m.round === 'r16')
+    // ── 4场QF赛果 ──────────────────────────────────────────
+    const qfMatches = Object.entries(koMatchesData)
+        .filter(([,m]) => m.round === 'qf')
         .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
-    const matchRows = r16Matches.map(([mid, m]) => {
+    const matchRows = qfMatches.map(([mid, m]) => {
         const userPreds = Object.values(koAllPredsData).map(u => u[mid]).filter(Boolean);
         const nResult  = userPreds.filter(p => p.result90).length;
         const nAdvance = userPreds.filter(p => p.advance).length;
@@ -3136,8 +3146,8 @@ function renderKoCompletionStatus() {
         </button>
         <div id="${bodyId}" style="display:${wasOpen ? 'block' : 'none'}">
             <div class="mt-2">
-            ${specialRows ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">R16 特别竞猜</p>${specialRows}` : `<p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">R16 特别竞猜</p><div class="text-xs text-gray-600 py-1.5">（即将开始）</div>`}
-            ${r16Matches.length ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">16进8赛果</p>${matchRows}` : ''}
+            ${specialRows ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">QF 特别竞猜</p>${specialRows}` : `<p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">QF 特别竞猜</p><div class="text-xs text-gray-600 py-1.5">（即将开始）</div>`}
+            ${qfMatches.length ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">8进4赛果</p>${matchRows}` : ''}
             </div>
         </div>
     </div>`;
