@@ -2037,8 +2037,8 @@ function renderKoMatchCard(matchId, match) {
         const isQFform  = match.round === 'qf' || match.round === 'sf' || match.round === 'final';
         const r90PtsLabel    = isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
         const advPtsLabel    = isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
-        const scorerPtsLabel = isQFform ? '+10分' : isR16form ? '+5分' : '+4分';
-        const exactPtsLabel  = isQFform ? '+8分' : '+5分';
+        const scorerPtsLabel = isQFform ? '+8分' : isR16form ? '+5分' : '+4分';
+        const exactPtsLabel  = isQFform ? '+10分' : '+5分';
         const curESH = myPredOriginal?.exactScoreHome ?? '';
         const curESA = myPredOriginal?.exactScoreAway ?? '';
         const exactScoreHtml = isR16form ? `
@@ -2203,8 +2203,8 @@ function calcKoPts(pred, result, round) {
     const isR16up = round && round !== 'r32';
     const r90Pts    = isQF ? 6 : isR16up ? 3 : 2;
     const advPts    = isQF ? 6 : isR16up ? 3 : 2;
-    const scorerPts = isQF ? 10 : isR16up ? 5 : 4;
-    const exactPts  = isQF ? 8 : 5;
+    const scorerPts = isQF ? 8 : isR16up ? 5 : 4;
+    const exactPts  = isQF ? 10 : 5;
     const specialPts = isQF ? 12 : 5;
     if (pred.result90) {
         if (pred.result90 === result.outcome_90) pts += r90Pts;
