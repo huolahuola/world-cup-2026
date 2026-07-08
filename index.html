@@ -5740,9 +5740,15 @@ function _refreshMagicStatus() {
 
 // ─── R16 Magic helpers ────────────────────────────────────────
 function _r16MagicGet() {
-    const vals = Object.values(r16MagicData || {});
+    // r16magic may be a flat object or a keyed map of objects
+    let vals;
+    if (r16MagicData && (r16MagicData.effect || r16MagicData.type)) {
+        vals = [r16MagicData];
+    } else {
+        vals = Object.values(r16MagicData || {});
+    }
     return {
-        flip: vals.find(m => m.effect === 'yn_flip' || m.type === 'flip_yesno') || null,
+        flip: vals.find(m => m.effect === 'yn_flip' || m.type === 'flip_yesno' || m.type === 'joy_to_sorrow') || null,
     };
 }
 function _r16MagicEffectiveSpecial(userName, key) {
