@@ -2145,7 +2145,7 @@ function renderKoMatchCard(matchId, match) {
             ${scorerBlock}
             ${predBlock}
             ${predForm}
-            ${locked ? renderKoPublicPredsSection(matchId, match) : ''}
+            ${finished ? renderKoPublicPredsSection(matchId, match) : ''}
         </div>
     </div>`;
 }
@@ -6334,7 +6334,7 @@ function renderQfSpecialsCard() {
         const pubBodyId = `qfspPub-${key}`;
         const pubChevId = `qfspPubChev-${key}`;
         const pubOpen = document.getElementById(pubBodyId) && !document.getElementById(pubBodyId).classList.contains('hidden');
-        const pubHtml = pubEntries.length ? `<div class="mt-2 pt-2 border-t border-white/8">
+        const pubHtml = (isSettled && pubEntries.length) ? `<div class="mt-2 pt-2 border-t border-white/8">
             <button onclick="toggleQfSpecPub('${key}')" class="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-300 transition-colors">
                 <span>👥 大家的选择（${pubEntries.length}人）</span>
                 <span id="${pubChevId}">${pubOpen ? '▼' : '▶'}</span>
