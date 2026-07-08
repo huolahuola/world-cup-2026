@@ -612,7 +612,7 @@ setTimeout(function() {
                 <p>· 猜中<b class="text-white">最终晋级球队</b>（含加时/点球） → <b class="text-yellow-400">+3分</b></p>
                 <p>· 猜中<b class="text-white">首个进球者</b>（90分钟内） → <b class="text-orange-400">+5分</b></p>
                 <p>· 猜中<b class="text-white">特别竞猜</b>（每场最多2题） → <b class="text-purple-400">+7分/题</b></p>
-                <p class="text-gray-500">· 分值随轮次递增：32/16强 2/3/5/7 · 8/4强 4/5/7/9 · 决赛 5/8</p>
+                <p class="text-gray-500">· 分值随轮次递增：32/16强 2/3/5/7 · 8强 6/6/8/10 · 决赛 5/8</p>
             </div>
             <!-- Round tabs -->
             <div class="flex gap-1 mb-3 bg-white/5 rounded-2xl p-1">
@@ -2180,10 +2180,13 @@ window.submitKoPred = async function(matchId) {
 
 function calcKoPts(pred, result, round) {
     let pts = 0;
-    const isR16plus = round && round !== 'r32';
-    const r90Pts    = isR16plus ? 3 : 2;
-    const advPts    = isR16plus ? 3 : 2;
-    const scorerPts = isR16plus ? 5 : 4;
+    const isQF    = round && (round === 'qf' || round === 'sf' || round === 'final');
+    const isR16up = round && round !== 'r32';
+    const r90Pts    = isQF ? 6 : isR16up ? 3 : 2;
+    const advPts    = isQF ? 6 : isR16up ? 3 : 2;
+    const scorerPts = isQF ? 10 : isR16up ? 5 : 4;
+    const exactPts  = isQF ? 8 : 5;
+    const specialPts = isQF ? 12 : 5;
     if (pred.result90) {
         if (pred.result90 === result.outcome_90) pts += r90Pts;
         if (pred.advance && result.advance && pred.advance === result.advance) pts += advPts;
@@ -2198,13 +2201,13 @@ function calcKoPts(pred, result, round) {
         }
     }
     if (pred.scorer && result.scorer && pred.scorer === result.scorer) pts += scorerPts;
-    if (isR16plus && pred.exactScoreHome != null && pred.exactScoreAway != null &&
+    if (isR16up && pred.exactScoreHome != null && pred.exactScoreAway != null &&
         result.score120Home != null && result.score120Away != null) {
-        if (Number(pred.exactScoreHome) === result.score120Home && Number(pred.exactScoreAway) === result.score120Away) pts += 5;
+        if (Number(pred.exactScoreHome) === result.score120Home && Number(pred.exactScoreAway) === result.score120Away) pts += exactPts;
     }
     if (pred.specials && result.specials) {
         Object.entries(result.specials).forEach(([key, ans]) => {
-            if (ans && pred.specials[key] === ans) pts += 5;
+            if (ans && pred.specials[key] === ans) pts += specialPts;
         });
     }
     return pts;
@@ -6270,7 +6273,7 @@ function renderQfSpecialsCard() {
         let badge = '';
         if (isSettled) {
             badge = gotIt
-                ? `<span class="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full border border-green-500/30">✅ +${myPts != null ? myPts : 8}分</span>`
+                ? `<span class="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full border border-green-500/30">✅ +${myPts != null ? myPts : 12}分</span>`
                 : `<span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">❌ 未中</span>`;
         } else if (!effectiveOpen) {
             badge = '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>';
@@ -6341,7 +6344,7 @@ function renderQfSpecialsCard() {
             <div class="flex items-center gap-2">
                 <span class="text-lg">✨</span>
                 <p class="font-black text-sm text-white">QF 特别竞猜</p>
-                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+8分/题</span>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+12分/题</span>
             </div>
             <span id="qfSpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
