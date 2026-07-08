@@ -1725,7 +1725,7 @@ function renderKnockout() {
         return;
     }
     const r32SpecialsHtml = (currentKoRound === 'r32' && currentRoom !== FREE_ROOM) ? renderR32SpecialsCard() : '';
-    const r16SpecialsHtml = (currentKoRound === 'r16' && currentRoom !== FREE_ROOM) ? renderR16SpecialsCard() : '';
+    const r16SpecialsHtml = currentKoRound === 'r16' ? renderR16SpecialsCard() : '';
     const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : currentKoRound === 'r16' ? _r16MagicBannerHtml() : '';
     const roundStatsHtml = renderRoundStats(currentKoRound, roundMatches);
     container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
