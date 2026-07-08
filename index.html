@@ -6016,7 +6016,8 @@ function renderR32SpecialsCard() {
     }
     const q2AgeToggle = buildQ2AgeToggle();
 
-    const wasOpen = !document.getElementById('r32SpecialsBody')?.classList.contains('hidden') && !!document.getElementById('r32SpecialsBody');
+    const r32BodyEl = document.getElementById('r32SpecialsBody');
+    const wasOpen = r32BodyEl ? !r32BodyEl.classList.contains('hidden') : true;
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
         <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleR32SpecialsCard()">
             <div class="flex items-center gap-2">
@@ -6195,7 +6196,8 @@ function renderR16SpecialsCard() {
     const q2Html = renderQ('q2', q2);
     const hasForm = (q1?.open || q2?.open) && !(q1?.settled && (!q2?.q || q2?.settled));
 
-    const wasOpen = !document.getElementById('r16SpecialsBody')?.classList.contains('hidden') && !!document.getElementById('r16SpecialsBody');
+    const r16BodyEl = document.getElementById('r16SpecialsBody');
+    const wasOpen = r16BodyEl ? !r16BodyEl.classList.contains('hidden') : true;
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
         <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleR16SpecialsCard()">
             <div class="flex items-center gap-2">
@@ -6332,7 +6334,8 @@ function renderQfSpecialsCard() {
     const q2Html = renderQ('q2', q2);
     const hasForm = (q1?.open || q2?.open) && !(q1?.settled && (!q2?.q || q2?.settled));
 
-    const wasOpen = !document.getElementById('qfSpecialsBody')?.classList.contains('hidden') && !!document.getElementById('qfSpecialsBody');
+    const qfBodyEl = document.getElementById('qfSpecialsBody');
+    const wasOpen = qfBodyEl ? !qfBodyEl.classList.contains('hidden') : true;
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
         <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleQfSpecialsCard()">
             <div class="flex items-center gap-2">
