@@ -3101,8 +3101,9 @@ function renderKoCompletionStatus() {
 
     // ── QF 特别竞猜 ────────────────────────────────────────
     let specialRows = '';
-    if (qfSpecialsData && (qfSpecialsData.q1?.q || qfSpecialsData.q2?.q)) {
-        ['q1','q2'].forEach(key => {
+    const qfQKeys = Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
+    if (qfQKeys.length) {
+        qfQKeys.forEach(key => {
             const q = qfSpecialsData[key];
             if (!q?.q) return;
             const n = Object.values(qfAllSpecialPredsData).filter(p => p[key]).length;
@@ -3393,6 +3394,15 @@ function _calcSimScores() {
         if (r16SpecialsData?.q1?.settled && myR16Specials.q1 === r16SpecialsData.q1.answer) r16SpPts += 8;
         if (r16SpecialsData?.q2?.settled && myR16Specials.q2 === r16SpecialsData.q2.answer) r16SpPts += 8;
         if (r16SpPts > 0) { simPts += r16SpPts; breakdown.push(`R16特别 +${r16SpPts}`); }
+
+        // Add settled QF special question points
+        const myQfSpecials = qfAllSpecialPredsData[uid] || {};
+        let qfSpPts = 0;
+        Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+            const q = qfSpecialsData[key];
+            if (q?.settled && myQfSpecials[key] && myQfSpecials[key] === q.answer) qfSpPts += 12;
+        });
+        if (qfSpPts > 0) { simPts += qfSpPts; breakdown.push(`QF特别 +${qfSpPts}`); }
 
         scores.push({ uid, name: user.name, simPts, breakdown });
     }
@@ -6284,9 +6294,10 @@ window.toggleR16SpecialsCard = function() {
 
 // ── QF Special Predictions ──
 function renderQfSpecialsCard() {
+    const qKeys = Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
+    if (!qKeys.length) return '';
     const q1 = qfSpecialsData.q1 || null;
     const q2 = qfSpecialsData.q2 || null;
-    if (!q1?.q && !q2?.q) return '';
 
     const _unlockedNames = (roomSettingsData?.unlockedNames || '').split(',').map(n => n.trim()).filter(Boolean);
     const _isUserUnlocked = currentUser && _unlockedNames.includes(currentUser.name);
@@ -6365,9 +6376,8 @@ function renderQfSpecialsCard() {
         </div>`;
     }
 
-    const q1Html = renderQ('q1', q1);
-    const q2Html = renderQ('q2', q2);
-    const hasForm = (q1?.open || q2?.open) && !(q1?.settled && (!q2?.q || q2?.settled));
+    const qAllHtml = qKeys.map(k => renderQ(k, qfSpecialsData[k])).join('');
+    const hasForm = qKeys.some(k => qfSpecialsData[k]?.open) && !qKeys.every(k => qfSpecialsData[k]?.settled);
 
     const qfBodyEl = document.getElementById('qfSpecialsBody');
     const wasOpen = qfBodyEl ? !qfBodyEl.classList.contains('hidden') : true;
@@ -6381,7 +6391,7 @@ function renderQfSpecialsCard() {
             <span id="qfSpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
         <div id="qfSpecialsBody" class="${wasOpen ? 'mt-3' : 'hidden'}">
-            ${q1Html}${q2Html}
+            ${qAllHtml}
             ${hasForm ? '<button onclick="saveQfSpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交竞猜</button>' : ''}
         </div>
     </div>`;
@@ -6390,7 +6400,7 @@ function renderQfSpecialsCard() {
 window.saveQfSpecialPreds = async function() {
     if (!currentUser) { toast('请先登录', 'error'); return; }
     const pred = {};
-    ['q1','q2'].forEach(key => {
+    Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
         const radios = document.querySelectorAll(`input[name="qfsp_${key}"]`);
         radios.forEach(r => { if (r.checked) pred[key] = r.value; });
     });
