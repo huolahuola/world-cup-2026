@@ -2214,7 +2214,7 @@ function calcKoPts(pred, result, round) {
     const advPts    = isQF ? 6 : isR16up ? 3 : 2;
     const scorerPts = isQF ? 8 : isR16up ? 5 : 4;
     const exactPts  = isQF ? 10 : 5;
-    const specialPts = isQF ? 12 : 5;
+    const specialPts = isQF ? (roomSettingsData?.qfSpecialPts || 12) : 5;
     if (pred.result90) {
         if (pred.result90 === result.outcome_90) pts += r90Pts;
         if (pred.advance && result.advance && pred.advance === result.advance) pts += advPts;
@@ -3407,7 +3407,7 @@ function _calcSimScores() {
         let qfSpPts = 0;
         Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
             const q = qfSpecialsData[key];
-            if (q?.settled && myQfSpecials[key] && myQfSpecials[key] === q.answer) qfSpPts += 12;
+            if (q?.settled && myQfSpecials[key] && myQfSpecials[key] === q.answer) qfSpPts += (roomSettingsData?.qfSpecialPts || 12);
         });
         if (qfSpPts > 0) { simPts += qfSpPts; breakdown.push(`QF特别 +${qfSpPts}`); }
 
@@ -6325,7 +6325,7 @@ function renderQfSpecialsCard() {
         let badge = '';
         if (isSettled) {
             badge = gotIt
-                ? `<span class="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full border border-green-500/30">✅ +${myPts != null ? myPts : 12}分</span>`
+                ? `<span class="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full border border-green-500/30">✅ +${myPts != null ? myPts : (roomSettingsData?.qfSpecialPts || 12)}分</span>`
                 : `<span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">❌ 未中</span>`;
         } else if (!effectiveOpen) {
             badge = '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>';
@@ -6395,7 +6395,7 @@ function renderQfSpecialsCard() {
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-lg">✨</span>
                 <p class="font-black text-sm text-white">QF 特别竞猜</p>
-                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+12分/题</span>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+${roomSettingsData?.qfSpecialPts || 12}分/题</span>
                 ${_afterQfDeadline
                     ? `<span class="deadline-chip">🔒 已截止</span>`
                     : _qfDeadline ? `<span class="deadline-chip ${fmtCountdown(_qfDeadline) && _qfDeadline - new Date() < 3600000 ? 'soon' : 'ok'}">⏰ 截止 7月9日 20:00 CEST${fmtCountdown(_qfDeadline) ? ' · ' + fmtCountdown(_qfDeadline) : ''}</span>` : ''}
