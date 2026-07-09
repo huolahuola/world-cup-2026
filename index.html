@@ -7723,6 +7723,7 @@ async function loadGroups() {
         if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         _refreshPhase1LockStatus();
         renderGroups();
+        if (!document.getElementById('content-knockout').classList.contains('hidden')) renderKnockout();
     });
     onValue(ref(db, `rooms/${currentRoom}/groupPreds`), snap => {
         groupPredsData = snap.exists() ? snap.val() : {};
