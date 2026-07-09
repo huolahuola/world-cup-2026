@@ -1880,16 +1880,19 @@ function renderKoMatchCard(matchId, match) {
     const kickoff = match.kickoff ? new Date(match.kickoff) : null;
     const now = new Date();
 
-    // Round-based lock: 1 hour before the earliest kickoff in this round
+    // Round-based lock: 1 hour before the earliest kickoff, or custom deadline from settings
     const roundKickoffs = Object.values(koMatchesData)
         .filter(m => m.round === match.round && m.kickoff)
         .map(m => new Date(m.kickoff).getTime());
     const earliestInRound = roundKickoffs.length ? Math.min(...roundKickoffs) : null;
-    const roundDeadline = earliestInRound ? new Date(earliestInRound - 60 * 60 * 1000) : null;
+    const autoDeadline = earliestInRound ? new Date(earliestInRound - 60 * 60 * 1000) : null;
+    const customQfDeadline = (match.round === 'qf' && roomSettingsData?.qfDeadline) ? new Date(roomSettingsData.qfDeadline) : null;
+    const roundDeadline = customQfDeadline || autoDeadline;
     const koUnlockUntil = roomSettingsData?.koUnlockUntil ? new Date(roomSettingsData.koUnlockUntil) : null;
     const unlockedNames = (roomSettingsData?.unlockedNames || '').split(',').map(n => n.trim()).filter(Boolean);
     const isUserSpeciallyUnlocked = currentUser && unlockedNames.includes(currentUser.name);
     const deadlinePassed = roundDeadline ? (roundDeadline <= now) && !(koUnlockUntil && now < koUnlockUntil) && !isUserSpeciallyUnlocked : false;
+    const afterQfDeadline = customQfDeadline ? customQfDeadline <= now : false;
 
     const locked = match.status === 'finished' || match.status === 'live' || deadlinePassed || (kickoff && kickoff <= now);
     const finished = match.status === 'finished';
@@ -2147,7 +2150,7 @@ function renderKoMatchCard(matchId, match) {
             ${scorerBlock}
             ${predBlock}
             ${predForm}
-            ${finished ? renderKoPublicPredsSection(matchId, match) : ''}
+            ${(finished || afterQfDeadline) ? renderKoPublicPredsSection(matchId, match) : ''}
         </div>
     </div>`;
 }
@@ -6301,11 +6304,13 @@ function renderQfSpecialsCard() {
 
     const _unlockedNames = (roomSettingsData?.unlockedNames || '').split(',').map(n => n.trim()).filter(Boolean);
     const _isUserUnlocked = currentUser && _unlockedNames.includes(currentUser.name);
+    const _qfDeadline = roomSettingsData?.qfDeadline ? new Date(roomSettingsData.qfDeadline) : null;
+    const _afterQfDeadline = _qfDeadline ? _qfDeadline <= new Date() : false;
 
     function renderQ(key, qData) {
         if (!qData?.q) return '';
         const opts = qData.opts || [];
-        const isOpen = !!qData.open;
+        const isOpen = !!qData.open && !_afterQfDeadline;
         const effectiveOpen = isOpen || _isUserUnlocked;
         const isSettled = !!qData.settled;
         const correctAns = qData.answer || null;
@@ -6358,7 +6363,7 @@ function renderQfSpecialsCard() {
         const pubBodyId = `qfspPub-${key}`;
         const pubChevId = `qfspPubChev-${key}`;
         const pubOpen = document.getElementById(pubBodyId) && !document.getElementById(pubBodyId).classList.contains('hidden');
-        const pubHtml = (isSettled && pubEntries.length) ? `<div class="mt-2 pt-2 border-t border-white/8">
+        const pubHtml = ((isSettled || _afterQfDeadline) && pubEntries.length) ? `<div class="mt-2 pt-2 border-t border-white/8">
             <button onclick="toggleQfSpecPub('${key}')" class="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-300 transition-colors">
                 <span>👥 大家的选择（${pubEntries.length}人）</span>
                 <span id="${pubChevId}">${pubOpen ? '▼' : '▶'}</span>
