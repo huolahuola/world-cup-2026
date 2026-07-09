@@ -1910,7 +1910,11 @@ function renderKoMatchCard(matchId, match) {
     } else {
         statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${_kickoffStr(kickoff)}</span>`;
     }
-    const deadlineBadge = '';
+    const deadlineBadge = (match.round === 'qf' && customQfDeadline && !finished)
+        ? (afterQfDeadline
+            ? `<span class="deadline-chip">🔒 已截止</span>`
+            : `<span class="deadline-chip ${customQfDeadline - new Date() < 3600000 ? 'soon' : 'ok'}">⏰ 截止 7月9日 20:00 CEST${fmtCountdown(customQfDeadline) ? ' · ' + fmtCountdown(customQfDeadline) : ''}</span>`)
+        : '';
 
     let vsBlock;
     let scorerBlock = '';
@@ -6388,10 +6392,13 @@ function renderQfSpecialsCard() {
     const wasOpen = qfBodyEl ? !qfBodyEl.classList.contains('hidden') : true;
     return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
         <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleQfSpecialsCard()">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-lg">✨</span>
                 <p class="font-black text-sm text-white">QF 特别竞猜</p>
                 <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+12分/题</span>
+                ${_afterQfDeadline
+                    ? `<span class="deadline-chip">🔒 已截止</span>`
+                    : _qfDeadline ? `<span class="deadline-chip ${fmtCountdown(_qfDeadline) && _qfDeadline - new Date() < 3600000 ? 'soon' : 'ok'}">⏰ 截止 7月9日 20:00 CEST${fmtCountdown(_qfDeadline) ? ' · ' + fmtCountdown(_qfDeadline) : ''}</span>` : ''}
             </div>
             <span id="qfSpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
