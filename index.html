@@ -3729,6 +3729,20 @@ function _magicImpactPts(uid, name) {
         });
     }
 
+    // R32: soul-swap also swaps every KO-match prediction for the round, not just specials —
+    // stored .points already reflects the swapped-in scoring, so diff against the owner's own pred
+    {
+        const { swap } = _magicGet();
+        if (swap && (name === swap.player1Name || name === swap.player2Name)) {
+            Object.entries(koMatchesData).forEach(([mid, m]) => {
+                if (m.round !== 'r32' || !m.result) return;
+                const p = (koAllPredsData[uid] || {})[mid];
+                if (!p || p.points == null) return;
+                impact += p.points - calcKoPts(p, m.result, 'r32');
+            });
+        }
+    }
+
     // R16: joy-to-sorrow flip on special questions
     {
         const sp = r16AllSpecialPredsData[uid] || {};
