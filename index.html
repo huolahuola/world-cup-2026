@@ -6156,7 +6156,7 @@ function renderR32SpecialsCard() {
         const pubBodyId = `r32spPub-${key}`;
         const pubChevId = `r32spPubChev-${key}`;
         const pubOpen = document.getElementById(pubBodyId) && !document.getElementById(pubBodyId).classList.contains('hidden');
-        const pubHtml = pubEntries.length ? `<div class="mt-2 pt-2 border-t border-white/8">
+        const pubHtml = (isSettled && pubEntries.length) ? `<div class="mt-2 pt-2 border-t border-white/8">
             <button onclick="toggleR32SpecPub('${key}')" class="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-300 transition-colors">
                 <span>👥 大家的选择（${pubEntries.length}人）</span>
                 <span id="${pubChevId}">${pubOpen ? '▼' : '▶'}</span>
@@ -6402,7 +6402,7 @@ function renderR16SpecialsCard() {
         const pubBodyId = `r16spPub-${key}`;
         const pubChevId = `r16spPubChev-${key}`;
         const pubOpen = document.getElementById(pubBodyId) && !document.getElementById(pubBodyId).classList.contains('hidden');
-        const pubHtml = pubEntries.length ? `<div class="mt-2 pt-2 border-t border-white/8">
+        const pubHtml = (isSettled && pubEntries.length) ? `<div class="mt-2 pt-2 border-t border-white/8">
             <button onclick="toggleR16SpecPub('${key}')" class="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-300 transition-colors">
                 <span>👥 大家的选择（${pubEntries.length}人）</span>
                 <span id="${pubChevId}">${pubOpen ? '▼' : '▶'}</span>
@@ -6624,7 +6624,7 @@ function renderSfSpecialsCard() {
         const pubBodyId = `sfspPub-${key}`;
         const pubChevId = `sfspPubChev-${key}`;
         const pubOpen = document.getElementById(pubBodyId) && !document.getElementById(pubBodyId).classList.contains('hidden');
-        const pubHtml = pubEntries.length ? `<div class="mt-2 pt-2 border-t border-white/8">
+        const pubHtml = (!isOpen && pubEntries.length) ? `<div class="mt-2 pt-2 border-t border-white/8">
             <button onclick="toggleSfSpecPub('${key}')" class="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-300 transition-colors">
                 <span>👥 大家的选择（${pubEntries.length}人）</span>
                 <span id="${pubChevId}">${pubOpen ? '▼' : '▶'}</span>
@@ -6637,6 +6637,7 @@ function renderSfSpecialsCard() {
                 <p class="text-xs font-bold text-gray-200 flex-1">${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
                 ${myAns ? '<span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">已提交</span>' : (isOpen ? '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">待选择</span>' : '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>')}
             </div>
+            ${qData.author ? `<p class="text-[10px] text-gray-500 mb-1.5">🖊️ 出题人：${qData.author}</p>` : ''}
             <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
             ${pubHtml}
         </div>`;
