@@ -1251,8 +1251,12 @@ let r16AllSpecialPredsData = {};
 let qfSpecialsData    = {};
 let qfSpecialPredsData = {};
 let qfAllSpecialPredsData = {};
+let sfSpecialsData    = {};
+let sfSpecialPredsData = {};
+let sfAllSpecialPredsData = {};
 let r32MagicData = {};
 let r16MagicData = {};
+let qfMagicData = {};
 let currentKoRound = 'r32';
 let _koRoundAutoSet = false;
 let presenceData   = {};
@@ -1553,6 +1557,17 @@ function startApp() {
             qfAllSpecialPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
         });
+        onValue(ref(db, `rooms/${currentRoom}/sfspecials`), snap => {
+            sfSpecialsData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'sf') renderKnockout();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/sfspecialPreds/${currentUser.id}`), snap => {
+            sfSpecialPredsData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'sf') renderKnockout();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/sfspecialPreds`), snap => {
+            sfAllSpecialPredsData = snap.exists() ? snap.val() : {};
+        });
         onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
             koAllPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
@@ -1565,6 +1580,10 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/r16magic`), snap => {
             r16MagicData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r16') renderKnockout();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/qfmagic`), snap => {
+            qfMagicData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'qf') renderKnockout();
         });
 
         // ── Presence ──
@@ -1743,9 +1762,10 @@ function renderKnockout() {
     const r32SpecialsHtml = (currentKoRound === 'r32' && currentRoom !== FREE_ROOM) ? renderR32SpecialsCard() : '';
     const r16SpecialsHtml = currentKoRound === 'r16' ? renderR16SpecialsCard() : '';
     const qfSpecialsHtml  = currentKoRound === 'qf'  ? renderQfSpecialsCard()  : '';
-    const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : currentKoRound === 'r16' ? _r16MagicBannerHtml() : '';
+    const sfSpecialsHtml  = (currentKoRound === 'sf' && currentRoom !== FREE_ROOM) ? renderSfSpecialsCard() : '';
+    const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : currentKoRound === 'r16' ? _r16MagicBannerHtml() : currentKoRound === 'qf' ? _qfMagicBannerHtml() : '';
     const roundStatsHtml = renderRoundStats(currentKoRound, roundMatches);
-    container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + qfSpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
+    container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + qfSpecialsHtml + sfSpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
 }
 
 function _calcPredAccuracy(pred, result) {
@@ -5996,6 +6016,40 @@ function _r16MagicBannerHtml() {
     </div>`;
 }
 
+// ─── QF Magic banner (supports multiple simultaneous disarm attacks) ──
+function _qfMagicGet() {
+    const vals = Object.values(qfMagicData || {});
+    return { disarms: vals.filter(m => m.effect === 'nullify_options' || m.type === 'disarm') };
+}
+function _qfMagicBannerHtml() {
+    const { disarms } = _qfMagicGet();
+    if (!disarms.length) return '';
+    const optLabel = o => o === 'result90' ? '90分结果' : o === 'advance' ? '晋级球队' : o === 'scorer' ? '首开纪录' : o === 'exactScore' ? '比分' : o;
+    const items = disarms.map((disarm, i) => {
+        const nullified = disarm.nullified || {};
+        const matchLabels = Object.entries(nullified).map(([mid, opts]) => {
+            const m = koMatchesData[mid] || {};
+            const label = m.home && m.away ? `${m.home}vs${m.away}` : mid;
+            return `${label}（${(opts||[]).map(optLabel).join('/')}）`;
+        });
+        const impact = disarm.netScoreChange || 0;
+        const color = impact < 0 ? 'text-red-400' : impact > 0 ? 'text-green-400' : 'text-gray-400';
+        return `<div class="flex items-start gap-2 text-xs ${i ? 'mt-3' : ''}">
+        <span class="text-2xl leading-none">🃏</span>
+        <div><span class="font-black text-red-300">${disarm.displayName || '除你武器'}</span>
+        <span class="text-gray-300"> · ${disarm.usedBy} 使用</span>
+        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${disarm.targetName}</b> 指定选项积分清零</div>
+        <div class="text-gray-500 mt-0.5 text-[10px]">${matchLabels.join(' · ')}</div>
+        <div class="mt-1"><span class="${color}">⚡ 法力值 ${impact>0?'+':''}${impact} 分</span> 作用于 ${disarm.targetName}</div>
+        </div></div>`;
+    }).join('');
+
+    return `<div class="glass rounded-2xl p-4 mb-3 border border-amber-500/30 bg-amber-900/10">
+        <div class="flex items-center gap-2 mb-2"><span class="text-base">✨</span><p class="font-black text-sm text-amber-300">本轮魔法牌效果</p></div>
+        ${items}
+    </div>`;
+}
+
 // ─── R16 Magic helpers ────────────────────────────────────────
 function _r16MagicGet() {
     const vals = Object.values(r16MagicData || {});
@@ -6533,6 +6587,114 @@ function renderQfSpecialsCard() {
         </div>
     </div>`;
 }
+
+// ─── SF Special Questions (choice-based, no correct answer — settled manually by admin) ──
+function renderSfSpecialsCard() {
+    const qKeys = Object.keys(sfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
+    if (!qKeys.length) return '';
+
+    function renderQ(key, qData) {
+        if (!qData?.q) return '';
+        const opts = qData.opts || [];
+        const isOpen = !!qData.open;
+        const myAns = sfSpecialPredsData[key] || null;
+
+        const optsHtml = opts.map(opt => {
+            const sel = myAns === opt;
+            let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
+            cls += sel ? 'bg-purple-500/20 border border-purple-400/30 text-purple-200' : 'bg-white/5 border border-white/10 text-gray-300';
+            cls += isOpen ? ' cursor-pointer' : '';
+            const escOpt = opt.replace(/"/g, '&quot;');
+            const radio = isOpen ? `<input type="radio" name="sfsp_${key}" value="${escOpt}" ${sel ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
+            return `<label class="${cls}">${radio}<span>${opt}</span></label>`;
+        }).join('');
+
+        const SIM_EXCLUDE = ['小助手'];
+        const _nameOf = uid => scoresData[uid]?.name || usersTableData[uid]?.name || null;
+        const pubEntries = Object.entries(sfAllSpecialPredsData)
+            .filter(([uid, p]) => { const name = _nameOf(uid); return name && !SIM_EXCLUDE.includes(name) && p[key]; })
+            .map(([uid, p]) => {
+                const name = _nameOf(uid);
+                const isMe = currentUser?.id === uid || currentUser?.name === name;
+                return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
+                    <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}</span>
+                    <span class="flex-1 text-gray-400">${p[key] || '–'}</span>
+                </div>`;
+            });
+        const pubBodyId = `sfspPub-${key}`;
+        const pubChevId = `sfspPubChev-${key}`;
+        const pubOpen = document.getElementById(pubBodyId) && !document.getElementById(pubBodyId).classList.contains('hidden');
+        const pubHtml = pubEntries.length ? `<div class="mt-2 pt-2 border-t border-white/8">
+            <button onclick="toggleSfSpecPub('${key}')" class="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                <span>👥 大家的选择（${pubEntries.length}人）</span>
+                <span id="${pubChevId}">${pubOpen ? '▼' : '▶'}</span>
+            </button>
+            <div id="${pubBodyId}" class="${pubOpen ? 'mt-1' : 'hidden'}">${pubEntries.join('')}</div>
+        </div>` : '';
+
+        return `<div class="mb-3">
+            <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
+                <p class="text-xs font-bold text-gray-200 flex-1">${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
+                ${myAns ? '<span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">已提交</span>' : (isOpen ? '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">待选择</span>' : '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>')}
+            </div>
+            <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
+            ${pubHtml}
+        </div>`;
+    }
+
+    const qAllHtml = qKeys.map(k => renderQ(k, sfSpecialsData[k])).join('');
+    const hasForm = qKeys.some(k => sfSpecialsData[k]?.open);
+
+    const sfBodyEl = document.getElementById('sfSpecialsBody');
+    const wasOpen = sfBodyEl ? !sfBodyEl.classList.contains('hidden') : true;
+    return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
+        <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleSfSpecialsCard()">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-lg">✨</span>
+                <p class="font-black text-sm text-white">半决赛特别竞猜</p>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">魔法选择</span>
+            </div>
+            <span id="sfSpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
+        </div>
+        <div id="sfSpecialsBody" class="${wasOpen ? 'mt-3' : 'hidden'}">
+            ${qAllHtml}
+            ${hasForm ? '<button onclick="saveSfSpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交选择</button>' : ''}
+        </div>
+    </div>`;
+}
+
+window.saveSfSpecialPreds = async function() {
+    if (!currentUser) { toast('请先登录', 'error'); return; }
+    const pred = {};
+    Object.keys(sfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+        const radios = document.querySelectorAll(`input[name="sfsp_${key}"]`);
+        radios.forEach(r => { if (r.checked) pred[key] = r.value; });
+    });
+    if (!Object.keys(pred).length) { toast('请先选择选项', 'error'); return; }
+    const merged = { ...sfSpecialPredsData, ...pred };
+    sfSpecialPredsData = merged;
+    await set(ref(db, `rooms/${currentRoom}/sfspecialPreds/${currentUser.id}`), merged);
+    toast('✅ 选择已保存');
+    renderKnockout();
+};
+
+window.toggleSfSpecPub = function(key) {
+    const body = document.getElementById(`sfspPub-${key}`);
+    const chev = document.getElementById(`sfspPubChev-${key}`);
+    if (!body) return;
+    const nowHidden = body.classList.toggle('hidden');
+    body.classList.toggle('mt-1', !nowHidden);
+    if (chev) chev.textContent = nowHidden ? '▶' : '▼';
+};
+
+window.toggleSfSpecialsCard = function() {
+    const body = document.getElementById('sfSpecialsBody');
+    const chev = document.getElementById('sfSpecChev');
+    if (!body) return;
+    const nowHidden = body.classList.toggle('hidden');
+    body.classList.toggle('mt-3', !nowHidden);
+    if (chev) chev.textContent = nowHidden ? '▶' : '▼';
+};
 
 window.saveQfSpecialPreds = async function() {
     if (!currentUser) { toast('请先登录', 'error'); return; }
