@@ -1524,6 +1524,7 @@ function startApp() {
             r32SpecialsData = snap.exists() ? snap.val() : {};
             refreshR32SpecialsAdmin();
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
+            renderLeaderboard();
         });
         onValue(ref(db, `rooms/${currentRoom}/r32specialPreds/${currentUser.id}`), snap => {
             r32SpecialPredsData = snap.exists() ? snap.val() : {};
@@ -1532,10 +1533,12 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/r32specialPreds`), snap => {
             r32AllSpecialPredsData = snap.exists() ? snap.val() : {};
             renderKoCompletionStatus();
+            renderLeaderboard();
         });
         onValue(ref(db, `rooms/${currentRoom}/r16specials`), snap => {
             r16SpecialsData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r16') renderKnockout();
+            renderLeaderboard();
         });
         onValue(ref(db, `rooms/${currentRoom}/r16specialPreds/${currentUser.id}`), snap => {
             r16SpecialPredsData = snap.exists() ? snap.val() : {};
@@ -1543,6 +1546,7 @@ function startApp() {
         });
         onValue(ref(db, `rooms/${currentRoom}/r16specialPreds`), snap => {
             r16AllSpecialPredsData = snap.exists() ? snap.val() : {};
+            renderLeaderboard();
         });
         onValue(ref(db, `rooms/${currentRoom}/qfspecials`), snap => {
             qfSpecialsData = snap.exists() ? snap.val() : {};
@@ -1576,14 +1580,17 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/r32magic`), snap => {
             r32MagicData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
+            renderLeaderboard();
         });
         onValue(ref(db, `rooms/${currentRoom}/r16magic`), snap => {
             r16MagicData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r16') renderKnockout();
+            renderLeaderboard();
         });
         onValue(ref(db, `rooms/${currentRoom}/qfmagic`), snap => {
             qfMagicData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'qf') renderKnockout();
+            renderLeaderboard();
         });
 
         // ── Presence ──
