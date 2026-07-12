@@ -3209,6 +3209,16 @@ window.toggleKoCompletion = function() {
     if (chev) chev.textContent = open ? '▲' : '▼';
 };
 
+// Round-aware accessors so the completion panel doesn't need manual edits every round
+function _roundSpecialsData(round) {
+    return round === 'r32' ? r32SpecialsData : round === 'r16' ? r16SpecialsData
+         : round === 'qf'  ? qfSpecialsData  : round === 'sf'  ? sfSpecialsData : {};
+}
+function _roundAllSpecialPredsData(round) {
+    return round === 'r32' ? r32AllSpecialPredsData : round === 'r16' ? r16AllSpecialPredsData
+         : round === 'qf'  ? qfAllSpecialPredsData  : round === 'sf'  ? sfAllSpecialPredsData : {};
+}
+
 function renderKoCompletionStatus() {
     const el = document.getElementById('koCompletionSection');
     if (!el) return;
@@ -3226,21 +3236,26 @@ function renderKoCompletionStatus() {
             <span class="text-xs text-gray-400">${icon} ${label}</span>${badge(n)}</div>`;
     }
 
-    // ── QF 特别竞猜 ────────────────────────────────────────
+    const round = currentKoRound;
+    const roundLabel = KO_LABELS[round] || round;
+    const roundSpecialsData = _roundSpecialsData(round);
+    const roundAllSpecialPredsData = _roundAllSpecialPredsData(round);
+
+    // ── 本轮特别竞猜 ────────────────────────────────────────
     let specialRows = '';
-    const qfQKeys = Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
-    if (qfQKeys.length) {
-        qfQKeys.forEach(key => {
-            const q = qfSpecialsData[key];
+    const roundQKeys = Object.keys(roundSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
+    if (roundQKeys.length) {
+        roundQKeys.forEach(key => {
+            const q = roundSpecialsData[key];
             if (!q?.q) return;
-            const n = Object.values(qfAllSpecialPredsData).filter(p => p[key]).length;
+            const n = Object.values(roundAllSpecialPredsData).filter(p => p[key]).length;
             specialRows += row('✨', q.q.split('\n')[0].slice(0, 28) + (q.q.length > 28 ? '…' : ''), n);
         });
     }
 
-    // ── 4场QF赛果 ──────────────────────────────────────────
+    // ── 本轮赛果 ──────────────────────────────────────────
     const qfMatches = Object.entries(koMatchesData)
-        .filter(([,m]) => m.round === 'qf')
+        .filter(([,m]) => m.round === round)
         .sort((a,b) => (a[1].kickoff||'').localeCompare(b[1].kickoff||''));
     const matchRows = qfMatches.map(([mid, m]) => {
         const userPreds = Object.values(koAllPredsData).map(u => u[mid]).filter(Boolean);
@@ -3274,8 +3289,8 @@ function renderKoCompletionStatus() {
         </button>
         <div id="${bodyId}" style="display:${wasOpen ? 'block' : 'none'}">
             <div class="mt-2">
-            ${specialRows ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">QF 特别竞猜</p>${specialRows}` : `<p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">QF 特别竞猜</p><div class="text-xs text-gray-600 py-1.5">（即将开始）</div>`}
-            ${qfMatches.length ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">8进4赛果</p>${matchRows}` : ''}
+            <p class="text-[10px] text-gray-600 uppercase tracking-wide mb-1.5">${roundLabel} 特别竞猜</p>${specialRows || `<div class="text-xs text-gray-600 py-1.5">（即将开始）</div>`}
+            ${qfMatches.length ? `<p class="text-[10px] text-gray-600 uppercase tracking-wide mt-2 mb-1.5">${roundLabel}赛果</p>${matchRows}` : ''}
             </div>
         </div>
     </div>`;
