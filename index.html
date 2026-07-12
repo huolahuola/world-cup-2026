@@ -3286,12 +3286,13 @@ function renderLeaderboard() {
         const r16SpecPts   = (r16sp.q1Points||0) + (r16sp.q2Points||0);
         const qfsp         = qfAllSpecialPredsData[uid] || {};
         const qfSpecPts    = Object.keys(qfSpecialsData||{}).filter(k=>/^q\d+$/.test(k)).reduce((sum,k)=>sum+(qfsp[k+'Points']||0),0);
-        const r32Pts       = _koRoundPts(uid, 'r32') + r32SpecPts;
-        const r16Pts       = _koRoundPts(uid, 'r16') + r16SpecPts;
-        const qfPts        = _koRoundPts(uid, 'qf')  + qfSpecPts;
+        const magicBreak   = _magicImpactBreakdown(uid, s.name);
+        const r32Pts       = _koRoundPts(uid, 'r32') + r32SpecPts - magicBreak.r32;
+        const r16Pts       = _koRoundPts(uid, 'r16') + r16SpecPts - magicBreak.r16;
+        const qfPts        = _koRoundPts(uid, 'qf')  + qfSpecPts  - magicBreak.qf;
         const sfPts        = _koRoundPts(uid, 'sf');
         const finalPts     = _koRoundPts(uid, 'final');
-        const magicPts     = _magicImpactPts(uid, s.name);
+        const magicPts     = magicBreak.r32 + magicBreak.r16 + magicBreak.qf;
         const grandTotal   = s.total || 0;
         const isMe = s.name === currentUser.name;
         const c = (v, cls) => v > 0 ? `<td class="text-center py-1.5 px-0.5 text-xs ${cls} font-bold">${v}</td>`
@@ -3341,7 +3342,7 @@ function renderLeaderboard() {
                 </thead>
                 <tbody>${koTableRows}</tbody>
             </table>
-            <p class="text-[10px] text-gray-500 mt-2">* 魔法效果一列仅供参考：这个增减已经算在对应轮次的分数里了，不要把它和轮次分数再加一遍</p>
+            <p class="text-[10px] text-gray-500 mt-2">* 轮次分数已经去掉了魔法效果的影响（即该轮"干净"的原始表现），魔法效果单独算一列，两者相加才是这轮的实际得分</p>
         </div>
     </div>`;
 
@@ -3714,8 +3715,10 @@ function _koRoundPts(uid, round) {
 
 // Net point swing from every magic-card effect that touched this user (actual scored points minus
 // what they'd have scored with no magic in play at all). Negative = hurt by magic, positive = helped.
-function _magicImpactPts(uid, name) {
-    let impact = 0;
+// Broken down per round so the leaderboard can show each round's "clean" (no-magic) score, with the
+// magic swing as its own additive column instead of being silently baked into the round number.
+function _magicImpactBreakdown(uid, name) {
+    const out = { r32: 0, r16: 0, qf: 0 };
 
     // R32: joy-to-sorrow flip + soul-swap on special questions
     {
@@ -3726,7 +3729,7 @@ function _magicImpactPts(uid, name) {
             const actual = sp[`${key}Points`];
             if (actual == null) return;
             const hypo = sp[key] === q.answer ? 5 : 0;
-            impact += actual - hypo;
+            out.r32 += actual - hypo;
         });
     }
 
@@ -3739,7 +3742,7 @@ function _magicImpactPts(uid, name) {
                 if (m.round !== 'r32' || !m.result) return;
                 const p = (koAllPredsData[uid] || {})[mid];
                 if (!p || p.points == null) return;
-                impact += p.points - calcKoPts(p, m.result, 'r32');
+                out.r32 += p.points - calcKoPts(p, m.result, 'r32');
             });
         }
     }
@@ -3753,7 +3756,7 @@ function _magicImpactPts(uid, name) {
             const actual = sp[`${key}Points`];
             if (actual == null) return;
             const hypo = sp[key] === q.answer ? 8 : 0;
-            impact += actual - hypo;
+            out.r16 += actual - hypo;
         });
     }
 
@@ -3765,7 +3768,7 @@ function _magicImpactPts(uid, name) {
                 const m = koMatchesData[mid];
                 const p = (koAllPredsData[uid] || {})[mid];
                 if (!m?.result || !p || p.points == null) return;
-                impact += p.points - calcKoPts(p, m.result, m.round);
+                out.r16 += p.points - calcKoPts(p, m.result, m.round);
             });
         }
     }
@@ -3778,12 +3781,17 @@ function _magicImpactPts(uid, name) {
                 const m = koMatchesData[mid];
                 const p = (koAllPredsData[uid] || {})[mid];
                 if (!m?.result || !p || p.points == null) return;
-                impact += p.points - calcKoPts(p, m.result, m.round);
+                out.qf += p.points - calcKoPts(p, m.result, m.round);
             });
         });
     }
 
-    return impact;
+    return out;
+}
+
+function _magicImpactPts(uid, name) {
+    const b = _magicImpactBreakdown(uid, name);
+    return b.r32 + b.r16 + b.qf;
 }
 
 function updateHeaderPoints() {
