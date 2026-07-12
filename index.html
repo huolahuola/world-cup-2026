@@ -2165,14 +2165,28 @@ function renderKoMatchCard(matchId, match) {
         const isR16form = match.round !== 'r32';
         const isSFform  = match.round === 'sf';
         const isQFform  = match.round === 'qf' || match.round === 'final';
-        const r90PtsLabel    = isSFform ? '+8分' : isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
-        const advPtsLabel    = isSFform ? '+8分' : isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
-        const scorerPtsLabel = isSFform ? '+12分' : isQFform ? '+8分' : isR16form ? '+5分' : '+4分';
-        const exactPtsLabel  = isSFform ? '+12分' : isQFform ? '+10分' : '+5分';
+        const r90Pts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
+        const advPts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
+        const scorerPts = isSFform ? 12 : isQFform ? 8 : isR16form ? 5 : 4;
+        const exactPts  = isSFform ? 12 : isQFform ? 10 : 5;
+        const r90PtsLabel    = `+${r90Pts}分`;
+        const advPtsLabel    = `+${advPts}分`;
+        const scorerPtsLabel = `+${scorerPts}分`;
+        const exactPtsLabel  = `+${exactPts}分`;
+        // Same point value across fields → same color, so it reads as "these are worth the same"
+        const _ptsPalette = ['text-green-400', 'text-yellow-400', 'text-orange-400', 'text-cyan-400'];
+        const _ptsColorMap = {};
+        [r90Pts, advPts, scorerPts, exactPts].forEach(v => {
+            if (!(v in _ptsColorMap)) _ptsColorMap[v] = _ptsPalette[Object.keys(_ptsColorMap).length % _ptsPalette.length];
+        });
+        const r90PtsCls    = _ptsColorMap[r90Pts];
+        const advPtsCls    = _ptsColorMap[advPts];
+        const scorerPtsCls = _ptsColorMap[scorerPts];
+        const exactPtsCls  = _ptsColorMap[exactPts];
         const curESH = myPredOriginal?.exactScoreHome ?? '';
         const curESA = myPredOriginal?.exactScoreAway ?? '';
         const exactScoreHtml = isR16form ? `
-            <p class="text-xs text-gray-500 mb-1.5">📊 120分钟内比分（主队:客队，不含点球） <span class="text-cyan-400 font-bold">${exactPtsLabel}</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">📊 120分钟内比分（主队:客队，不含点球） <span class="${exactPtsCls} font-bold">${exactPtsLabel}</span></p>
             <div class="flex items-center gap-2 mb-3">
                 <input type="number" id="ko-es-home-${matchId}" min="0" max="20" placeholder="0" value="${curESH}"
                     class="flex-1 glass-dark rounded-xl px-3 py-2.5 text-lg font-black text-white text-center focus:outline-none focus:ring-1 focus:ring-cyan-400">
@@ -2182,15 +2196,15 @@ function renderKoMatchCard(matchId, match) {
             </div>` : '';
         predForm = `<div class="mt-3 pt-3 border-t border-white/10">
             <input type="hidden" id="ko-r90-${matchId}" value="${curR90}">
-            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="text-green-400 font-bold">${r90PtsLabel}</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">🎯 90分钟结果 <span class="${r90PtsCls} font-bold">${r90PtsLabel}</span></p>
             <div class="flex gap-2 mb-3">${r90Btns}</div>
-            <p class="text-xs text-gray-500 mb-1.5">⬆️ 最终晋级球队 <span class="text-yellow-400 font-bold">${advPtsLabel}</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">⬆️ 最终晋级球队 <span class="${advPtsCls} font-bold">${advPtsLabel}</span></p>
             <select id="ko-advance-${matchId}" class="w-full glass-dark rounded-xl px-3 py-2 text-sm text-white mb-3 focus:outline-none">
                 <option value="">— 选择晋级球队 —</option>
                 <option value="${match.home||'TBD'}" ${myPred?.advance===match.home?'selected':''}>${match.homeFlag||''} ${match.home||'TBD'}</option>
                 <option value="${match.away||'TBD'}" ${myPred?.advance===match.away?'selected':''}>${match.awayFlag||''} ${match.away||'TBD'}</option>
             </select>
-            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者 <span class="text-orange-400 font-bold">${scorerPtsLabel}</span></p>
+            <p class="text-xs text-gray-500 mb-1.5">⚽ 首个进球者 <span class="${scorerPtsCls} font-bold">${scorerPtsLabel}</span></p>
             <div class="flex gap-2 mb-3">
                 <select id="ko-scorer-team-${matchId}" class="flex-1 glass-dark rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
                     <option value="">无人进球</option>
