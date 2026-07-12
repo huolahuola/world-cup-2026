@@ -3287,9 +3287,9 @@ function renderLeaderboard() {
         const qfsp         = qfAllSpecialPredsData[uid] || {};
         const qfSpecPts    = Object.keys(qfSpecialsData||{}).filter(k=>/^q\d+$/.test(k)).reduce((sum,k)=>sum+(qfsp[k+'Points']||0),0);
         const magicBreak   = _magicImpactBreakdown(uid, s.name);
-        const r32Pts       = _koRoundPts(uid, 'r32') + r32SpecPts - magicBreak.r32;
-        const r16Pts       = _koRoundPts(uid, 'r16') + r16SpecPts - magicBreak.r16;
-        const qfPts        = _koRoundPts(uid, 'qf')  + qfSpecPts  - magicBreak.qf;
+        const r32Pts       = _koRoundPts(uid, 'r32') + r32SpecPts;
+        const r16Pts       = _koRoundPts(uid, 'r16') + r16SpecPts;
+        const qfPts        = _koRoundPts(uid, 'qf')  + qfSpecPts;
         const sfPts        = _koRoundPts(uid, 'sf');
         const finalPts     = _koRoundPts(uid, 'final');
         const magicPts     = magicBreak.r32 + magicBreak.r16 + magicBreak.qf;
@@ -3342,7 +3342,7 @@ function renderLeaderboard() {
                 </thead>
                 <tbody>${koTableRows}</tbody>
             </table>
-            <p class="text-[10px] text-gray-500 mt-2">* 轮次分数已经去掉了魔法效果的影响（即该轮"干净"的原始表现），魔法效果单独算一列，两者相加才是这轮的实际得分</p>
+            <p class="text-[10px] text-gray-500 mt-2">* 各轮分数是实际结算得分（魔法效果已经算在里面了）；"魔法效果"这一列是单独换算出来给你参考这轮被魔法影响了多少分，不要再和轮次分数相加</p>
         </div>
     </div>`;
 
