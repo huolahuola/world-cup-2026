@@ -2086,7 +2086,26 @@ function renderKoMatchCard(matchId, match) {
         let ptsBadge;
         if (pts !== null && pts !== undefined) {
             const cls = pts >= 10 ? 'bg-orange-500 text-white' : pts >= 4 ? 'bg-yellow-500 text-black' : pts >= 2 ? 'bg-green-700 text-white' : 'bg-gray-700 text-gray-400';
-            ptsBadge = `<span class="${cls} text-xs px-2 py-0.5 rounded-full font-bold">+${pts}分</span>`;
+            // If this exact match was hit by a disarm targeting the current user, show the
+            // before-attack score alongside the actual (post-disarm) one.
+            let beforePts = null, disarmName = '';
+            if (match.round === 'r16') {
+                const { disarm } = _r16MagicGet();
+                if (disarm && disarm.targetName === currentUser?.name && disarm.nullified?.[matchId]) {
+                    beforePts = calcKoPts(myPred, result, match.round);
+                    disarmName = disarm.displayName || '除你武器';
+                }
+            } else if (match.round === 'qf') {
+                const { disarms } = _qfMagicGet();
+                const hit = disarms.find(d => d.targetName === currentUser?.name && d.nullified?.[matchId]);
+                if (hit) {
+                    beforePts = calcKoPts(myPred, result, match.round);
+                    disarmName = hit.displayName || '除你武器';
+                }
+            }
+            ptsBadge = (beforePts != null && beforePts !== pts)
+                ? `<span class="${cls} text-xs px-2 py-0.5 rounded-full font-bold">+${beforePts}分 → +${pts}分</span> <span class="text-[10px] text-red-400">🃏被${disarmName}</span>`
+                : `<span class="${cls} text-xs px-2 py-0.5 rounded-full font-bold">+${pts}分</span>`;
         } else {
             ptsBadge = `<span class="bg-blue-900/60 text-blue-300 text-xs px-2 py-0.5 rounded-full">待揭晓</span>`;
         }
