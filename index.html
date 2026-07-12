@@ -2163,11 +2163,12 @@ function renderKoMatchCard(matchId, match) {
             <div class="flex gap-2 mb-3">${opts}</div>`;
         }).join('') : `<p class="text-xs text-gray-600 text-center py-1 mb-2">✨ 特别竞猜 · 即将开放</p>`;
         const isR16form = match.round !== 'r32';
-        const isQFform  = match.round === 'qf' || match.round === 'sf' || match.round === 'final';
-        const r90PtsLabel    = isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
-        const advPtsLabel    = isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
-        const scorerPtsLabel = isQFform ? '+8分' : isR16form ? '+5分' : '+4分';
-        const exactPtsLabel  = isQFform ? '+10分' : '+5分';
+        const isSFform  = match.round === 'sf';
+        const isQFform  = match.round === 'qf' || match.round === 'final';
+        const r90PtsLabel    = isSFform ? '+8分' : isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
+        const advPtsLabel    = isSFform ? '+8分' : isQFform ? '+6分' : isR16form ? '+3分' : '+2分';
+        const scorerPtsLabel = isSFform ? '+12分' : isQFform ? '+8分' : isR16form ? '+5分' : '+4分';
+        const exactPtsLabel  = isSFform ? '+12分' : isQFform ? '+10分' : '+5分';
         const curESH = myPredOriginal?.exactScoreHome ?? '';
         const curESA = myPredOriginal?.exactScoreAway ?? '';
         const exactScoreHtml = isR16form ? `
@@ -2328,13 +2329,14 @@ window.submitKoPred = async function(matchId) {
 
 function calcKoPts(pred, result, round) {
     let pts = 0;
-    const isQF    = round && (round === 'qf' || round === 'sf' || round === 'final');
+    const isSF    = round === 'sf';
+    const isQF    = round && (round === 'qf' || round === 'final');
     const isR16up = round && round !== 'r32';
-    const r90Pts    = isQF ? 6 : isR16up ? 3 : 2;
-    const advPts    = isQF ? 6 : isR16up ? 3 : 2;
-    const scorerPts = isQF ? 8 : isR16up ? 5 : 4;
-    const exactPts  = isQF ? 10 : 5;
-    const specialPts = isQF ? (roomSettingsData?.qfSpecialPts || 12) : 5;
+    const r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+    const advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+    const scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
+    const exactPts  = isSF ? 12 : isQF ? 10 : 5;
+    const specialPts = (isQF || isSF) ? (roomSettingsData?.qfSpecialPts || 12) : 5;
     if (pred.result90) {
         if (pred.result90 === result.outcome_90) pts += r90Pts;
         if (pred.advance && result.advance && pred.advance === result.advance) pts += advPts;
@@ -4018,12 +4020,13 @@ function _scoreRange(uid) {
         if (p.points !== null && p.points !== undefined) { koEarned += p.points; return; }
         const m = koMatchesData[mid];
         if (!m) return;
-        const isQF = m.round === 'qf' || m.round === 'sf' || m.round === 'final';
+        const isSF = m.round === 'sf';
+        const isQF = m.round === 'qf' || m.round === 'final';
         const isR16up = m.round !== 'r32';
-        const r90Pts    = isQF ? 6 : isR16up ? 3 : 2;
-        const advPts    = isQF ? 6 : isR16up ? 3 : 2;
-        const scorerPts = isQF ? 8 : isR16up ? 5 : 4;
-        const exactPts  = isQF ? 10 : 5;
+        const r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+        const advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+        const scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
+        const exactPts  = isSF ? 12 : isQF ? 10 : 5;
         let mx = 0;
         if (p.result90) mx += r90Pts;
         if (p.advance) mx += advPts;
@@ -6814,6 +6817,7 @@ function renderSfSpecialsCard() {
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-lg">✨</span>
                 <p class="font-black text-sm text-white">半决赛特别竞猜</p>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+10分/题（信心倍增除外）</span>
             </div>
             <span id="sfSpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
