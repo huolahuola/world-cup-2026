@@ -1777,6 +1777,74 @@ function _calcPredAccuracy(pred, result) {
     return { correct, total };
 }
 
+// Round-level special questions (r32specials/r16specials/qfspecials) hit-rate, magic-aware
+function _calcRoundSpecialAccuracy(round, uid, userName) {
+    let correct = 0, total = 0;
+    if (round === 'r32') {
+        const { flip, swap } = _magicGet();
+        ['q1', 'q2'].forEach(key => {
+            const q = r32SpecialsData[key];
+            if (!q?.settled || !q.answer) return;
+            total++;
+            let ans = r32AllSpecialPredsData[uid]?.[key] || null;
+            if (swap && userName) {
+                let swapUid = null;
+                if (userName === swap.player1Name) swapUid = _magicFindUid(swap.player2Name);
+                else if (userName === swap.player2Name) swapUid = _magicFindUid(swap.player1Name);
+                if (swapUid) ans = r32AllSpecialPredsData[swapUid]?.[key] || null;
+            }
+            if (flip && userName === flip.targetName && ans) ans = _magicFlipAnswer(ans);
+            if (ans && ans === q.answer) correct++;
+        });
+    } else if (round === 'r16') {
+        const { flip } = _r16MagicGet();
+        ['q1', 'q2'].forEach(key => {
+            const q = r16SpecialsData[key];
+            if (!q?.settled || !q.answer) return;
+            total++;
+            let ans = r16AllSpecialPredsData[uid]?.[key] || null;
+            if (flip && userName === flip.targetName && ans) ans = ans === 'Y' ? 'N' : ans === 'N' ? 'Y' : ans;
+            if (ans && ans === q.answer) correct++;
+        });
+    } else if (round === 'qf') {
+        Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+            const q = qfSpecialsData[key];
+            if (!q?.settled || !q.answer) return;
+            total++;
+            const ans = qfAllSpecialPredsData[uid]?.[key] || null;
+            if (ans && ans === q.answer) correct++;
+        });
+    }
+    return { correct, total };
+}
+
+// Overall hit-rate across every finished KO match + settled round-special question
+function _calcOverallHitRate(uid, userName) {
+    let correct = 0, total = 0;
+    const { swap } = _magicGet();
+    const nameToUid = Object.fromEntries(
+        Object.entries(scoresData).filter(([, s]) => s.name).map(([u, s]) => [s.name, u])
+    );
+    Object.entries(koMatchesData).forEach(([mid, m]) => {
+        if (m.status !== 'finished' || !m.result) return;
+        let effUid = uid;
+        if (swap && m.round === 'r32' && userName) {
+            if (userName === swap.player1Name) effUid = nameToUid[swap.player2Name] || uid;
+            else if (userName === swap.player2Name) effUid = nameToUid[swap.player1Name] || uid;
+        }
+        const pred = koAllPredsData[effUid]?.[mid];
+        const acc = _calcPredAccuracy(pred, m.result);
+        correct += acc.correct;
+        total += acc.total;
+    });
+    ['r32', 'r16', 'qf'].forEach(rnd => {
+        const acc = _calcRoundSpecialAccuracy(rnd, uid, userName);
+        correct += acc.correct;
+        total += acc.total;
+    });
+    return { correct, total };
+}
+
 function renderRoundStats(round, roundMatches) {
     const finishedMatches = roundMatches.filter(([, m]) => m.status === 'finished' && m.result);
     if (!finishedMatches.length) return '';
@@ -1799,6 +1867,9 @@ function renderRoundStats(round, roundMatches) {
             myCorrect += correct;
             myTotal += total;
         }
+        const mySpAcc = _calcRoundSpecialAccuracy(round, currentUser.id, currentUser.name);
+        myCorrect += mySpAcc.correct;
+        myTotal += mySpAcc.total;
     }
     if (!myTotal) return '';
 
@@ -1818,6 +1889,9 @@ function renderRoundStats(round, roundMatches) {
                 correct += acc.correct;
                 total += acc.total;
             }
+            const spAcc = _calcRoundSpecialAccuracy(round, uid, s.name);
+            correct += spAcc.correct;
+            total += spAcc.total;
             return { name: s.name, correct, total, isMe: s.name === currentUser?.name };
         })
         .filter(u => u.total > 0)
@@ -3782,14 +3856,28 @@ function _scoreRange(uid) {
         lines.push({ label: `🏅 出线待揭晓 (${groupPending}组 · 每组最多${Math.round(groupMax/groupPending)}分)`, val: 0, max: groupMax, done: false });
     }
 
-    // Knockout
-    let koEarned = 0, koPending = 0;
-    Object.values(predsData).filter(p => p.userId === uid).forEach(p => {
-        if (p.points !== null && p.points !== undefined) koEarned += p.points;
-        else koPending++;
+    // Knockout (r32/r16/qf/sf/final — uses each match's own round to size the max potential)
+    let koEarned = 0, koPendingCount = 0, koPendingMax = 0;
+    const myKoPreds = koAllPredsData[uid] || {};
+    Object.entries(myKoPreds).forEach(([mid, p]) => {
+        if (p.points !== null && p.points !== undefined) { koEarned += p.points; return; }
+        const m = koMatchesData[mid];
+        if (!m) return;
+        const isQF = m.round === 'qf' || m.round === 'sf' || m.round === 'final';
+        const isR16up = m.round !== 'r32';
+        const r90Pts    = isQF ? 6 : isR16up ? 3 : 2;
+        const advPts    = isQF ? 6 : isR16up ? 3 : 2;
+        const scorerPts = isQF ? 8 : isR16up ? 5 : 4;
+        const exactPts  = isQF ? 10 : 5;
+        let mx = 0;
+        if (p.result90) mx += r90Pts;
+        if (p.advance) mx += advPts;
+        if (p.scorer || p.scorerPicked) mx += scorerPts;
+        if (isR16up && p.exactScoreHome != null && p.exactScoreAway != null) mx += exactPts;
+        if (mx > 0) { koPendingCount++; koPendingMax += mx; }
     });
     if (koEarned) { earned += koEarned; lines.push({ label: `🥊 淘汰赛已结算`, val: koEarned, max: koEarned, done: true }); }
-    if (koPending) { maxAdd += koPending * 3; lines.push({ label: `🥊 淘汰赛待揭晓 (${koPending}场 · 每场最多3分)`, val: 0, max: koPending * 3, done: false }); }
+    if (koPendingCount) { maxAdd += koPendingMax; lines.push({ label: `🥊 淘汰赛待揭晓 (${koPendingCount}场)`, val: 0, max: koPendingMax, done: false }); }
 
     // Third picks (1pt per correct pick)
     const thirdPicks = thirdPicksData[uid]?.picks || [];
@@ -3920,13 +4008,28 @@ function _calcSimilarity(myUid, otherUid) {
         if (mp.result90 && op.result90) { total++; if (mp.result90 === op.result90) same++; }
         if (mp.advance  && op.advance)  { total++; if (mp.advance  === op.advance)  same++; }
         if (mp.scorer   && op.scorer)   { total++; if (mp.scorer   === op.scorer)   same++; }
+        if (mp.exactScoreHome != null && mp.exactScoreAway != null && op.exactScoreHome != null && op.exactScoreAway != null) {
+            total++;
+            if (mp.exactScoreHome === op.exactScoreHome && mp.exactScoreAway === op.exactScoreAway) same++;
+        }
     }
 
-    // R32 special questions
-    const mySp = r32AllSpecialPredsData[myUid] || {};
-    const oSp  = r32AllSpecialPredsData[otherUid] || {};
-    if (mySp.q1 && oSp.q1) { total++; if (mySp.q1 === oSp.q1) same++; }
-    if (mySp.q2 && oSp.q2) { total++; if (mySp.q2 === oSp.q2) same++; }
+    // R32/R16/QF special questions
+    const mySp32 = r32AllSpecialPredsData[myUid] || {};
+    const oSp32  = r32AllSpecialPredsData[otherUid] || {};
+    if (mySp32.q1 && oSp32.q1) { total++; if (mySp32.q1 === oSp32.q1) same++; }
+    if (mySp32.q2 && oSp32.q2) { total++; if (mySp32.q2 === oSp32.q2) same++; }
+
+    const mySp16 = r16AllSpecialPredsData[myUid] || {};
+    const oSp16  = r16AllSpecialPredsData[otherUid] || {};
+    if (mySp16.q1 && oSp16.q1) { total++; if (mySp16.q1 === oSp16.q1) same++; }
+    if (mySp16.q2 && oSp16.q2) { total++; if (mySp16.q2 === oSp16.q2) same++; }
+
+    const mySpQf = qfAllSpecialPredsData[myUid] || {};
+    const oSpQf  = qfAllSpecialPredsData[otherUid] || {};
+    Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+        if (mySpQf[key] && oSpQf[key]) { total++; if (mySpQf[key] === oSpQf[key]) same++; }
+    });
 
     return { same, total };
 }
@@ -4326,6 +4429,28 @@ function renderMyPreds() {
     const uid = currentUser.id;
     const range = _scoreRange(uid);
     const { total: predTotal } = _countPreds(uid);
+
+    // Overall summary: hit-rate across every finished match/special + earned-vs-max score
+    const overall = _calcOverallHitRate(uid, currentUser.name);
+    if (overall.total > 0 || range.max > 0) {
+        const hitPct = overall.total ? Math.round(overall.correct / overall.total * 100) : 0;
+        html += `<div class="glass rounded-2xl p-4 mb-3 border border-yellow-500/20 bg-yellow-900/5">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <p class="text-xs text-gray-400 font-bold mb-1">🎯 整体预测命中率</p>
+                    <p class="text-xl font-black ${overall.total && overall.correct === overall.total ? 'text-green-400' : overall.correct === 0 ? 'text-gray-500' : 'text-yellow-400'}">${overall.correct}<span class="text-sm font-bold text-gray-500">/${overall.total}</span></p>
+                    <p class="text-xs text-gray-500 mt-0.5">${hitPct}%</p>
+                </div>
+                <div class="w-px h-10 bg-white/10 mx-3"></div>
+                <div class="flex-1 text-right">
+                    <p class="text-xs text-gray-400 font-bold mb-1">🏆 总分</p>
+                    <p class="text-xl font-black text-white">${range.earned}<span class="text-sm font-normal text-gray-400">/${range.max}分</span></p>
+                    <p class="text-xs text-gray-500 mt-0.5">已得 / 总分</p>
+                </div>
+            </div>
+        </div>`;
+    }
+
     if (predTotal > 0) {
         const linesHtml = range.lines.length ? `
             <div class="mt-3 pt-3 border-t border-white/8 space-y-1.5">
