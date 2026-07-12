@@ -3275,15 +3275,22 @@ function renderLeaderboard() {
         const thirdPts     = _thirdPlacePts(uid);
         const sp           = r32AllSpecialPredsData[uid] || {};
         const r32SpecPts   = (sp.q1Points||0) + (sp.q2Points||0);
+        const r16sp        = r16AllSpecialPredsData[uid] || {};
+        const r16SpecPts   = (r16sp.q1Points||0) + (r16sp.q2Points||0);
+        const qfsp         = qfAllSpecialPredsData[uid] || {};
+        const qfSpecPts    = Object.keys(qfSpecialsData||{}).filter(k=>/^q\d+$/.test(k)).reduce((sum,k)=>sum+(qfsp[k+'Points']||0),0);
         const r32Pts       = _koRoundPts(uid, 'r32') + r32SpecPts;
-        const r16Pts       = _koRoundPts(uid, 'r16');
-        const qfPts        = _koRoundPts(uid, 'qf');
+        const r16Pts       = _koRoundPts(uid, 'r16') + r16SpecPts;
+        const qfPts        = _koRoundPts(uid, 'qf')  + qfSpecPts;
         const sfPts        = _koRoundPts(uid, 'sf');
         const finalPts     = _koRoundPts(uid, 'final');
+        const magicPts     = _magicImpactPts(uid, s.name);
         const grandTotal   = s.total || 0;
         const isMe = s.name === currentUser.name;
         const c = (v, cls) => v > 0 ? `<td class="text-center py-1.5 px-0.5 text-xs ${cls} font-bold">${v}</td>`
                                     : `<td class="text-center py-1.5 px-0.5 text-xs text-gray-600">–</td>`;
+        const cMagic = v => v !== 0 ? `<td class="text-center py-1.5 px-0.5 text-xs ${v>0?'text-green-400':'text-red-400'} font-bold">${v>0?'+':''}${v}</td>`
+                                     : `<td class="text-center py-1.5 px-0.5 text-xs text-gray-600">–</td>`;
         return `<tr class="border-b border-white/5 ${isMe?'text-yellow-300':'text-gray-300'}">
             <td class="py-1.5 pr-1.5 font-bold truncate max-w-[60px] text-xs">${_cn(s.name)||'?'}</td>
             ${c(midwayPts,  'text-amber-400')}
@@ -3296,6 +3303,7 @@ function renderLeaderboard() {
             ${c(qfPts,      'text-blue-400')}
             ${c(sfPts,      'text-blue-400')}
             ${c(finalPts,   'text-blue-400')}
+            ${cMagic(magicPts)}
             <td class="text-right py-1.5 pl-1.5 font-bold text-xs text-white">${grandTotal}</td>
         </tr>`;
     }).join('');
@@ -3306,7 +3314,7 @@ function renderLeaderboard() {
             <span id="koRoundChevron" class="text-gray-500 text-xs">▶ 展开</span>
         </button>
         <div id="koRoundScoresSection" class="hidden mt-3 overflow-x-auto">
-            <table class="w-full min-w-[560px]">
+            <table class="w-full min-w-[620px]">
                 <thead>
                     <tr class="text-gray-500 border-b border-white/10 text-[10px]">
                         <th class="text-left py-1.5 pr-1.5">玩家</th>
@@ -3320,6 +3328,7 @@ function renderLeaderboard() {
                         <th class="text-center py-1.5 px-0.5 text-blue-400">8进4</th>
                         <th class="text-center py-1.5 px-0.5 text-blue-400">半决赛</th>
                         <th class="text-center py-1.5 px-0.5 text-blue-400">决赛</th>
+                        <th class="text-center py-1.5 px-0.5 text-purple-400">魔法效果</th>
                         <th class="text-right py-1.5 pl-1.5 text-white">总分合计</th>
                     </tr>
                 </thead>
@@ -3693,6 +3702,66 @@ function _koRoundPts(uid, round) {
         pts += pred.points || 0;
     });
     return pts;
+}
+
+// Net point swing from every magic-card effect that touched this user (actual scored points minus
+// what they'd have scored with no magic in play at all). Negative = hurt by magic, positive = helped.
+function _magicImpactPts(uid, name) {
+    let impact = 0;
+
+    // R32: joy-to-sorrow flip + soul-swap on special questions
+    {
+        const sp = r32AllSpecialPredsData[uid] || {};
+        ['q1', 'q2'].forEach(key => {
+            const q = r32SpecialsData[key];
+            if (!q?.settled || !q.answer) return;
+            const actual = sp[`${key}Points`];
+            if (actual == null) return;
+            const hypo = sp[key] === q.answer ? 5 : 0;
+            impact += actual - hypo;
+        });
+    }
+
+    // R16: joy-to-sorrow flip on special questions
+    {
+        const sp = r16AllSpecialPredsData[uid] || {};
+        ['q1', 'q2'].forEach(key => {
+            const q = r16SpecialsData[key];
+            if (!q?.settled || !q.answer) return;
+            const actual = sp[`${key}Points`];
+            if (actual == null) return;
+            const hypo = sp[key] === q.answer ? 8 : 0;
+            impact += actual - hypo;
+        });
+    }
+
+    // R16: disarm on KO matches (compare stored points vs hypothetical calcKoPts with no nullification)
+    {
+        const { disarm } = _r16MagicGet();
+        if (disarm && disarm.targetName === name) {
+            Object.keys(disarm.nullified || {}).forEach(mid => {
+                const m = koMatchesData[mid];
+                const p = (koAllPredsData[uid] || {})[mid];
+                if (!m?.result || !p || p.points == null) return;
+                impact += p.points - calcKoPts(p, m.result, m.round);
+            });
+        }
+    }
+
+    // QF: disarm(s) on KO matches
+    {
+        const { disarms } = _qfMagicGet();
+        disarms.filter(d => d.targetName === name).forEach(disarm => {
+            Object.keys(disarm.nullified || {}).forEach(mid => {
+                const m = koMatchesData[mid];
+                const p = (koAllPredsData[uid] || {})[mid];
+                if (!m?.result || !p || p.points == null) return;
+                impact += p.points - calcKoPts(p, m.result, m.round);
+            });
+        });
+    }
+
+    return impact;
 }
 
 function updateHeaderPoints() {
