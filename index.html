@@ -4019,6 +4019,32 @@ function _scoreRange(uid) {
     if (koEarned) { earned += koEarned; lines.push({ label: `🥊 淘汰赛已结算`, val: koEarned, max: koEarned, done: true }); }
     if (koPendingCount) { maxAdd += koPendingMax; lines.push({ label: `🥊 淘汰赛待揭晓 (${koPendingCount}场)`, val: 0, max: koPendingMax, done: false }); }
 
+    // Special questions (r32/r16/qf) — same per-question point values calcKoPts/settlement uses
+    let spEarned = 0, spPendingMax = 0, spPendingCount = 0;
+    const r32sp = r32AllSpecialPredsData[uid] || {};
+    ['q1', 'q2'].forEach(key => {
+        if (!r32SpecialsData[key]?.q) return;
+        const stored = r32sp[`${key}Points`];
+        if (stored != null) spEarned += stored;
+        else if (r32sp[key]) { spPendingMax += 5; spPendingCount++; }
+    });
+    const r16sp = r16AllSpecialPredsData[uid] || {};
+    ['q1', 'q2'].forEach(key => {
+        if (!r16SpecialsData[key]?.q) return;
+        const stored = r16sp[`${key}Points`];
+        if (stored != null) spEarned += stored;
+        else if (r16sp[key]) { spPendingMax += 8; spPendingCount++; }
+    });
+    const qfsp = qfAllSpecialPredsData[uid] || {};
+    const qfSpPtsVal = roomSettingsData?.qfSpecialPts || 12;
+    Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+        const stored = qfsp[`${key}Points`];
+        if (stored != null) spEarned += stored;
+        else if (qfsp[key]) { spPendingMax += qfSpPtsVal; spPendingCount++; }
+    });
+    if (spEarned) { earned += spEarned; lines.push({ label: `🃏 特别竞猜已结算`, val: spEarned, max: spEarned, done: true }); }
+    if (spPendingCount) { maxAdd += spPendingMax; lines.push({ label: `🃏 特别竞猜待揭晓 (${spPendingCount}题)`, val: 0, max: spPendingMax, done: false }); }
+
     // Third picks (1pt per correct pick)
     const thirdPicks = thirdPicksData[uid]?.picks || [];
     const thirdPts = thirdPicksData[uid]?.points;
