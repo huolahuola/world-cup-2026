@@ -6771,7 +6771,7 @@ function renderSfSpecialsCard() {
     const qKeys = Object.keys(sfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
     if (!qKeys.length) return '';
 
-    function renderQ(key, qData) {
+    function renderQ(key, qData, idx) {
         if (!qData?.q) return '';
         const opts = qData.opts || [];
         const isOpen = !!qData.open;
@@ -6812,7 +6812,7 @@ function renderSfSpecialsCard() {
 
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
-                <p class="text-xs font-bold text-gray-200 flex-1">${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
+                <p class="text-xs font-bold text-gray-200 flex-1">${idx}. ${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
                 ${myAns ? '<span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">已提交</span>' : (isOpen ? '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">待选择</span>' : '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>')}
             </div>
             ${qData.author ? `<p class="text-[10px] text-gray-500 mb-1.5">🖊️ 出题人：${qData.author}</p>` : ''}
@@ -6821,7 +6821,7 @@ function renderSfSpecialsCard() {
         </div>`;
     }
 
-    const qAllHtml = qKeys.map(k => renderQ(k, sfSpecialsData[k])).join('');
+    const qAllHtml = qKeys.map((k, idx) => renderQ(k, sfSpecialsData[k], idx)).join('');
     const hasForm = qKeys.some(k => sfSpecialsData[k]?.open);
 
     const sfBodyEl = document.getElementById('sfSpecialsBody');
