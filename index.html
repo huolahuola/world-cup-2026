@@ -6777,15 +6777,22 @@ function renderSfSpecialsCard() {
         const isOpen = !!qData.open;
         const myAns = sfSpecialPredsData[key] || null;
 
-        const optsHtml = opts.map(opt => {
-            const sel = myAns === opt;
-            let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
-            cls += sel ? 'bg-purple-500/20 border border-purple-400/30 text-purple-200' : 'bg-white/5 border border-white/10 text-gray-300';
-            cls += isOpen ? ' cursor-pointer' : '';
-            const escOpt = opt.replace(/"/g, '&quot;');
-            const radio = isOpen ? `<input type="radio" name="sfsp_${key}" value="${escOpt}" ${sel ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
-            return `<label class="${cls}">${radio}<span>${opt}</span></label>`;
-        }).join('');
+        // Long option lists (e.g. "pick any prediction item to double") render as a dropdown instead of buttons
+        const useDropdown = opts.length > 4;
+        const optsHtml = useDropdown
+            ? `<select id="sfsp-select-${key}" data-key="${key}" class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none" ${isOpen ? '' : 'disabled'}>
+                <option value="">— 请选择 —</option>
+                ${opts.map(opt => `<option value="${opt.replace(/"/g, '&quot;')}" ${myAns === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+              </select>`
+            : opts.map(opt => {
+                const sel = myAns === opt;
+                let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
+                cls += sel ? 'bg-purple-500/20 border border-purple-400/30 text-purple-200' : 'bg-white/5 border border-white/10 text-gray-300';
+                cls += isOpen ? ' cursor-pointer' : '';
+                const escOpt = opt.replace(/"/g, '&quot;');
+                const radio = isOpen ? `<input type="radio" name="sfsp_${key}" value="${escOpt}" ${sel ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
+                return `<label class="${cls}">${radio}<span>${opt}</span></label>`;
+            }).join('');
 
         const SIM_EXCLUDE = ['小助手'];
         const _nameOf = uid => scoresData[uid]?.name || usersTableData[uid]?.name || null;
@@ -6846,6 +6853,8 @@ window.saveSfSpecialPreds = async function() {
     if (!currentUser) { toast('请先登录', 'error'); return; }
     const pred = {};
     Object.keys(sfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+        const select = document.getElementById(`sfsp-select-${key}`);
+        if (select) { if (select.value) pred[key] = select.value; return; }
         const radios = document.querySelectorAll(`input[name="sfsp_${key}"]`);
         radios.forEach(r => { if (r.checked) pred[key] = r.value; });
     });
