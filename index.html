@@ -3267,6 +3267,15 @@ function renderKoCompletionStatus() {
             if (!q?.q) return;
             const n = Object.values(roundAllSpecialPredsData).filter(p => p[key]).length;
             specialRows += row('✨', q.q.split('\n')[0].slice(0, 28) + (q.q.length > 28 ? '…' : ''), n);
+            // 信心倍增: track how many of the "Y" answerers have also picked which item to double
+            if (q.q.includes('信心倍增')) {
+                const yUids = Object.entries(roundAllSpecialPredsData).filter(([, p]) => p[key] === 'Y').map(([uid]) => uid);
+                const doubleKey = `${key}_double`;
+                const nDouble = yUids.filter(uid => roundAllSpecialPredsData[uid]?.[doubleKey]).length;
+                specialRows += `<div class="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
+                    <span class="text-xs text-gray-400">🎯 └ 已选加倍题目</span>
+                    <span class="text-xs ${nDouble >= yUids.length && yUids.length ? 'text-green-400 font-bold' : nDouble === 0 ? 'text-gray-600' : 'text-yellow-400 font-bold'}">${nDouble}/${yUids.length}（选Y的人）</span></div>`;
+            }
         });
     }
 
