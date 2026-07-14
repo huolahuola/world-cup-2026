@@ -3575,6 +3575,14 @@ function _calcSimScores() {
         });
         if (qfSpPts > 0) { simPts += qfSpPts; breakdown.push(`QF特别 +${qfSpPts}`); }
 
+        // Reconcile against the real total — anything the categories above don't explain
+        // (e.g. a manual point correction) shows up as its own line instead of silently vanishing
+        const manualAdj = (user.total || 0) - simPts;
+        if (manualAdj !== 0) {
+            simPts += manualAdj;
+            breakdown.push(`${manualAdj > 0 ? '调整' : '扣分'} ${manualAdj > 0 ? '+' : ''}${manualAdj}`);
+        }
+
         scores.push({ uid, name: user.name, simPts, breakdown });
     }
 
