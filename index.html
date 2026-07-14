@@ -1769,7 +1769,7 @@ function renderKnockout() {
     const r32SpecialsHtml = (currentKoRound === 'r32' && currentRoom !== FREE_ROOM) ? renderR32SpecialsCard() : '';
     const r16SpecialsHtml = currentKoRound === 'r16' ? renderR16SpecialsCard() : '';
     const qfSpecialsHtml  = currentKoRound === 'qf'  ? renderQfSpecialsCard()  : '';
-    const sfSpecialsHtml  = (currentKoRound === 'sf' && currentRoom !== FREE_ROOM) ? renderSfSpecialsCard() : '';
+    const sfSpecialsHtml  = currentKoRound === 'sf' ? renderSfSpecialsCard() : '';
     const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : currentKoRound === 'r16' ? _r16MagicBannerHtml() : currentKoRound === 'qf' ? _qfMagicBannerHtml() : '';
     const roundStatsHtml = renderRoundStats(currentKoRound, roundMatches);
     container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + qfSpecialsHtml + sfSpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
@@ -6831,7 +6831,7 @@ function renderSfSpecialsCard() {
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-lg">✨</span>
                 <p class="font-black text-sm text-white">半决赛特别竞猜</p>
-                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+10分/题（信心倍增除外）</span>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">${(sfSpecialsData.q1?.q || '').includes('信心倍增') ? '每题有分（信心倍增除外）' : '每题有分'}</span>
             </div>
             <span id="sfSpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
