@@ -6775,16 +6775,42 @@ function renderQfSpecialsCard() {
     </div>`;
 }
 
+// Every this-round item (2 SF matches' 4 options each + the other special questions) with what
+// doubling it would be worth, for the "信心倍增" follow-up picker.
+function _sfDoubleChoiceOptions(excludeKey) {
+    const specialPts = roomSettingsData?.sfSpecialPts || 10;
+    const opts = [];
+    Object.entries(koMatchesData)
+        .filter(([, m]) => m.round === 'sf')
+        .sort((a, b) => (a[1].kickoff || '').localeCompare(b[1].kickoff || ''))
+        .forEach(([, m]) => {
+            const label = `${m.home}vs${m.away}`;
+            opts.push(`${label}-90分钟结果 (8→16分)`);
+            opts.push(`${label}-晋级球队 (8→16分)`);
+            opts.push(`${label}-首开纪录 (12→24分)`);
+            opts.push(`${label}-精确比分 (12→24分)`);
+        });
+    Object.keys(sfSpecialsData || {}).filter(k => /^q\d+$/.test(k) && k !== excludeKey).sort().forEach(k => {
+        const q = sfSpecialsData[k];
+        if (!q?.q || (q.opts && q.opts.length > 4)) return; // skip other dropdown-style (non-graded) questions
+        const shortQ = q.q.split('\n')[0].slice(0, 20) + (q.q.length > 20 ? '…' : '');
+        opts.push(`特别竞猜「${shortQ}」 (${specialPts}→${specialPts * 2}分)`);
+    });
+    return opts;
+}
+
 // ─── SF Special Questions (choice-based, no correct answer — settled manually by admin) ──
 function renderSfSpecialsCard() {
     const qKeys = Object.keys(sfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
     if (!qKeys.length) return '';
+    const sfSpPtsVal = roomSettingsData?.sfSpecialPts || 10;
 
     function renderQ(key, qData, idx) {
         if (!qData?.q) return '';
         const opts = qData.opts || [];
         const isOpen = !!qData.open;
         const myAns = sfSpecialPredsData[key] || null;
+        const isConfidenceQ = (qData.q || '').includes('信心倍增');
 
         // Long option lists (e.g. "pick any prediction item to double") render as a dropdown instead of buttons
         const useDropdown = opts.length > 4;
@@ -6802,6 +6828,22 @@ function renderSfSpecialsCard() {
                 const radio = isOpen ? `<input type="radio" name="sfsp_${key}" value="${escOpt}" ${sel ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
                 return `<label class="${cls}">${radio}<span>${opt}</span></label>`;
             }).join('');
+
+        // Follow-up: if this player opted into 信心倍增, let them pick which item to double
+        let doubleChoiceHtml = '';
+        if (isConfidenceQ && myAns === 'Y') {
+            const doubleKey = `${key}_double`;
+            const myDoubleChoice = sfSpecialPredsData[doubleKey] || null;
+            const doubleOpts = _sfDoubleChoiceOptions(key);
+            doubleChoiceHtml = `<div class="mt-3 pt-3 border-t border-white/10">
+                <p class="text-xs font-bold text-gray-300 mb-1.5">🎯 请选择你要加倍的题目</p>
+                <select id="sfsp-double-${key}" data-double-key="${doubleKey}" class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    <option value="">— 请选择 —</option>
+                    ${doubleOpts.map(opt => `<option value="${opt.replace(/"/g, '&quot;')}" ${myDoubleChoice === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                </select>
+                ${myDoubleChoice ? `<p class="text-[10px] text-purple-300 mt-1">已选：${myDoubleChoice}</p>` : ''}
+            </div>`;
+        }
 
         const SIM_EXCLUDE = ['小助手'];
         const _nameOf = uid => scoresData[uid]?.name || usersTableData[uid]?.name || null;
@@ -6826,19 +6868,26 @@ function renderSfSpecialsCard() {
             <div id="${pubBodyId}" class="${pubOpen ? 'mt-1' : 'hidden'}">${pubEntries.join('')}</div>
         </div>` : '';
 
+        const ptsBadge = (!isConfidenceQ && !(opts && opts.length > 4))
+            ? `<span class="text-xs bg-purple-400/10 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/20">${sfSpPtsVal}分</span>` : '';
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
                 <p class="text-xs font-bold text-gray-200 flex-1">${idx}. ${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
+                ${ptsBadge}
                 ${myAns ? '<span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">已提交</span>' : (isOpen ? '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">待选择</span>' : '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>')}
             </div>
             ${qData.author ? `<p class="text-[10px] text-gray-500 mb-1.5">🖊️ 出题人：${qData.author}</p>` : ''}
             <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
+            ${doubleChoiceHtml}
             ${pubHtml}
         </div>`;
     }
 
     const qAllHtml = qKeys.map((k, idx) => renderQ(k, sfSpecialsData[k], idx)).join('');
-    const hasForm = qKeys.some(k => sfSpecialsData[k]?.open);
+    // Keep the submit button visible if a confidence-boost double-choice is still pickable,
+    // even after the underlying Y/N questions have all closed
+    const hasPendingDoubleChoice = qKeys.some(k => (sfSpecialsData[k]?.q || '').includes('信心倍增') && sfSpecialPredsData[k] === 'Y');
+    const hasForm = qKeys.some(k => sfSpecialsData[k]?.open) || hasPendingDoubleChoice;
 
     const sfBodyEl = document.getElementById('sfSpecialsBody');
     const wasOpen = sfBodyEl ? !sfBodyEl.classList.contains('hidden') : true;
@@ -6847,7 +6896,7 @@ function renderSfSpecialsCard() {
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-lg">✨</span>
                 <p class="font-black text-sm text-white">半决赛特别竞猜</p>
-                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">${(sfSpecialsData.q1?.q || '').includes('信心倍增') ? '每题有分（信心倍增除外）' : '每题有分'}</span>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+${sfSpPtsVal}分/题（信心倍增除外）</span>
             </div>
             <span id="sfSpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
         </div>
@@ -6866,6 +6915,10 @@ window.saveSfSpecialPreds = async function() {
         if (select) { if (select.value) pred[key] = select.value; return; }
         const radios = document.querySelectorAll(`input[name="sfsp_${key}"]`);
         radios.forEach(r => { if (r.checked) pred[key] = r.value; });
+    });
+    // Double-choice dropdowns (shown when a player opts into 信心倍增)
+    document.querySelectorAll('select[data-double-key]').forEach(sel => {
+        if (sel.value) pred[sel.dataset.doubleKey] = sel.value;
     });
     if (!Object.keys(pred).length) { toast('请先选择选项', 'error'); return; }
     const merged = { ...sfSpecialPredsData, ...pred };
