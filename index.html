@@ -4104,6 +4104,16 @@ function _scoreRange(uid) {
         if (stored != null) spEarned += stored;
         else if (qfsp[key]) { spPendingMax += qfSpPtsVal; spPendingCount++; }
     });
+    // SF specials — skip the 信心倍增 choice question and any dropdown-style (non-graded) question
+    const sfsp = sfAllSpecialPredsData[uid] || {};
+    const sfSpPtsVal = roomSettingsData?.sfSpecialPts || 10;
+    Object.keys(sfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+        const q = sfSpecialsData[key];
+        if (!q?.q || q.q.includes('信心倍增') || (q.opts && q.opts.length > 4)) return;
+        const stored = sfsp[`${key}Points`];
+        if (stored != null) spEarned += stored;
+        else if (sfsp[key]) { spPendingMax += sfSpPtsVal; spPendingCount++; }
+    });
     if (spEarned) { earned += spEarned; lines.push({ label: `🃏 特别竞猜已结算`, val: spEarned, max: spEarned, done: true }); }
     if (spPendingCount) { maxAdd += spPendingMax; lines.push({ label: `🃏 特别竞猜待揭晓 (${spPendingCount}题)`, val: 0, max: spPendingMax, done: false }); }
 
