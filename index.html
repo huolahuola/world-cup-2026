@@ -1897,6 +1897,28 @@ function _calcOverallHitRate(uid, userName) {
         correct += acc.correct;
         total += acc.total;
     });
+
+    // Champion / midway / top scorer / golden boot — only counted once settled (real answer known)
+    const cp = champPredsData[uid] || {};
+    if (cp.champion && cp.champPoints != null) { total++; if (cp.champPoints > 0) correct++; }
+    if (cp.midway && cp.midwayPoints != null) { total++; if (cp.midwayPoints > 0) correct++; }
+    if (cp.topScorer && cp.topScorerPoints != null) { total++; if (cp.topScorerPoints > 0) correct++; }
+    if (cp.goldenBoot && cp.goldenBootPoints != null) { total++; if (cp.goldenBootPoints > 0) correct++; }
+
+    // Group-stage qualification + small-group-winner picks — only counted once that group is settled
+    Object.keys(groupsData || {}).forEach(gid => {
+        const g = groupsData[gid];
+        const p = groupPredsData[`${uid}_${gid}`];
+        if (!g?.qualified?.length || !p?.qualified?.length) return;
+        p.qualified.forEach(t => { total++; if (t && g.qualified.includes(t)) correct++; });
+        if (p.winner && g.winner) { total++; if (p.winner === g.winner) correct++; }
+    });
+
+    // Third-place qualifiers — 1pt per correct team, only counted once settled
+    const thirdPicks = thirdPicksData[uid]?.picks || [];
+    const thirdPts = thirdPicksData[uid]?.points;
+    if (thirdPicks.length && thirdPts != null) { total += thirdPicks.length; correct += thirdPts; }
+
     return { correct, total };
 }
 
