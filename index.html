@@ -4860,26 +4860,28 @@ window.generateRecapCard = async function(mode = 'quiz') {
     }
 
     // ── Build the narrative, paragraph by paragraph ──
+    // Key numbers/teams are wrapped in ⟦…⟧ markers so the renderer can pick them out in a highlight color.
+    const HL = (s) => `⟦${s}⟧`;
     const pct = hitRate.total ? Math.round(hitRate.correct / hitRate.total * 100) : 0;
     const paragraphs = [];
 
-    paragraphs.push(`亲爱的${name}，恭喜你完成了这趟四年一度的旅途——2026美加墨世界杯，感觉还好吗？还是一言难尽？`);
-    paragraphs.push(`这一路你一共命中了${hitRate.correct}次预测（命中率${pct}%），最终定格在第${myRank}名（共${totalPlayers}人），攒下了${myTotal}分。`);
+    paragraphs.push(`亲爱的${HL(name)}，恭喜你完成了这趟四年一度的旅途——2026美加墨世界杯，感觉还好吗？还是一言难尽？`);
+    paragraphs.push(`这一路你一共命中了${HL(hitRate.correct + '次')}预测（命中率${HL(pct + '%')}），最终定格在${HL('第' + myRank + '名')}（共${totalPlayers}人），攒下了${HL(myTotal + '分')}。`);
 
     let p3 = '';
-    if (bestRound) p3 += `发挥最稳的是${roundLabels[bestRound.round] || bestRound.round}这一轮，命中率高达${Math.round(bestRound.pct*100)}%。`;
-    if (bestMatch) p3 += `单场最高光时刻是「${bestMatch.label}」，一口气拿下${bestMatch.points}分（这场比赛满分${bestMatch.maxPts}分）。`;
-    if (worstRound && worstRound !== bestRound) p3 += `不过${roundLabels[worstRound.round] || worstRound.round}那一轮你有点挣扎，只命中了${Math.round(worstRound.pct*100)}%。`;
+    if (bestRound) p3 += `发挥最稳的是${HL(roundLabels[bestRound.round] || bestRound.round)}这一轮，命中率高达${HL(Math.round(bestRound.pct*100) + '%')}。`;
+    if (bestMatch) p3 += `单场最高光时刻是「${HL(bestMatch.label)}」，一口气拿下${HL(bestMatch.points + '分')}（这场比赛满分${bestMatch.maxPts}分）。`;
+    if (worstRound && worstRound !== bestRound) p3 += `不过${HL(roundLabels[worstRound.round] || worstRound.round)}那一轮你有点挣扎，只命中了${Math.round(worstRound.pct*100)}%。`;
     if (p3) paragraphs.push(p3);
 
     let p4 = '';
-    if (bestTeam) p4 += `你最看好的球队是${bestTeam.team}，晋级判断${bestTeam.hits}中${bestTeam.total}，几乎没看走眼。`;
-    if (worstTeam) p4 += `不过在${worstTeam.team}身上，你判断晋级失误了${worstTeam.misses}次，这部分的"晋级判断分"全打了水漂，一共错过了${worstTeam.lostPts}分。`;
+    if (bestTeam) p4 += `你最看好的球队是${HL(bestTeam.team)}，晋级判断${bestTeam.hits}中${bestTeam.total}，几乎没看走眼。`;
+    if (worstTeam) p4 += `不过在${HL(worstTeam.team)}身上，你判断晋级失误了${worstTeam.misses}次，这部分的"晋级判断分"全打了水漂，一共错过了${HL(worstTeam.lostPts + '分')}。`;
     if (p4) paragraphs.push(p4);
 
     let p5 = '';
-    if (bestStreak >= 3) p5 += `你还打出过连续${bestStreak}场命中的连胜纪录，手感火热的时候真的挡不住。`;
-    if (uniqueCall) p5 += `更有一次全场独具慧眼——${uniqueCall}，整个房间只有你一个人猜对。`;
+    if (bestStreak >= 3) p5 += `你还打出过连续${HL(bestStreak + '场')}命中的连胜纪录，手感火热的时候真的挡不住。`;
+    if (uniqueCall) p5 += `更有一次全场独具慧眼——${HL(uniqueCall)}，整个房间只有你一个人猜对。`;
     if (p5) paragraphs.push(p5);
 
     if (loyaltyNote) paragraphs.push(`冠军人选上，你${loyaltyNote}。`);
@@ -4887,10 +4889,10 @@ window.generateRecapCard = async function(mode = 'quiz') {
 
     if (isFull && ci) {
         const ciPct = ci.total ? Math.round(ci.watched / ci.total * 100) : 0;
-        let pci = `看球这件事上，你打卡了${ci.watched}/${ci.total}场比赛（打卡率${ciPct}%）：认真看了${ci.full}场、迷糊看了${ci.half}场、只看集锦${ci.clips}场、弃赛${ci.skip}场。`;
-        if (ci.noteCount > 0) pci += `还留下了${ci.noteCount}篇打卡笔记。`;
+        let pci = `看球这件事上，你打卡了${HL(ci.watched + '/' + ci.total + '场')}比赛（打卡率${HL(ciPct + '%')}）：认真看了${ci.full}场、迷糊看了${ci.half}场、只看集锦${ci.clips}场、弃赛${ci.skip}场。`;
+        if (ci.noteCount > 0) pci += `还留下了${HL(ci.noteCount + '篇')}打卡笔记。`;
         paragraphs.push(pci);
-        if (ci.earliestHour !== null) paragraphs.push(`凌晨${ci.earliestHour}点你还在打卡看球${ci.nightNote ? '，写下："' + ci.nightNote.slice(0, 30) + '"' : ''}，这份热爱藏不住。`);
+        if (ci.earliestHour !== null) paragraphs.push(`凌晨${HL(ci.earliestHour + '点')}你还在打卡看球${ci.nightNote ? '，写下："' + ci.nightNote.slice(0, 30) + '"' : ''}，这份热爱藏不住。`);
         if (ci.mostExciting) paragraphs.push(`你最激动的一刻，写下了："${ci.mostExciting.slice(0, 50)}"`);
         if (ci.longestNote && ci.longestNote !== ci.mostExciting) paragraphs.push(`而这段，大概是你写得最走心的一篇："${ci.longestNote.slice(0, 50)}"`);
     }
@@ -4917,7 +4919,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
     } else {
         trait = { t: '热爱生活、享受过程', b: '愿你带着这份热情，继续奔赴下一个四年一度的约定。' };
     }
-    paragraphs.push(`说到底，这些数字背后，藏着你${trait.t}的一面。${trait.b}`);
+    paragraphs.push(`说到底，这些数字背后，藏着你${HL(trait.t)}的一面。${trait.b}`);
 
     paragraphs.push(`不管这份成绩单满不满意，感谢你陪伴这一届世界杯走到了这里。下一届，2030年见！`);
 
@@ -4926,27 +4928,68 @@ window.generateRecapCard = async function(mode = 'quiz') {
     const ff = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif';
     const f = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px ${ff}`;
     const FONT_SIZE = 15, LINE_H = 27, PARA_GAP = 12;
-    const HDR_H = 100;
+    const HDR_H = 108;
     const FOOTER_H = 156;
 
-    const wrapText = (mctx, text, maxWidth) => {
-        const lines = [];
-        let line = '';
+    // Team flag colors — themes the card after whichever champion this player predicted.
+    // Falls back to the default gold/purple scheme for teams not in the table (or no pick yet).
+    const TEAM_COLORS = {
+        '阿根廷': { a: '#6cace4', b: '#ffffff', name: '天蓝白' },
+        '西班牙': { a: '#c60b1e', b: '#ffc400', name: '红黄' },
+        '法国':   { a: '#0055a4', b: '#ef4135', name: '蓝红' },
+        '英格兰': { a: '#ce1124', b: '#ffffff', name: '红白' },
+        '巴西':   { a: '#ffcc29', b: '#009c3b', name: '黄绿' },
+        '德国':   { a: '#000000', b: '#dd0000', name: '黑红' },
+    };
+    const theme = TEAM_COLORS[cp.champion] || null;
+
+    const C = {
+        bg: '#0d1117', bgCard: '#161b22', border: 'rgba(255,255,255,0.08)',
+        gold: '#fbbf24', white: '#f0f6fc', gray1: '#8b949e', gray2: '#484f58',
+        accent: theme ? theme.a : '#c084fc',
+        highlight: theme ? theme.b : '#fbbf24',
+    };
+
+    // Rich-text wrapping: tokenize the ⟦…⟧ markers into per-character highlight flags, then wrap
+    // character-by-character (Chinese has no natural word breaks) while keeping the flags intact.
+    const tokenizeRich = (text) => {
+        const out = [];
+        let hl = false;
         for (const ch of text) {
-            const test = line + ch;
-            if (mctx.measureText(test).width > maxWidth && line) { lines.push(line); line = ch; }
-            else line = test;
+            if (ch === '⟦') { hl = true; continue; }
+            if (ch === '⟧') { hl = false; continue; }
+            out.push({ ch, hl });
         }
-        if (line) lines.push(line);
+        return out;
+    };
+    const wrapRich = (mctx, text, maxWidth, normalFont, boldFont) => {
+        const chars = tokenizeRich(text);
+        const lines = []; let line = []; let w = 0;
+        chars.forEach(c => {
+            mctx.font = c.hl ? boldFont : normalFont;
+            const cw = mctx.measureText(c.ch).width;
+            if (w + cw > maxWidth && line.length) { lines.push(line); line = []; w = 0; }
+            line.push(c); w += cw;
+        });
+        if (line.length) lines.push(line);
         return lines;
+    };
+    // Group a wrapped line's characters into same-style runs so we draw with one fillText per run
+    const runsOf = (line) => {
+        const runs = []; let cur = null;
+        line.forEach(c => {
+            if (cur && cur.hl === c.hl) cur.text += c.ch;
+            else { cur = { hl: c.hl, text: c.ch }; runs.push(cur); }
+        });
+        return runs;
     };
 
     // Measure first (font metrics don't depend on the canvas's own size) so we can size the canvas to fit
     const measureCv = document.createElement('canvas');
     const mctx = measureCv.getContext('2d');
-    mctx.font = f(FONT_SIZE);
+    const normalFont = f(FONT_SIZE), boldFont = f(FONT_SIZE, true);
     const textMaxW = W - P*2;
-    const wrapped = paragraphs.map(p => wrapText(mctx, p, textMaxW));
+    const wrapped = paragraphs.map(p => wrapRich(mctx, p, textMaxW, normalFont, boldFont));
     const totalLines = wrapped.reduce((s, ls) => s + ls.length, 0);
     const H = HDR_H + 24 + totalLines * LINE_H + Math.max(0, paragraphs.length - 1) * PARA_GAP + 20 + FOOTER_H + 20;
 
@@ -4955,14 +4998,6 @@ window.generateRecapCard = async function(mode = 'quiz') {
     cv.width = W * SCALE; cv.height = H * SCALE;
     const ctx = cv.getContext('2d');
     ctx.scale(SCALE, SCALE);
-
-    const C = {
-        bg: '#0d1117', bgCard: '#161b22', border: 'rgba(255,255,255,0.08)',
-        gold: '#fbbf24', white: '#f0f6fc', gray1: '#8b949e', gray2: '#484f58', purple: '#c084fc',
-    };
-    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(255,255,255,0.022)';
-    for (let dx = 0; dx < W; dx += 32) for (let dy = 0; dy < H; dy += 32) { ctx.beginPath(); ctx.arc(dx, dy, 1, 0, Math.PI*2); ctx.fill(); }
 
     const rr = (x, y, w, h, r, fill, stroke, sw = 1) => {
         ctx.beginPath();
@@ -4975,29 +5010,61 @@ window.generateRecapCard = async function(mode = 'quiz') {
         if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw; ctx.stroke(); }
     };
 
+    // ── Background: full-bleed team-color stripes (if a champion pick exists), dark panels on top for legibility ──
+    if (theme) {
+        const STRIPE_W = 34;
+        for (let x = 0, i = 0; x < W; x += STRIPE_W, i++) {
+            ctx.fillStyle = i % 2 === 0 ? theme.a : theme.b;
+            ctx.fillRect(x, 0, STRIPE_W, H);
+        }
+        // Soften the stripes so they read as a themed backdrop rather than fighting the content
+        ctx.fillStyle = 'rgba(13,17,23,0.82)';
+        ctx.fillRect(0, 0, W, H);
+    } else {
+        ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = 'rgba(255,255,255,0.022)';
+        for (let dx = 0; dx < W; dx += 32) for (let dy = 0; dy < H; dy += 32) { ctx.beginPath(); ctx.arc(dx, dy, 1, 0, Math.PI*2); ctx.fill(); }
+    }
+
     // Header
     ctx.fillStyle = C.bgCard; ctx.fillRect(0, 0, W, HDR_H);
-    ctx.fillStyle = C.purple; ctx.fillRect(0, HDR_H - 3, W, 3);
-    ctx.fillStyle = C.purple; ctx.fillRect(P - 8, 16, 4, HDR_H - 32);
+    ctx.fillStyle = C.accent; ctx.fillRect(0, HDR_H - 3, W, 3);
+    ctx.fillStyle = C.accent; ctx.fillRect(P - 8, 16, 4, HDR_H - 46);
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.font = f(19, true); ctx.fillStyle = C.white;
-    ctx.fillText(isFull ? '我的2026美加墨世界杯回忆（竞猜+看球篇）' : '我的2026美加墨世界杯回忆（竞猜篇）', P + 6, HDR_H * 0.38);
+    ctx.fillText(isFull ? '我的2026美加墨世界杯回忆（竞猜+看球篇）' : '我的2026美加墨世界杯回忆（竞猜篇）', P + 6, HDR_H * 0.32);
     ctx.font = f(12, true); ctx.fillStyle = C.gold;
-    ctx.fillText(name, P + 6, HDR_H * 0.72);
+    ctx.fillText(name, P + 6, HDR_H * 0.6);
+    if (theme) {
+        ctx.font = f(10); ctx.fillStyle = C.highlight;
+        ctx.fillText(`✨ 以你押注的冠军「${cp.champion}」配色（${theme.name}）定制`, P + 6, HDR_H * 0.85);
+    }
 
-    // Narrative body
-    let cy = HDR_H + 24 + FONT_SIZE * 0.7;
+    // Narrative body — draw a dark rounded panel behind the text so the stripes stay a backdrop only
+    const bodyTop = HDR_H + 12;
+    const bodyH = 12 + totalLines * LINE_H + Math.max(0, paragraphs.length - 1) * PARA_GAP + 12;
+    rr(P - 8, bodyTop, W - (P-8)*2, bodyH, 12, 'rgba(22,27,34,0.55)', C.border);
+
+    let cy = bodyTop + 12 + FONT_SIZE * 0.85;
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.font = f(FONT_SIZE); ctx.fillStyle = C.white;
     wrapped.forEach(lines => {
-        lines.forEach(line => { ctx.fillText(line, P, cy); cy += LINE_H; });
+        lines.forEach(line => {
+            let x = P;
+            runsOf(line).forEach(run => {
+                ctx.font = run.hl ? boldFont : normalFont;
+                ctx.fillStyle = run.hl ? C.highlight : C.white;
+                ctx.fillText(run.text, x, cy);
+                x += ctx.measureText(run.text).width;
+            });
+            cy += LINE_H;
+        });
         cy += PARA_GAP;
     });
 
-    cy += 8;
-    // Footer (same as the prediction card)
+    cy = bodyTop + bodyH + 16;
+    // Footer (same as the prediction card, themed accent color)
     rr(P, cy, W-P*2, FOOTER_H, 10, C.bgCard, C.border);
-    ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 12, 3, FOOTER_H - 24);
+    ctx.fillStyle = C.accent; ctx.fillRect(P, cy + 12, 3, FOOTER_H - 24);
     const QR = 94, qrX = W-P-16-QR, qrY = cy+19;
     const siteUrl = 'https://huolahuola.github.io/world-cup-2026/';
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(siteUrl)}&size=${QR*2}x${QR*2}&bgcolor=f0f6fc&color=0d1117&margin=2`;
