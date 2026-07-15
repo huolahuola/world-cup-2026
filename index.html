@@ -1841,6 +1841,16 @@ function _calcRoundSpecialAccuracy(round, uid, userName) {
             const ans = qfAllSpecialPredsData[uid]?.[key] || null;
             if (ans && ans === q.answer) correct++;
         });
+    } else if (round === 'sf') {
+        // The 信心倍增 question (and any other dropdown-style choice question) has no correct
+        // answer to grade — only count the graded Y/N trivia questions
+        Object.keys(sfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+            const q = sfSpecialsData[key];
+            if (!q?.settled || !q.answer || (q.q || '').includes('信心倍增') || (q.opts && q.opts.length > 4)) return;
+            total++;
+            const ans = sfAllSpecialPredsData[uid]?.[key] || null;
+            if (ans && ans === q.answer) correct++;
+        });
     }
     return { correct, total };
 }
@@ -1864,7 +1874,7 @@ function _calcOverallHitRate(uid, userName) {
         correct += acc.correct;
         total += acc.total;
     });
-    ['r32', 'r16', 'qf'].forEach(rnd => {
+    ['r32', 'r16', 'qf', 'sf'].forEach(rnd => {
         const acc = _calcRoundSpecialAccuracy(rnd, uid, userName);
         correct += acc.correct;
         total += acc.total;
