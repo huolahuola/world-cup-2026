@@ -4268,12 +4268,15 @@ function _calcSimilarity(myUid, otherUid) {
         if (myC[key] && oC[key] && myC[key] === oC[key]) same++;
     });
 
-    // Group qualifiers — 2 fixed slots per group, regardless of whether either side filled them in
+    // Group qualifiers — 2 fixed qualifying slots + 1 group-winner slot per group, regardless of whether either side filled them in
     Object.keys(groupsData || {}).forEach(gid => {
-        const myQ = _xGroupPred(myUid, gid)?.qualified || [];
-        const oQ  = _xGroupPred(otherUid, gid)?.qualified || [];
-        total += 2;
+        const myPred = _xGroupPred(myUid, gid) || {};
+        const oPred  = _xGroupPred(otherUid, gid) || {};
+        const myQ = myPred.qualified || [];
+        const oQ  = oPred.qualified || [];
+        total += 3;
         myQ.slice(0, 2).forEach(t => { if (t && oQ.includes(t)) same++; });
+        if (myPred.winner && myPred.winner === oPred.winner) same++;
     });
 
     // Third-place picks — fixed at the 8 available slots
@@ -4304,7 +4307,10 @@ function _calcSimilarity(myUid, otherUid) {
         [sfSpecialsData, sfAllSpecialPredsData],
     ].forEach(([qData, predData]) => {
         Object.keys(qData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
-            if (!qData[key]?.q) return;
+            const q = qData[key];
+            if (!q?.q) return;
+            // Skip the 信心倍增 choice (and any other dropdown-style, non-gradeable question) — same exclusion _calcRoundSpecialAccuracy uses
+            if ((q.q || '').includes('信心倍增') || (q.opts && q.opts.length > 4)) return;
             total++;
             const mv = (predData[myUid] || {})[key];
             const ov = (predData[otherUid] || {})[key];
