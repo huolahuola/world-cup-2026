@@ -3356,13 +3356,15 @@ function renderLeaderboard() {
         const r16SpecPts   = (r16sp.q1Points||0) + (r16sp.q2Points||0);
         const qfsp         = qfAllSpecialPredsData[uid] || {};
         const qfSpecPts    = Object.keys(qfSpecialsData||{}).filter(k=>/^q\d+$/.test(k)).reduce((sum,k)=>sum+(qfsp[k+'Points']||0),0);
+        const sfsp         = sfAllSpecialPredsData[uid] || {};
+        const sfSpecPts    = Object.keys(sfSpecialsData||{}).filter(k=>/^q\d+$/.test(k)).reduce((sum,k)=>sum+(sfsp[k+'Points']||0),0);
         const magicBreak   = _magicImpactBreakdown(uid, s.name);
         // Round columns show the score BEFORE magic (actual settled score minus that round's magic swing),
         // so magic gets its own additive column and every column in the row sums to the grand total.
         const r32Pts       = _koRoundPts(uid, 'r32') + r32SpecPts - magicBreak.r32;
         const r16Pts       = _koRoundPts(uid, 'r16') + r16SpecPts - magicBreak.r16;
         const qfPts        = _koRoundPts(uid, 'qf')  + qfSpecPts  - magicBreak.qf;
-        const sfPts        = _koRoundPts(uid, 'sf');
+        const sfPts        = _koRoundPts(uid, 'sf')  + sfSpecPts;
         const finalPts     = _koRoundPts(uid, 'final');
         const magicPts     = magicBreak.r32 + magicBreak.r16 + magicBreak.qf;
         const grandTotal   = s.total || 0;
