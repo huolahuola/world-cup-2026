@@ -711,8 +711,8 @@ setTimeout(function() {
                     <button onclick="generatePredCard('share')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
                 </div>
                 <div id="recapBtnRow" class="hidden flex gap-2 mb-3">
-                    <button onclick="generateRecapCard('quiz')" class="flex-1 glass border border-purple-400/30 text-purple-200 font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🎬 竞猜回忆</button>
-                    <button onclick="generateRecapCard('full')" class="flex-1 glass border border-purple-400/30 text-purple-200 font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🎬 竞猜+看球回忆</button>
+                    <button onclick="generateRecapCard('quiz')" class="flex-1 glass border border-purple-400/30 text-purple-200 font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🎬 生成我的竞猜回忆</button>
+                    <button onclick="generateRecapCard('full')" class="flex-1 glass border border-purple-400/30 text-purple-200 font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🎬 生成我的竞猜+看球回忆</button>
                 </div>
                 <div id="myPredsContainer" class="space-y-2">
                     <div class="text-center py-8 text-gray-400">暂无预测</div>
@@ -4800,42 +4800,72 @@ window.generateRecapCard = async function(mode = 'quiz') {
         ci = { total: allCiMatches.length, watched: full + half + clips, full, half, clips, skip, maxBangs, mostExciting, earliestHour, nightNote, noteCount, longestNote };
     }
 
-    // ── Build stat rows ──
+    // ── Build the narrative, paragraph by paragraph ──
     const pct = hitRate.total ? Math.round(hitRate.correct / hitRate.total * 100) : 0;
-    const rows = [
-        ['🎯', '整体预测命中率', `${hitRate.correct}/${hitRate.total}（${pct}%）`],
-        ['🏆', '当前排名', `#${myRank} / 共${totalPlayers}人`],
-        ['⭐', '总分', `${myTotal}分`],
-    ];
-    if (bestRound) rows.push(['📈', `最佳轮次：${roundLabels[bestRound.round] || bestRound.round}`, `${bestRound.correct}/${bestRound.total}（${Math.round(bestRound.pct*100)}%）`]);
-    if (bestMatch) rows.push(['💥', '单场最高得分', `${bestMatch.label} +${bestMatch.points}分`]);
-    if (cp.champion) rows.push(['👑', '冠军预测', cp.champion + (cp.champPoints != null ? (cp.champPoints > 0 ? ' ✓ 猜中！' : ' ✗ 没猜中') : '（待揭晓）')]);
-    if (bestTeam) rows.push(['🎯', '押注最准的球队', `${bestTeam.team}（晋级判断${bestTeam.hits}/${bestTeam.total}中）`]);
-    if (worstTeam) rows.push(['📉', '在这支球队上丢分最多', `${worstTeam.team}（看错晋级，丢了${worstTeam.lostPts}分）`]);
-    if (worstRound && worstRound !== bestRound) rows.push(['🤕', `最惨轮次：${roundLabels[worstRound.round] || worstRound.round}`, `${worstRound.correct}/${worstRound.total}（${Math.round(worstRound.pct*100)}%）`]);
-    if (bestStreak >= 3) rows.push(['🔥', '最长连续命中', `连续猜中 ${bestStreak} 场比赛结果`]);
-    if (uniqueCall) rows.push(['🔮', '独具慧眼', `全场只有你猜中：${uniqueCall}`]);
-    if (loyaltyNote) rows.push(['💭', '夺冠人选忠诚度', loyaltyNote]);
-    magicNotes.slice(0, 2).forEach(note => rows.push(['✨', '魔法履历', note]));
+    const paragraphs = [];
+
+    paragraphs.push(`亲爱的${name}，恭喜你完成了这趟四年一度的旅途——2026美加墨世界杯，感觉还好吗？还是一言难尽？`);
+    paragraphs.push(`这一路你一共命中了${hitRate.correct}次预测（命中率${pct}%），最终定格在第${myRank}名（共${totalPlayers}人），攒下了${myTotal}分。`);
+
+    let p3 = '';
+    if (bestRound) p3 += `发挥最稳的是${roundLabels[bestRound.round] || bestRound.round}这一轮，命中率高达${Math.round(bestRound.pct*100)}%。`;
+    if (bestMatch) p3 += `单场最高光时刻是「${bestMatch.label}」，一口气拿下${bestMatch.points}分。`;
+    if (worstRound && worstRound !== bestRound) p3 += `不过${roundLabels[worstRound.round] || worstRound.round}那一轮你有点挣扎，只命中了${Math.round(worstRound.pct*100)}%。`;
+    if (p3) paragraphs.push(p3);
+
+    let p4 = '';
+    if (bestTeam) p4 += `你最看好的球队是${bestTeam.team}，晋级判断${bestTeam.hits}中${bestTeam.total}，几乎没看走眼。`;
+    if (worstTeam) p4 += `不过在${worstTeam.team}身上，你判断失误，白白丢了${worstTeam.lostPts}分。`;
+    if (p4) paragraphs.push(p4);
+
+    let p5 = '';
+    if (bestStreak >= 3) p5 += `你还打出过连续${bestStreak}场命中的连胜纪录，手感火热的时候真的挡不住。`;
+    if (uniqueCall) p5 += `更有一次全场独具慧眼——${uniqueCall}，整个房间只有你一个人猜对。`;
+    if (p5) paragraphs.push(p5);
+
+    if (loyaltyNote) paragraphs.push(`冠军人选上，你${loyaltyNote}。`);
+    if (magicNotes.length) paragraphs.push(`魔法交锋这件事上：${magicNotes.slice(0, 2).join('；')}。`);
 
     if (isFull && ci) {
         const ciPct = ci.total ? Math.round(ci.watched / ci.total * 100) : 0;
-        rows.push(['📺', '看球打卡率', `${ci.watched}/${ci.total}场（${ciPct}%）`]);
-        rows.push(['📋', '打卡明细', `认真${ci.full}·迷糊${ci.half}·集锦${ci.clips}·弃赛${ci.skip}`]);
-        if (ci.noteCount > 0) rows.push(['✍️', '陪伴世界杯的文字', `一共写了 ${ci.noteCount} 篇打卡笔记`]);
-        if (ci.earliestHour !== null) rows.push(['🌙', '熬夜打卡', `凌晨${ci.earliestHour}点还在看球${ci.nightNote ? '：' + ci.nightNote.slice(0, 24) : ''}`]);
-        if (ci.mostExciting) rows.push(['❗', '最激动的一刻', ci.mostExciting.slice(0, 40) + (ci.mostExciting.length > 40 ? '…' : '')]);
-        if (ci.longestNote && ci.longestNote !== ci.mostExciting) rows.push(['💛', '写得最走心的一段', ci.longestNote.slice(0, 40) + (ci.longestNote.length > 40 ? '…' : '')]);
+        let pci = `看球这件事上，你打卡了${ci.watched}/${ci.total}场比赛（打卡率${ciPct}%）：认真看了${ci.full}场、迷糊看了${ci.half}场、只看集锦${ci.clips}场、弃赛${ci.skip}场。`;
+        if (ci.noteCount > 0) pci += `还留下了${ci.noteCount}篇打卡笔记。`;
+        paragraphs.push(pci);
+        if (ci.earliestHour !== null) paragraphs.push(`凌晨${ci.earliestHour}点你还在打卡看球${ci.nightNote ? '，写下："' + ci.nightNote.slice(0, 30) + '"' : ''}，这份热爱藏不住。`);
+        if (ci.mostExciting) paragraphs.push(`你最激动的一刻，写下了："${ci.mostExciting.slice(0, 50)}"`);
+        if (ci.longestNote && ci.longestNote !== ci.mostExciting) paragraphs.push(`而这段，大概是你写得最走心的一篇："${ci.longestNote.slice(0, 50)}"`);
     }
 
+    paragraphs.push(`不管这份成绩单满不满意，感谢你陪伴这一届世界杯走到了这里。下一届，2030年见！`);
+
     // ── Canvas ──
-    const W = 640, P = 20;
+    const W = 640, P = 28;
     const ff = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif';
     const f = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px ${ff}`;
-    const ROW_H = 56;
-    const HDR_H = 92;
+    const FONT_SIZE = 15, LINE_H = 27, PARA_GAP = 12;
+    const HDR_H = 100;
     const FOOTER_H = 156;
-    const H = HDR_H + 16 + rows.length * ROW_H + 16 + FOOTER_H + 20;
+
+    const wrapText = (mctx, text, maxWidth) => {
+        const lines = [];
+        let line = '';
+        for (const ch of text) {
+            const test = line + ch;
+            if (mctx.measureText(test).width > maxWidth && line) { lines.push(line); line = ch; }
+            else line = test;
+        }
+        if (line) lines.push(line);
+        return lines;
+    };
+
+    // Measure first (font metrics don't depend on the canvas's own size) so we can size the canvas to fit
+    const measureCv = document.createElement('canvas');
+    const mctx = measureCv.getContext('2d');
+    mctx.font = f(FONT_SIZE);
+    const textMaxW = W - P*2;
+    const wrapped = paragraphs.map(p => wrapText(mctx, p, textMaxW));
+    const totalLines = wrapped.reduce((s, ls) => s + ls.length, 0);
+    const H = HDR_H + 24 + totalLines * LINE_H + Math.max(0, paragraphs.length - 1) * PARA_GAP + 20 + FOOTER_H + 20;
 
     const SCALE = 2;
     const cv = document.createElement('canvas');
@@ -4865,31 +4895,23 @@ window.generateRecapCard = async function(mode = 'quiz') {
     // Header
     ctx.fillStyle = C.bgCard; ctx.fillRect(0, 0, W, HDR_H);
     ctx.fillStyle = C.purple; ctx.fillRect(0, HDR_H - 3, W, 3);
-    ctx.fillStyle = C.purple; ctx.fillRect(P, 16, 4, HDR_H - 32);
+    ctx.fillStyle = C.purple; ctx.fillRect(P - 8, 16, 4, HDR_H - 32);
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.font = f(19, true); ctx.fillStyle = C.white;
-    ctx.fillText(isFull ? '我的2026美加墨世界杯回忆（竞猜+看球篇）' : '我的2026美加墨世界杯回忆（竞猜篇）', P + 22, HDR_H * 0.38);
+    ctx.fillText(isFull ? '我的2026美加墨世界杯回忆（竞猜+看球篇）' : '我的2026美加墨世界杯回忆（竞猜篇）', P + 6, HDR_H * 0.38);
     ctx.font = f(12, true); ctx.fillStyle = C.gold;
-    ctx.fillText(name, P + 22, HDR_H * 0.72);
+    ctx.fillText(name, P + 6, HDR_H * 0.72);
 
-    let cy = HDR_H + 16;
-    rows.forEach(([icon, label, value]) => {
-        rr(P, cy, W - P*2, ROW_H - 8, 10, C.bgCard, C.border);
-        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.font = f(20); ctx.fillStyle = C.white;
-        ctx.fillText(icon, P + 14, cy + (ROW_H-8)/2);
-        ctx.font = f(12); ctx.fillStyle = C.gray1;
-        ctx.fillText(label, P + 46, cy + (ROW_H-8)/2 - 9);
-        ctx.font = f(13, true); ctx.fillStyle = C.white;
-        const maxW = W - P*2 - 60;
-        let txt = value;
-        while (ctx.measureText(txt).width > maxW && txt.length > 1) txt = txt.slice(0, -2) + '…';
-        ctx.fillText(txt, P + 46, cy + (ROW_H-8)/2 + 11);
-        cy += ROW_H;
+    // Narrative body
+    let cy = HDR_H + 24 + FONT_SIZE * 0.7;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = f(FONT_SIZE); ctx.fillStyle = C.white;
+    wrapped.forEach(lines => {
+        lines.forEach(line => { ctx.fillText(line, P, cy); cy += LINE_H; });
+        cy += PARA_GAP;
     });
-    ctx.textBaseline = 'alphabetic';
 
-    cy += 4;
+    cy += 8;
     // Footer (same as the prediction card)
     rr(P, cy, W-P*2, FOOTER_H, 10, C.bgCard, C.border);
     ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 12, 3, FOOTER_H - 24);
