@@ -4704,9 +4704,29 @@ window.generateRecapCard = async function(mode = 'quiz') {
         }
     });
 
-    // Per-team record: every time this player backed a team to advance, were they right?
-    // (also tracks "lost points" — the round's advance-points value each time that pick was wrong)
+    // Per-team record, covering the whole tournament (group stage onward), not just knockout rounds.
+    // "hit" = a pick involving this team paid off; "miss" + lostPts = it didn't, sized to what that pick could have earned.
     const teamStats = {}; // team -> { hits, misses, lostPts }
+    const _bumpTeam = (team, hit, lost) => {
+        teamStats[team] = teamStats[team] || { hits: 0, misses: 0, lostPts: 0 };
+        if (hit) teamStats[team].hits++; else { teamStats[team].misses++; teamStats[team].lostPts += lost; }
+    };
+    // Group stage: for every team this player picked to qualify, check it against the settled result
+    Object.keys(groupsData || {}).forEach(gid => {
+        const g = groupsData[gid];
+        const pred = groupPredsData[`${uid}_${gid}`];
+        if (!g?.qualified || !pred?.qualified?.length) return;
+        pred.qualified.forEach(team => {
+            if (!team) return;
+            const actuallyQualified = g.qualified.includes(team);
+            if (!actuallyQualified) { _bumpTeam(team, false, 2); return; }
+            const predictedWinner = team === pred.winner;
+            const actualWinner = team === g.winner;
+            _bumpTeam(team, true, 0); // qualifying at all is always at least a partial hit
+            if (predictedWinner !== actualWinner) { /* right team, wrong exact slot — still counts as a hit above */ }
+        });
+    });
+    // Knockout rounds: every time this player backed a team to advance, were they right?
     Object.entries(koAllPredsData[uid] || {}).forEach(([mid, p]) => {
         const m = koMatchesData[mid];
         if (!m || !p.advance || m.status !== 'finished' || !m.result) return;
@@ -4714,10 +4734,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
         const isQF = m.round === 'qf' || m.round === 'final';
         const isR16up = m.round !== 'r32';
         const advPts = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-        const team = p.advance;
-        teamStats[team] = teamStats[team] || { hits: 0, misses: 0, lostPts: 0 };
-        if (p.advance === m.result.advance) teamStats[team].hits++;
-        else { teamStats[team].misses++; teamStats[team].lostPts += advPts; }
+        _bumpTeam(p.advance, p.advance === m.result.advance, advPts);
     });
     const teamEntries = Object.entries(teamStats).map(([team, s]) => ({ team, ...s, total: s.hits + s.misses, pct: s.hits / (s.hits + s.misses) }));
     const bestTeam = teamEntries.filter(t => t.total >= 2).sort((a, b) => b.pct - a.pct || b.total - a.total)[0] || null;
