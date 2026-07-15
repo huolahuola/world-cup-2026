@@ -710,6 +710,10 @@ setTimeout(function() {
                     <button onclick="generatePredCard('full')" class="flex-1 glass border border-white/20 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">📋 完整存档</button>
                     <button onclick="generatePredCard('share')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
                 </div>
+                <div id="recapBtnRow" class="hidden flex gap-2 mb-3">
+                    <button onclick="generateRecapCard('quiz')" class="flex-1 glass border border-purple-400/30 text-purple-200 font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🎬 竞猜回忆</button>
+                    <button onclick="generateRecapCard('full')" class="flex-1 glass border border-purple-400/30 text-purple-200 font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🎬 竞猜+看球回忆</button>
+                </div>
                 <div id="myPredsContainer" class="space-y-2">
                     <div class="text-center py-8 text-gray-400">暂无预测</div>
                 </div>
@@ -3950,6 +3954,8 @@ function _refreshMyProfileCard() {
             avatarEl.innerHTML = currentUser.name.charAt(0).toUpperCase();
         }
     }
+    // Recap cards: early access, 拉球王 only for now
+    document.getElementById('recapBtnRow')?.classList.toggle('hidden', currentUser.name !== '拉球王');
 }
 
 window.handleAvatarUpload = function(event) {
@@ -4655,6 +4661,269 @@ window.generatePredCard = async function(mode = 'full') {
         URL.revokeObjectURL(a.href);
     }, 'image/png');
     toast(isShare ? '🌍 分享图已生成！' : '📋 完整存档已生成！');
+};
+
+// ─── Recap card: "我的世界杯回忆" (early access, gated in the HTML to 拉球王) ──
+window.generateRecapCard = async function(mode = 'quiz') {
+    const uid = currentUser?.id;
+    if (!uid) return;
+    const name = currentUser.name || '匿名';
+    const isFull = mode === 'full';
+
+    // ── Gather stats ──
+    const hitRate = _calcOverallHitRate(uid, name);
+    const allSorted = Object.entries(_allScoreEntries())
+        .filter(([, s]) => s.name && s.name !== '小助手')
+        .sort((a, b) => (b[1].total || 0) - (a[1].total || 0));
+    const myRank = allSorted.findIndex(([u]) => u === uid) + 1;
+    const totalPlayers = allSorted.length;
+    const myTotal = scoresData[uid]?.total || 0;
+
+    const roundLabels = { r32: '32进16', r16: '16进8', qf: '8进4', sf: '半决赛' };
+    const roundStats = [];
+    for (const round of ['r32', 'r16', 'qf', 'sf']) {
+        const roundMatches = Object.entries(koMatchesData).filter(([, m]) => m.round === round && m.status === 'finished' && m.result);
+        if (!roundMatches.length) continue;
+        let c = 0, t = 0;
+        roundMatches.forEach(([mid, m]) => {
+            const acc = _calcPredAccuracy(koAllPredsData[uid]?.[mid], m.result);
+            c += acc.correct; t += acc.total;
+        });
+        const spAcc = _calcRoundSpecialAccuracy(round, uid, name);
+        c += spAcc.correct; t += spAcc.total;
+        if (t > 0) roundStats.push({ round, correct: c, total: t, pct: c / t });
+    }
+    roundStats.sort((a, b) => b.pct - a.pct);
+    const bestRound = roundStats[0] || null;
+
+    let bestMatch = null;
+    Object.entries(koAllPredsData[uid] || {}).forEach(([mid, p]) => {
+        if (p.points != null && (!bestMatch || p.points > bestMatch.points)) {
+            const m = koMatchesData[mid];
+            if (m) bestMatch = { points: p.points, label: `${m.home}vs${m.away}` };
+        }
+    });
+
+    // Per-team record: every time this player backed a team to advance, were they right?
+    // (also tracks "lost points" — the round's advance-points value each time that pick was wrong)
+    const teamStats = {}; // team -> { hits, misses, lostPts }
+    Object.entries(koAllPredsData[uid] || {}).forEach(([mid, p]) => {
+        const m = koMatchesData[mid];
+        if (!m || !p.advance || m.status !== 'finished' || !m.result) return;
+        const isSF = m.round === 'sf';
+        const isQF = m.round === 'qf' || m.round === 'final';
+        const isR16up = m.round !== 'r32';
+        const advPts = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+        const team = p.advance;
+        teamStats[team] = teamStats[team] || { hits: 0, misses: 0, lostPts: 0 };
+        if (p.advance === m.result.advance) teamStats[team].hits++;
+        else { teamStats[team].misses++; teamStats[team].lostPts += advPts; }
+    });
+    const teamEntries = Object.entries(teamStats).map(([team, s]) => ({ team, ...s, total: s.hits + s.misses, pct: s.hits / (s.hits + s.misses) }));
+    const bestTeam = teamEntries.filter(t => t.total >= 2).sort((a, b) => b.pct - a.pct || b.total - a.total)[0] || null;
+    const worstTeam = teamEntries.filter(t => t.lostPts > 0).sort((a, b) => b.lostPts - a.lostPts)[0] || null;
+
+    const cp = champPredsData[uid] || {};
+
+    // Worst round (mirror image of bestRound, needs at least 2 rounds to be meaningful)
+    const worstRound = roundStats.length > 1 ? roundStats[roundStats.length - 1] : null;
+
+    // Longest correct-result streak, in chronological (kickoff) order across every finished KO match
+    const chronoMatches = Object.entries(koMatchesData)
+        .filter(([, m]) => m.status === 'finished' && m.result && m.kickoff)
+        .sort((a, b) => a[1].kickoff.localeCompare(b[1].kickoff));
+    let curStreak = 0, bestStreak = 0;
+    chronoMatches.forEach(([mid, m]) => {
+        const p = koAllPredsData[uid]?.[mid];
+        const hit = p?.result90 && p.result90 === m.result.outcome_90;
+        curStreak = hit ? curStreak + 1 : 0;
+        bestStreak = Math.max(bestStreak, curStreak);
+    });
+
+    // "独具慧眼": a correct advance-pick that nobody else in the room got right
+    let uniqueCall = null;
+    for (const [mid, m] of chronoMatches) {
+        const p = koAllPredsData[uid]?.[mid];
+        if (!p?.advance || p.advance !== m.result.advance) continue;
+        const othersRight = Object.entries(koAllPredsData).some(([otherUid, preds]) => {
+            if (otherUid === uid) return false;
+            const name2 = scoresData[otherUid]?.name;
+            if (!name2 || name2 === '小助手') return false;
+            return preds?.[mid]?.advance === m.result.advance;
+        });
+        if (!othersRight) { uniqueCall = `${m.home}vs${m.away} 押${m.result.advance}晋级`; break; }
+    }
+
+    // Champion loyalty: did the champion pick change between the two submission windows?
+    const loyaltyNote = (cp.champion && cp.midway)
+        ? (cp.champion === cp.midway ? `从头到尾力挺 ${cp.champion}，忠诚玩家` : `半程从 ${cp.champion} 倒戈支持 ${cp.midway}，墙头草认证`)
+        : null;
+
+    const magicNotes = [];
+    Object.values(r32MagicData || {}).forEach(m => {
+        if (m.type === 'soul_swap') {
+            if (m.player1Name === name || m.player2Name === name) magicNotes.push(`🃏 ${m.caster} 让你和 ${m.player1Name === name ? m.player2Name : m.player1Name} 灵魂互换`);
+        } else if (m.caster === name) magicNotes.push(`🃏 你对 ${m.targetName} 用了「${m.card}」`);
+        else if (m.targetName === name) magicNotes.push(`🃏 ${m.caster} 对你用了「${m.card}」`);
+    });
+    Object.values(r16MagicData || {}).forEach(m => {
+        if (m.usedBy === name) magicNotes.push(`🃏 你对 ${m.targetName} 用了「${m.displayName || m.card}」`);
+        else if (m.targetName === name) magicNotes.push(`🃏 ${m.usedBy} 对你用了「${m.displayName || m.card}」`);
+    });
+    Object.values(qfMagicData || {}).forEach(m => {
+        if (m.usedBy === name) magicNotes.push(`🃏 你对 ${m.targetName} 用了「${m.displayName || '除你武器'}」`);
+        else if (m.targetName === name) magicNotes.push(`🃏 ${m.usedBy} 对你用了「${m.displayName || '除你武器'}」`);
+    });
+
+    let ci = null;
+    if (isFull) {
+        const ciSnap = await get(ref(db, `rooms/${currentRoom}/checkin/${uid}`));
+        const ciData = ciSnap.exists() ? ciSnap.val() : {};
+        const allCiMatches = [...Object.keys(CI_MATCHES || {}), ...Object.values(CI_KO_BY_STAGE || {}).flatMap(o => Object.keys(o))];
+        let full = 0, half = 0, clips = 0, skip = 0, maxBangs = 0, mostExciting = '', earliestHour = null, nightNote = '', noteCount = 0, longestNote = '';
+        Object.values(ciData).forEach(d => {
+            if (d.w === 'full' || d.w === true) full++;
+            else if (d.w === 'half') half++;
+            else if (d.w === 'clips') clips++;
+            else if (d.w === 'skip') skip++;
+            if (d.note?.trim()) {
+                noteCount++;
+                const bangs = (d.note.match(/[!！]/g) || []).length;
+                if (bangs > maxBangs) { maxBangs = bangs; mostExciting = d.note; }
+                if (d.note.length > longestNote.length) longestNote = d.note;
+            }
+            if (d.ts) {
+                const hr = new Date(d.ts).getHours();
+                if (hr >= 0 && hr < 5 && (earliestHour === null || hr < earliestHour)) { earliestHour = hr; nightNote = d.note || ''; }
+            }
+        });
+        ci = { total: allCiMatches.length, watched: full + half + clips, full, half, clips, skip, maxBangs, mostExciting, earliestHour, nightNote, noteCount, longestNote };
+    }
+
+    // ── Build stat rows ──
+    const pct = hitRate.total ? Math.round(hitRate.correct / hitRate.total * 100) : 0;
+    const rows = [
+        ['🎯', '整体预测命中率', `${hitRate.correct}/${hitRate.total}（${pct}%）`],
+        ['🏆', '当前排名', `#${myRank} / 共${totalPlayers}人`],
+        ['⭐', '总分', `${myTotal}分`],
+    ];
+    if (bestRound) rows.push(['📈', `最佳轮次：${roundLabels[bestRound.round] || bestRound.round}`, `${bestRound.correct}/${bestRound.total}（${Math.round(bestRound.pct*100)}%）`]);
+    if (bestMatch) rows.push(['💥', '单场最高得分', `${bestMatch.label} +${bestMatch.points}分`]);
+    if (cp.champion) rows.push(['👑', '冠军预测', cp.champion + (cp.champPoints != null ? (cp.champPoints > 0 ? ' ✓ 猜中！' : ' ✗ 没猜中') : '（待揭晓）')]);
+    if (bestTeam) rows.push(['🎯', '押注最准的球队', `${bestTeam.team}（晋级判断${bestTeam.hits}/${bestTeam.total}中）`]);
+    if (worstTeam) rows.push(['📉', '在这支球队上丢分最多', `${worstTeam.team}（看错晋级，丢了${worstTeam.lostPts}分）`]);
+    if (worstRound && worstRound !== bestRound) rows.push(['🤕', `最惨轮次：${roundLabels[worstRound.round] || worstRound.round}`, `${worstRound.correct}/${worstRound.total}（${Math.round(worstRound.pct*100)}%）`]);
+    if (bestStreak >= 3) rows.push(['🔥', '最长连续命中', `连续猜中 ${bestStreak} 场比赛结果`]);
+    if (uniqueCall) rows.push(['🔮', '独具慧眼', `全场只有你猜中：${uniqueCall}`]);
+    if (loyaltyNote) rows.push(['💭', '夺冠人选忠诚度', loyaltyNote]);
+    magicNotes.slice(0, 2).forEach(note => rows.push(['✨', '魔法履历', note]));
+
+    if (isFull && ci) {
+        const ciPct = ci.total ? Math.round(ci.watched / ci.total * 100) : 0;
+        rows.push(['📺', '看球打卡率', `${ci.watched}/${ci.total}场（${ciPct}%）`]);
+        rows.push(['📋', '打卡明细', `认真${ci.full}·迷糊${ci.half}·集锦${ci.clips}·弃赛${ci.skip}`]);
+        if (ci.noteCount > 0) rows.push(['✍️', '陪伴世界杯的文字', `一共写了 ${ci.noteCount} 篇打卡笔记`]);
+        if (ci.earliestHour !== null) rows.push(['🌙', '熬夜打卡', `凌晨${ci.earliestHour}点还在看球${ci.nightNote ? '：' + ci.nightNote.slice(0, 24) : ''}`]);
+        if (ci.mostExciting) rows.push(['❗', '最激动的一刻', ci.mostExciting.slice(0, 40) + (ci.mostExciting.length > 40 ? '…' : '')]);
+        if (ci.longestNote && ci.longestNote !== ci.mostExciting) rows.push(['💛', '写得最走心的一段', ci.longestNote.slice(0, 40) + (ci.longestNote.length > 40 ? '…' : '')]);
+    }
+
+    // ── Canvas ──
+    const W = 640, P = 20;
+    const ff = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif';
+    const f = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px ${ff}`;
+    const ROW_H = 56;
+    const HDR_H = 92;
+    const FOOTER_H = 156;
+    const H = HDR_H + 16 + rows.length * ROW_H + 16 + FOOTER_H + 20;
+
+    const SCALE = 2;
+    const cv = document.createElement('canvas');
+    cv.width = W * SCALE; cv.height = H * SCALE;
+    const ctx = cv.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+
+    const C = {
+        bg: '#0d1117', bgCard: '#161b22', border: 'rgba(255,255,255,0.08)',
+        gold: '#fbbf24', white: '#f0f6fc', gray1: '#8b949e', gray2: '#484f58', purple: '#c084fc',
+    };
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,0.022)';
+    for (let dx = 0; dx < W; dx += 32) for (let dy = 0; dy < H; dy += 32) { ctx.beginPath(); ctx.arc(dx, dy, 1, 0, Math.PI*2); ctx.fill(); }
+
+    const rr = (x, y, w, h, r, fill, stroke, sw = 1) => {
+        ctx.beginPath();
+        ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+        ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+        ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+        ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw; ctx.stroke(); }
+    };
+
+    // Header
+    ctx.fillStyle = C.bgCard; ctx.fillRect(0, 0, W, HDR_H);
+    ctx.fillStyle = C.purple; ctx.fillRect(0, HDR_H - 3, W, 3);
+    ctx.fillStyle = C.purple; ctx.fillRect(P, 16, 4, HDR_H - 32);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = f(19, true); ctx.fillStyle = C.white;
+    ctx.fillText(isFull ? '我的2026美加墨世界杯回忆（竞猜+看球篇）' : '我的2026美加墨世界杯回忆（竞猜篇）', P + 22, HDR_H * 0.38);
+    ctx.font = f(12, true); ctx.fillStyle = C.gold;
+    ctx.fillText(name, P + 22, HDR_H * 0.72);
+
+    let cy = HDR_H + 16;
+    rows.forEach(([icon, label, value]) => {
+        rr(P, cy, W - P*2, ROW_H - 8, 10, C.bgCard, C.border);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.font = f(20); ctx.fillStyle = C.white;
+        ctx.fillText(icon, P + 14, cy + (ROW_H-8)/2);
+        ctx.font = f(12); ctx.fillStyle = C.gray1;
+        ctx.fillText(label, P + 46, cy + (ROW_H-8)/2 - 9);
+        ctx.font = f(13, true); ctx.fillStyle = C.white;
+        const maxW = W - P*2 - 60;
+        let txt = value;
+        while (ctx.measureText(txt).width > maxW && txt.length > 1) txt = txt.slice(0, -2) + '…';
+        ctx.fillText(txt, P + 46, cy + (ROW_H-8)/2 + 11);
+        cy += ROW_H;
+    });
+    ctx.textBaseline = 'alphabetic';
+
+    cy += 4;
+    // Footer (same as the prediction card)
+    rr(P, cy, W-P*2, FOOTER_H, 10, C.bgCard, C.border);
+    ctx.fillStyle = C.gold; ctx.fillRect(P, cy + 12, 3, FOOTER_H - 24);
+    const QR = 94, qrX = W-P-16-QR, qrY = cy+19;
+    const siteUrl = 'https://huolahuola.github.io/world-cup-2026/';
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(siteUrl)}&size=${QR*2}x${QR*2}&bgcolor=f0f6fc&color=0d1117&margin=2`;
+    await new Promise(res => {
+        const img = new Image(); img.crossOrigin = 'anonymous';
+        img.onload = () => { rr(qrX-4, qrY-4, QR+8, QR+8, 6, '#f0f6fc'); ctx.drawImage(img, qrX, qrY, QR, QR); res(); };
+        img.onerror = res; img.src = qrSrc;
+    });
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = f(18, true); ctx.fillStyle = C.gold;
+    ctx.fillText('扫码一起猜！', P+18, cy+36);
+    ctx.font = f(11); ctx.fillStyle = C.white;
+    ctx.fillText('2026 FIFA 世界杯竞猜', P+18, cy+58);
+    ctx.font = f(10); ctx.fillStyle = C.gray1;
+    ctx.fillText('huolahuola.github.io', P+18, cy+76);
+    ctx.fillText('/world-cup-2026', P+18, cy+92);
+    ctx.font = f(9); ctx.fillStyle = C.gray2;
+    const _now = new Date();
+    const _tzId = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const _dtStr = _now.toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12: false });
+    ctx.fillText('生成于 ' + _dtStr + '（' + _tzId + '）', P+18, cy+112);
+    ctx.textBaseline = 'alphabetic';
+
+    cv.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `wc2026_recap_${name}_${mode}.png`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }, 'image/png');
+    toast('🎬 回忆卡片已生成！');
 };
 
 // ─── Render: My Predictions ───────────────────────────────
