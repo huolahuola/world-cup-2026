@@ -1529,6 +1529,7 @@ function startApp() {
             refreshR32SpecialsAdmin();
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/r32specialPreds/${currentUser.id}`), snap => {
             r32SpecialPredsData = snap.exists() ? snap.val() : {};
@@ -1538,11 +1539,13 @@ function startApp() {
             r32AllSpecialPredsData = snap.exists() ? snap.val() : {};
             renderKoCompletionStatus();
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/r16specials`), snap => {
             r16SpecialsData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r16') renderKnockout();
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/r16specialPreds/${currentUser.id}`), snap => {
             r16SpecialPredsData = snap.exists() ? snap.val() : {};
@@ -1551,11 +1554,13 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/r16specialPreds`), snap => {
             r16AllSpecialPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/qfspecials`), snap => {
             qfSpecialsData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'qf') renderKnockout();
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/qfspecialPreds/${currentUser.id}`), snap => {
             qfSpecialPredsData = snap.exists() ? snap.val() : {};
@@ -1564,10 +1569,13 @@ function startApp() {
         onValue(ref(db, `rooms/${currentRoom}/qfspecialPreds`), snap => {
             qfAllSpecialPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/sfspecials`), snap => {
             sfSpecialsData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'sf') renderKnockout();
+            renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/sfspecialPreds/${currentUser.id}`), snap => {
             sfSpecialPredsData = snap.exists() ? snap.val() : {};
@@ -1575,26 +1583,32 @@ function startApp() {
         });
         onValue(ref(db, `rooms/${currentRoom}/sfspecialPreds`), snap => {
             sfAllSpecialPredsData = snap.exists() ? snap.val() : {};
+            renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
             koAllPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
             if (!document.getElementById('content-knockout').classList.contains('hidden')) renderKnockout();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/r32magic`), snap => {
             r32MagicData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r32') renderKnockout();
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/r16magic`), snap => {
             r16MagicData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'r16') renderKnockout();
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
         onValue(ref(db, `rooms/${currentRoom}/qfmagic`), snap => {
             qfMagicData = snap.exists() ? snap.val() : {};
             if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'qf') renderKnockout();
             renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
 
         // ── Presence ──
@@ -4700,7 +4714,12 @@ window.generateRecapCard = async function(mode = 'quiz') {
     Object.entries(koAllPredsData[uid] || {}).forEach(([mid, p]) => {
         if (p.points != null && (!bestMatch || p.points > bestMatch.points)) {
             const m = koMatchesData[mid];
-            if (m) bestMatch = { points: p.points, label: `${m.home}vs${m.away}` };
+            if (!m) return;
+            const isSF = m.round === 'sf';
+            const isQF = m.round === 'qf' || m.round === 'final';
+            const isR16up = m.round !== 'r32';
+            const maxPts = isSF ? 40 : isQF ? 30 : isR16up ? 16 : 8; // 8/8/12/12, 6/6/8/10, 3/3/5/5, 2/2/4 summed
+            bestMatch = { points: p.points, maxPts, label: `${m.home}vs${m.away}` };
         }
     });
 
@@ -4826,13 +4845,13 @@ window.generateRecapCard = async function(mode = 'quiz') {
 
     let p3 = '';
     if (bestRound) p3 += `发挥最稳的是${roundLabels[bestRound.round] || bestRound.round}这一轮，命中率高达${Math.round(bestRound.pct*100)}%。`;
-    if (bestMatch) p3 += `单场最高光时刻是「${bestMatch.label}」，一口气拿下${bestMatch.points}分。`;
+    if (bestMatch) p3 += `单场最高光时刻是「${bestMatch.label}」，一口气拿下${bestMatch.points}分（这场比赛满分${bestMatch.maxPts}分）。`;
     if (worstRound && worstRound !== bestRound) p3 += `不过${roundLabels[worstRound.round] || worstRound.round}那一轮你有点挣扎，只命中了${Math.round(worstRound.pct*100)}%。`;
     if (p3) paragraphs.push(p3);
 
     let p4 = '';
     if (bestTeam) p4 += `你最看好的球队是${bestTeam.team}，晋级判断${bestTeam.hits}中${bestTeam.total}，几乎没看走眼。`;
-    if (worstTeam) p4 += `不过在${worstTeam.team}身上，你判断失误，白白丢了${worstTeam.lostPts}分。`;
+    if (worstTeam) p4 += `不过在${worstTeam.team}身上，你判断晋级失误了${worstTeam.misses}次，这部分的"晋级判断分"全打了水漂，一共错过了${worstTeam.lostPts}分。`;
     if (p4) paragraphs.push(p4);
 
     let p5 = '';
