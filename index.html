@@ -4234,59 +4234,60 @@ function _allScoreEntries() {
     return result;
 }
 
+// Denominator is the fixed count of everything there is to predict in the game — not however much
+// overlap two specific players happened to submit — so it means the same thing for every pair.
 function _calcSimilarity(myUid, otherUid) {
     let same = 0, total = 0;
     const myC = _xChampPred(myUid);
     const oC  = _xChampPred(otherUid);
 
-    if (myC.champion   && oC.champion)   { total++; if (myC.champion   === oC.champion)   same++; }
-    if (myC.midway     && oC.midway)     { total++; if (myC.midway     === oC.midway)     same++; }
-    if (myC.topScorer  && oC.topScorer)  { total++; if (myC.topScorer  === oC.topScorer)  same++; }
-    if (myC.goldenBoot && oC.goldenBoot) { total++; if (myC.goldenBoot === oC.goldenBoot) same++; }
+    ['champion', 'midway', 'topScorer', 'goldenBoot'].forEach(key => {
+        total++;
+        if (myC[key] && oC[key] && myC[key] === oC[key]) same++;
+    });
 
-    for (const gid of Object.keys(groupsData)) {
-        const myG = _xGroupPred(myUid, gid);
-        const oG  = _xGroupPred(otherUid, gid);
-        if (!myG?.qualified?.length || !oG?.qualified?.length) continue;
-        myG.qualified.forEach(t => { total++; if (oG.qualified.includes(t)) same++; });
-    }
+    // Group qualifiers — 2 fixed slots per group, regardless of whether either side filled them in
+    Object.keys(groupsData || {}).forEach(gid => {
+        const myQ = _xGroupPred(myUid, gid)?.qualified || [];
+        const oQ  = _xGroupPred(otherUid, gid)?.qualified || [];
+        total += 2;
+        myQ.slice(0, 2).forEach(t => { if (t && oQ.includes(t)) same++; });
+    });
 
+    // Third-place picks — fixed at the 8 available slots
+    const THIRD_MAX = 8;
     const myT = _xThirdPicks(myUid);
     const oT  = _xThirdPicks(otherUid);
-    if (myT.length && oT.length) {
-        myT.forEach(t => { total++; if (oT.includes(t)) same++; });
-    }
+    total += THIRD_MAX;
+    myT.slice(0, THIRD_MAX).forEach(t => { if (t && oT.includes(t)) same++; });
 
-    // KO match predictions
-    const myKo = koAllPredsData[myUid] || {};
-    const oKo  = koAllPredsData[otherUid] || {};
-    for (const mid of Object.keys({...myKo, ...oKo})) {
-        const mp = myKo[mid], op = oKo[mid];
-        if (!mp || !op) continue;
-        if (mp.result90 && op.result90) { total++; if (mp.result90 === op.result90) same++; }
-        if (mp.advance  && op.advance)  { total++; if (mp.advance  === op.advance)  same++; }
-        if (mp.scorer   && op.scorer)   { total++; if (mp.scorer   === op.scorer)   same++; }
-        if (mp.exactScoreHome != null && mp.exactScoreAway != null && op.exactScoreHome != null && op.exactScoreAway != null) {
+    // KO match predictions — every match that exists (r32 has no exact-score field, r16+ has 4 items)
+    Object.entries(koMatchesData || {}).forEach(([mid, m]) => {
+        const mp = (koAllPredsData[myUid] || {})[mid] || {};
+        const op = (koAllPredsData[otherUid] || {})[mid] || {};
+        const isR16up = m.round !== 'r32';
+        total += isR16up ? 4 : 3;
+        if (mp.result90 && mp.result90 === op.result90) same++;
+        if (mp.advance && mp.advance === op.advance) same++;
+        if (mp.scorer && mp.scorer === op.scorer) same++;
+        if (isR16up && mp.exactScoreHome != null && op.exactScoreHome != null
+            && mp.exactScoreHome === op.exactScoreHome && mp.exactScoreAway === op.exactScoreAway) same++;
+    });
+
+    // Round-level special questions — every question that has actually been written, across every round
+    [
+        [r32SpecialsData, r32AllSpecialPredsData],
+        [r16SpecialsData, r16AllSpecialPredsData],
+        [qfSpecialsData, qfAllSpecialPredsData],
+        [sfSpecialsData, sfAllSpecialPredsData],
+    ].forEach(([qData, predData]) => {
+        Object.keys(qData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+            if (!qData[key]?.q) return;
             total++;
-            if (mp.exactScoreHome === op.exactScoreHome && mp.exactScoreAway === op.exactScoreAway) same++;
-        }
-    }
-
-    // R32/R16/QF special questions
-    const mySp32 = r32AllSpecialPredsData[myUid] || {};
-    const oSp32  = r32AllSpecialPredsData[otherUid] || {};
-    if (mySp32.q1 && oSp32.q1) { total++; if (mySp32.q1 === oSp32.q1) same++; }
-    if (mySp32.q2 && oSp32.q2) { total++; if (mySp32.q2 === oSp32.q2) same++; }
-
-    const mySp16 = r16AllSpecialPredsData[myUid] || {};
-    const oSp16  = r16AllSpecialPredsData[otherUid] || {};
-    if (mySp16.q1 && oSp16.q1) { total++; if (mySp16.q1 === oSp16.q1) same++; }
-    if (mySp16.q2 && oSp16.q2) { total++; if (mySp16.q2 === oSp16.q2) same++; }
-
-    const mySpQf = qfAllSpecialPredsData[myUid] || {};
-    const oSpQf  = qfAllSpecialPredsData[otherUid] || {};
-    Object.keys(qfSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
-        if (mySpQf[key] && oSpQf[key]) { total++; if (mySpQf[key] === oSpQf[key]) same++; }
+            const mv = (predData[myUid] || {})[key];
+            const ov = (predData[otherUid] || {})[key];
+            if (mv && mv === ov) same++;
+        });
     });
 
     return { same, total };
