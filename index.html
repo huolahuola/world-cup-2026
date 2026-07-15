@@ -4853,6 +4853,30 @@ window.generateRecapCard = async function(mode = 'quiz') {
         if (ci.longestNote && ci.longestNote !== ci.mostExciting) paragraphs.push(`而这段，大概是你写得最走心的一篇："${ci.longestNote.slice(0, 50)}"`);
     }
 
+    // Pick one genuine trait the numbers point to, and turn it into a small blessing —
+    // priority-ordered so each recap lands on a single, specific note instead of a checklist.
+    let trait = null;
+    if (isFull && ci && ci.total && ci.watched / ci.total >= 0.8) {
+        trait = { t: '有始有终、说到做到', b: '愿你在生活里也能这样，认定的事就坚持到底，收获属于自己的高光时刻。' };
+    } else if (uniqueCall) {
+        trait = { t: '独立思考、不随大流', b: '愿你往后的日子里也依然有勇气相信自己的判断，走出一条与众不同的路。' };
+    } else if (bestStreak >= 4) {
+        trait = { t: '专注沉稳，状态好的时候一往无前', b: '愿你在工作生活里也能找到自己的连胜节奏，把手感延续得更久一些。' };
+    } else if (loyaltyNote && loyaltyNote.includes('忠诚')) {
+        trait = { t: '笃定专一，认准了就不轻易改变', b: '愿你在感情和事业上都能保有这份笃定，不因外界的风吹草动而动摇。' };
+    } else if (loyaltyNote && loyaltyNote.includes('墙头草')) {
+        trait = { t: '灵活变通，愿意根据新信息调整判断', b: '愿你在生活里也能保持这份灵活，不固执己见，随时准备拥抱更好的答案。' };
+    } else if (bestTeam && bestTeam.pct === 1 && bestTeam.total >= 3) {
+        trait = { t: '眼光精准，看人看事很有一套', b: '愿你这份识人的眼光，也能用在生活里的重要选择上，越来越准。' };
+    } else if (magicNotes.some(n => n.startsWith('🃏 你对'))) {
+        trait = { t: '敢想敢干，善于把握关键时刻', b: '愿你在现实里也能这样大胆出手，抓住属于自己的机会。' };
+    } else if (isFull && ci && ci.noteCount >= 5) {
+        trait = { t: '热爱记录、认真生活', b: '愿你继续保持这份细腻，把日子过成一篇篇值得回看的笔记。' };
+    } else {
+        trait = { t: '热爱生活、享受过程', b: '愿你带着这份热情，继续奔赴下一个四年一度的约定。' };
+    }
+    paragraphs.push(`说到底，这些数字背后，藏着你${trait.t}的一面。${trait.b}`);
+
     paragraphs.push(`不管这份成绩单满不满意，感谢你陪伴这一届世界杯走到了这里。下一届，2030年见！`);
 
     // ── Canvas ──
