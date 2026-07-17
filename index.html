@@ -7372,7 +7372,10 @@ function renderFinalSpecialsCard() {
         const qNum = key.replace('q', '');
         return `<div class="mb-3">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
-                <p class="text-xs font-bold text-gray-200 flex-1">${qNum}. ${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
+                <p class="text-xs font-bold text-gray-200 flex-1 flex items-start gap-1.5">
+                    <span class="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-500/25 border border-purple-400/40 text-purple-200 text-[11px] font-black">${qNum}</span>
+                    <span>${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</span>
+                </p>
                 ${badge}
             </div>
             ${qData.author ? `<p class="text-[10px] text-gray-500 mb-1.5">🖊️ 出题人：${qData.author}</p>` : ''}
