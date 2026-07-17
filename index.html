@@ -7306,7 +7306,17 @@ function renderFinalSpecialsCard() {
     const _afterFinalDeadline = _finalDeadline ? _finalDeadline <= new Date() : false;
 
     function renderQ(key, qData) {
-        if (!qData?.q) return '';
+        if (!qData) return '';
+        if (!qData.q) {
+            const qNum = key.replace('q', '');
+            return `<div class="mb-3 opacity-60">
+                <div class="flex items-center gap-1.5 mb-1">
+                    <span class="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10 border border-white/15 text-gray-400 text-[11px] font-black">${qNum}</span>
+                    <p class="text-xs font-bold text-gray-500">题目待发布…</p>
+                </div>
+                ${qData.author ? `<p class="text-[10px] text-gray-500 ml-6.5">🖊️ 出题人：${qData.author}</p>` : ''}
+            </div>`;
+        }
         const opts = qData.opts || [];
         const isOpen = !!qData.open && !_afterFinalDeadline;
         const effectiveOpen = isOpen || _isUserUnlocked;
