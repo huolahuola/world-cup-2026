@@ -1258,6 +1258,9 @@ let qfAllSpecialPredsData = {};
 let sfSpecialsData    = {};
 let sfSpecialPredsData = {};
 let sfAllSpecialPredsData = {};
+let finalSpecialsData    = {};
+let finalSpecialPredsData = {};
+let finalAllSpecialPredsData = {};
 let r32MagicData = {};
 let r16MagicData = {};
 let qfMagicData = {};
@@ -1586,6 +1589,21 @@ function startApp() {
             renderLeaderboard();
             if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
+        onValue(ref(db, `rooms/${currentRoom}/finalspecials`), snap => {
+            finalSpecialsData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'final') renderKnockout();
+            renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/finalspecialPreds/${currentUser.id}`), snap => {
+            finalSpecialPredsData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'final') renderKnockout();
+        });
+        onValue(ref(db, `rooms/${currentRoom}/finalspecialPreds`), snap => {
+            finalAllSpecialPredsData = snap.exists() ? snap.val() : {};
+            renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
+        });
         onValue(ref(db, `rooms/${currentRoom}/ko/preds`), snap => {
             koAllPredsData = snap.exists() ? snap.val() : {};
             renderLeaderboard();
@@ -1788,9 +1806,10 @@ function renderKnockout() {
     const r16SpecialsHtml = currentKoRound === 'r16' ? renderR16SpecialsCard() : '';
     const qfSpecialsHtml  = currentKoRound === 'qf'  ? renderQfSpecialsCard()  : '';
     const sfSpecialsHtml  = currentKoRound === 'sf' ? renderSfSpecialsCard() : '';
+    const finalSpecialsHtml = currentKoRound === 'final' ? renderFinalSpecialsCard() : '';
     const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : currentKoRound === 'r16' ? _r16MagicBannerHtml() : currentKoRound === 'qf' ? _qfMagicBannerHtml() : '';
     const roundStatsHtml = renderRoundStats(currentKoRound, roundMatches);
-    container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + qfSpecialsHtml + sfSpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
+    container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + qfSpecialsHtml + sfSpecialsHtml + finalSpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
 }
 
 function _calcPredAccuracy(pred, result) {
@@ -1869,6 +1888,14 @@ function _calcRoundSpecialAccuracy(round, uid, userName) {
             const ans = sfAllSpecialPredsData[uid]?.[key] || null;
             if (ans && ans === q.answer) correct++;
         });
+    } else if (round === 'final') {
+        Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+            const q = finalSpecialsData[key];
+            if (!q?.settled || !q.answer) return;
+            total++;
+            const ans = finalAllSpecialPredsData[uid]?.[key] || null;
+            if (ans && ans === q.answer) correct++;
+        });
     }
     return { correct, total };
 }
@@ -1892,7 +1919,7 @@ function _calcOverallHitRate(uid, userName) {
         correct += acc.correct;
         total += acc.total;
     });
-    ['r32', 'r16', 'qf', 'sf'].forEach(rnd => {
+    ['r32', 'r16', 'qf', 'sf', 'final'].forEach(rnd => {
         const acc = _calcRoundSpecialAccuracy(rnd, uid, userName);
         correct += acc.correct;
         total += acc.total;
@@ -3279,11 +3306,13 @@ window.toggleKoCompletion = function() {
 // Round-aware accessors so the completion panel doesn't need manual edits every round
 function _roundSpecialsData(round) {
     return round === 'r32' ? r32SpecialsData : round === 'r16' ? r16SpecialsData
-         : round === 'qf'  ? qfSpecialsData  : round === 'sf'  ? sfSpecialsData : {};
+         : round === 'qf'  ? qfSpecialsData  : round === 'sf'  ? sfSpecialsData
+         : round === 'final' ? finalSpecialsData : {};
 }
 function _roundAllSpecialPredsData(round) {
     return round === 'r32' ? r32AllSpecialPredsData : round === 'r16' ? r16AllSpecialPredsData
-         : round === 'qf'  ? qfAllSpecialPredsData  : round === 'sf'  ? sfAllSpecialPredsData : {};
+         : round === 'qf'  ? qfAllSpecialPredsData  : round === 'sf'  ? sfAllSpecialPredsData
+         : round === 'final' ? finalAllSpecialPredsData : {};
 }
 
 function renderKoCompletionStatus() {
@@ -3398,6 +3427,8 @@ function renderLeaderboard() {
         const qfSpecPts    = Object.keys(qfSpecialsData||{}).filter(k=>/^q\d+$/.test(k)).reduce((sum,k)=>sum+(qfsp[k+'Points']||0),0);
         const sfsp         = sfAllSpecialPredsData[uid] || {};
         const sfSpecPts    = Object.keys(sfSpecialsData||{}).filter(k=>/^q\d+$/.test(k)).reduce((sum,k)=>sum+(sfsp[k+'Points']||0),0);
+        const finalsp      = finalAllSpecialPredsData[uid] || {};
+        const finalSpecPts = Object.keys(finalSpecialsData||{}).filter(k=>/^q\d+$/.test(k)).reduce((sum,k)=>sum+(finalsp[k+'Points']||0),0);
         const magicBreak   = _magicImpactBreakdown(uid, s.name);
         // Round columns show the score BEFORE magic (actual settled score minus that round's magic swing),
         // so magic gets its own additive column and every column in the row sums to the grand total.
@@ -3405,7 +3436,7 @@ function renderLeaderboard() {
         const r16Pts       = _koRoundPts(uid, 'r16') + r16SpecPts - magicBreak.r16;
         const qfPts        = _koRoundPts(uid, 'qf')  + qfSpecPts  - magicBreak.qf;
         const sfPts        = _koRoundPts(uid, 'sf')  + sfSpecPts;
-        const finalPts     = _koRoundPts(uid, 'final');
+        const finalPts     = _koRoundPts(uid, 'final') + finalSpecPts;
         const magicPts     = magicBreak.r32 + magicBreak.r16 + magicBreak.qf;
         const grandTotal   = s.total || 0;
         const isMe = s.name === currentUser.name;
@@ -4156,6 +4187,16 @@ function _scoreRange(uid) {
         if (stored != null) spEarned += stored;
         else if (sfsp[key]) { spPendingMax += sfSpPtsVal; spPendingCount++; }
     });
+    // Final specials
+    const finalsp = finalAllSpecialPredsData[uid] || {};
+    const finalSpPtsVal = roomSettingsData?.finalSpecialPts || 12;
+    Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+        const q = finalSpecialsData[key];
+        if (!q?.q) return;
+        const stored = finalsp[`${key}Points`];
+        if (stored != null) spEarned += stored;
+        else if (finalsp[key]) { spPendingMax += finalSpPtsVal; spPendingCount++; }
+    });
     if (spEarned) { earned += spEarned; lines.push({ label: `🃏 特别竞猜已结算`, val: spEarned, max: spEarned, done: true }); }
     if (spPendingCount) { maxAdd += spPendingMax; lines.push({ label: `🃏 特别竞猜待揭晓 (${spPendingCount}题)`, val: 0, max: spPendingMax, done: false }); }
 
@@ -4305,6 +4346,7 @@ function _calcSimilarity(myUid, otherUid) {
         [r16SpecialsData, r16AllSpecialPredsData],
         [qfSpecialsData, qfAllSpecialPredsData],
         [sfSpecialsData, sfAllSpecialPredsData],
+        [finalSpecialsData, finalAllSpecialPredsData],
     ].forEach(([qData, predData]) => {
         Object.keys(qData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
             const q = qData[key];
@@ -4722,9 +4764,9 @@ window.generateRecapCard = async function(mode = 'quiz') {
     const totalPlayers = allSorted.length;
     const myTotal = scoresData[uid]?.total || 0;
 
-    const roundLabels = { r32: '32进16', r16: '16进8', qf: '8进4', sf: '半决赛' };
+    const roundLabels = { r32: '32进16', r16: '16进8', qf: '8进4', sf: '半决赛', final: '决赛' };
     const roundStats = [];
-    for (const round of ['r32', 'r16', 'qf', 'sf']) {
+    for (const round of ['r32', 'r16', 'qf', 'sf', 'final']) {
         const roundMatches = Object.entries(koMatchesData).filter(([, m]) => m.round === round && m.status === 'finished' && m.result);
         if (!roundMatches.length) continue;
         let c = 0, t = 0;
@@ -7252,6 +7294,147 @@ function renderQfSpecialsCard() {
         </div>
     </div>`;
 }
+
+// ─── Final Special Questions (same shape as QF's) ──
+function renderFinalSpecialsCard() {
+    const qKeys = Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
+    if (!qKeys.length) return '';
+
+    const _unlockedNames = (roomSettingsData?.unlockedNames || '').split(',').map(n => n.trim()).filter(Boolean);
+    const _isUserUnlocked = currentUser && _unlockedNames.includes(currentUser.name);
+    const _finalDeadline = roomSettingsData?.finalDeadline ? new Date(roomSettingsData.finalDeadline) : null;
+    const _afterFinalDeadline = _finalDeadline ? _finalDeadline <= new Date() : false;
+
+    function renderQ(key, qData) {
+        if (!qData?.q) return '';
+        const opts = qData.opts || [];
+        const isOpen = !!qData.open && !_afterFinalDeadline;
+        const effectiveOpen = isOpen || _isUserUnlocked;
+        const isSettled = !!qData.settled;
+        const correctAns = qData.answer || null;
+        const myAns = finalSpecialPredsData[key] || null;
+        const myPts = finalSpecialPredsData[key + 'Points'];
+        const gotIt = isSettled && myAns && myAns === correctAns;
+
+        let badge = '';
+        if (isSettled) {
+            badge = gotIt
+                ? `<span class="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full border border-green-500/30">✅ +${myPts != null ? myPts : (roomSettingsData?.finalSpecialPts || 12)}分</span>`
+                : `<span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">❌ 未中</span>`;
+        } else if (!effectiveOpen) {
+            badge = '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>';
+        } else {
+            badge = '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">进行中</span>';
+        }
+
+        const optsHtml = opts.map(opt => {
+            const sel = myAns === opt;
+            const isCorrect = isSettled && opt === correctAns;
+            let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
+            if (isCorrect) cls += 'bg-green-500/20 border border-green-500/30 text-green-200';
+            else if (sel && isSettled) cls += 'bg-red-900/30 border border-red-500/20 text-gray-400 line-through';
+            else if (sel) cls += 'bg-purple-500/20 border border-purple-400/30 text-purple-200 cursor-pointer';
+            else cls += 'bg-white/5 border border-white/10 text-gray-300 ' + ((effectiveOpen && !isSettled) ? 'cursor-pointer' : '');
+            const escOpt = opt.replace(/"/g, '&quot;');
+            const radio = (effectiveOpen && !isSettled) ? `<input type="radio" name="finalsp_${key}" value="${escOpt}" ${myAns === opt ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
+            const tick = isCorrect ? '<span class="ml-auto text-xs text-green-400">✓</span>' : '';
+            return `<label class="${cls}">${radio}<span>${opt}</span>${tick}</label>`;
+        }).join('');
+
+        const SIM_EXCLUDE = ['小助手'];
+        const _nameOf = uid => scoresData[uid]?.name || usersTableData[uid]?.name || null;
+        const pubEntries = Object.entries(finalAllSpecialPredsData)
+            .filter(([uid, p]) => { const name = _nameOf(uid); return name && !SIM_EXCLUDE.includes(name) && p[key]; })
+            .map(([uid, p]) => {
+                const name = _nameOf(uid);
+                const eff = p[key] || null;
+                const isMe = currentUser?.id === uid || currentUser?.name === name;
+                const pts = p[key + 'Points'];
+                const correct = isSettled && eff === correctAns;
+                const wrong = isSettled && eff && eff !== correctAns;
+                return `<div class="flex items-center gap-1.5 py-0.5 border-b border-white/5 last:border-0 text-xs">
+                    <span class="font-bold flex-shrink-0 w-24 truncate ${isMe ? 'text-yellow-300' : 'text-gray-300'}">${_cn(name)}${isMe ? '↩' : ''}</span>
+                    <span class="flex-1 ${correct ? 'text-green-400' : wrong ? 'text-red-400 line-through' : 'text-gray-400'}">${eff || '–'}</span>
+                    ${pts != null ? `<span class="text-yellow-400 font-bold flex-shrink-0">+${pts}</span>` : ''}
+                </div>`;
+            });
+        const pubBodyId = `finalspPub-${key}`;
+        const pubChevId = `finalspPubChev-${key}`;
+        const pubOpen = document.getElementById(pubBodyId) && !document.getElementById(pubBodyId).classList.contains('hidden');
+        const pubHtml = ((isSettled || _afterFinalDeadline) && pubEntries.length) ? `<div class="mt-2 pt-2 border-t border-white/8">
+            <button onclick="toggleFinalSpecPub('${key}')" class="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                <span>👥 大家的选择（${pubEntries.length}人）</span>
+                <span id="${pubChevId}">${pubOpen ? '▼' : '▶'}</span>
+            </button>
+            <div id="${pubBodyId}" class="${pubOpen ? 'mt-1' : 'hidden'}">${pubEntries.join('')}</div>
+        </div>` : '';
+
+        return `<div class="mb-3">
+            <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
+                <p class="text-xs font-bold text-gray-200 flex-1">${(qData.q||'').split('\n').map((l,i)=>i===0?l:`<span class="text-gray-400 font-normal">${l}</span>`).join('<br>')}</p>
+                ${badge}
+            </div>
+            <div class="space-y-1.5">${optsHtml || '<p class="text-xs text-gray-500">选项设置中…</p>'}</div>
+            ${pubHtml}
+        </div>`;
+    }
+
+    const qAllHtml = qKeys.map(k => renderQ(k, finalSpecialsData[k])).join('');
+    const hasForm = qKeys.some(k => finalSpecialsData[k]?.open) && !qKeys.every(k => finalSpecialsData[k]?.settled);
+
+    const finalBodyEl = document.getElementById('finalSpecialsBody');
+    const wasOpen = finalBodyEl ? !finalBodyEl.classList.contains('hidden') : true;
+    return `<div class="glass rounded-2xl p-4 mb-3 border border-purple-500/20">
+        <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleFinalSpecialsCard()">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-lg">✨</span>
+                <p class="font-black text-sm text-white">决赛特别竞猜</p>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+${roomSettingsData?.finalSpecialPts || 12}分/题</span>
+                ${_afterFinalDeadline
+                    ? `<span class="deadline-chip">🔒 已截止</span>`
+                    : _finalDeadline ? `<span class="deadline-chip ${fmtCountdown(_finalDeadline) && _finalDeadline - new Date() < 3600000 ? 'soon' : 'ok'}">⏰ 截止 ${_finalDeadline.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}${fmtCountdown(_finalDeadline) ? ' · ' + fmtCountdown(_finalDeadline) : ''}</span>` : ''}
+            </div>
+            <span id="finalSpecChev" class="text-gray-500 text-xs">${wasOpen ? '▼' : '▶'}</span>
+        </div>
+        <div id="finalSpecialsBody" class="${wasOpen ? 'mt-3' : 'hidden'}">
+            ${qAllHtml}
+            ${hasForm ? '<button onclick="saveFinalSpecialPreds()" class="w-full mt-1 bg-purple-900/60 border border-purple-500/40 text-purple-200 font-bold py-2.5 rounded-xl text-sm">提交竞猜</button>' : ''}
+        </div>
+    </div>`;
+}
+
+window.saveFinalSpecialPreds = async function() {
+    if (!currentUser) { toast('请先登录', 'error'); return; }
+    const pred = {};
+    Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+        const radios = document.querySelectorAll(`input[name="finalsp_${key}"]`);
+        radios.forEach(r => { if (r.checked) pred[key] = r.value; });
+    });
+    if (!Object.keys(pred).length) { toast('请先选择选项', 'error'); return; }
+    const merged = { ...finalSpecialPredsData, ...pred };
+    finalSpecialPredsData = merged;
+    await set(ref(db, `rooms/${currentRoom}/finalspecialPreds/${currentUser.id}`), merged);
+    toast('✅ 竞猜已保存');
+    renderKnockout();
+};
+
+window.toggleFinalSpecPub = function(key) {
+    const body = document.getElementById(`finalspPub-${key}`);
+    const chev = document.getElementById(`finalspPubChev-${key}`);
+    if (!body) return;
+    const nowHidden = body.classList.toggle('hidden');
+    body.classList.toggle('mt-1', !nowHidden);
+    if (chev) chev.textContent = nowHidden ? '▶' : '▼';
+};
+
+window.toggleFinalSpecialsCard = function() {
+    const body = document.getElementById('finalSpecialsBody');
+    const chev = document.getElementById('finalSpecChev');
+    if (!body) return;
+    const nowHidden = body.classList.toggle('hidden');
+    body.classList.toggle('mt-3', !nowHidden);
+    if (chev) chev.textContent = nowHidden ? '▶' : '▼';
+};
 
 // Every this-round item (2 SF matches' 4 options each + the other special questions) with what
 // doubling it would be worth, for the "信心倍增" follow-up picker.
