@@ -2425,15 +2425,25 @@ window.submitKoPred = async function(matchId) {
     }
 };
 
-function calcKoPts(pred, result, round) {
+function calcKoPts(pred, result, round, opts = {}) {
     let pts = 0;
     const isSF    = round === 'sf';
     const isQF    = round && (round === 'qf' || round === 'final');
     const isR16up = round && round !== 'r32';
-    const r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-    const advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-    const scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
-    const exactPts  = isSF ? 12 : isQF ? 10 : 5;
+    // In the free/public room, the final round splits into two differently-weighted matches:
+    // the third-place match (40pts max) and the actual final (50pts max) — everywhere else the
+    // 'final' round uses the same flat qf-tier weights as before.
+    const useFinalRoomSplit = round === 'final' && opts.room === FREE_ROOM;
+    let r90Pts, advPts, scorerPts, exactPts;
+    if (useFinalRoomSplit) {
+        if (opts.isThirdPlace) { r90Pts = 8; advPts = 8; scorerPts = 12; exactPts = 12; }
+        else { r90Pts = 10; advPts = 10; scorerPts = 15; exactPts = 15; }
+    } else {
+        r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+        advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+        scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
+        exactPts  = isSF ? 12 : isQF ? 10 : 5;
+    }
     const specialPts = (isQF || isSF) ? (roomSettingsData?.qfSpecialPts || 12) : 5;
     if (pred.result90) {
         if (pred.result90 === result.outcome_90) pts += r90Pts;
@@ -2874,6 +2884,8 @@ window.submitKoResult = async function() {
     const advance = document.getElementById('koResAdvance')?.value || null;
     const match = koMatchesData[matchId];
     const isR16plus = match?.round && match.round !== 'r32';
+    const isThirdPlace = match?.round === 'final' && match.kickoff && Object.values(koMatchesData)
+        .some(m => m.round === 'final' && m.kickoff && new Date(m.kickoff) > new Date(match.kickoff));
     const s120hRaw = document.getElementById('koResScore120Home')?.value;
     const s120aRaw = document.getElementById('koResScore120Away')?.value;
     const score120Home = (isR16plus && s120hRaw !== '' && s120hRaw != null) ? parseInt(s120hRaw) : null;
@@ -2931,7 +2943,7 @@ window.submitKoResult = async function() {
                     else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
                     if (swapUid && allPreds[swapUid]?.[matchId]) pred = allPreds[swapUid][matchId];
                 }
-                const pts = calcKoPts(pred, result, match?.round);
+                const pts = calcKoPts(pred, result, match?.round, { room, isThirdPlace });
                 updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
                 const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
                 s.total = (s.total||0) + pts;
@@ -3112,6 +3124,8 @@ window.batchSubmitKoResults = async function() {
             if (!match) continue;
             const outcome_90 = homeScore > awayScore ? 'W' : homeScore < awayScore ? 'L' : 'D';
             const result = { homeScore, awayScore, outcome_90, advance, scorer: null, specials: null };
+            const isThirdPlace = match.round === 'final' && match.kickoff && Object.values(koMatchesData)
+                .some(m => m.round === 'final' && m.kickoff && new Date(m.kickoff) > new Date(match.kickoff));
             for (const room of [PRIZE_ROOM, FREE_ROOM]) {
                 updates[`rooms/${room}/ko/matches/${matchId}/status`] = 'finished';
                 updates[`rooms/${room}/ko/matches/${matchId}/result`] = result;
@@ -3129,7 +3143,7 @@ window.batchSubmitKoResults = async function() {
                         else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
                         if (swapUid && preds[swapUid]?.[matchId]) pred = preds[swapUid][matchId];
                     }
-                    const pts = calcKoPts(pred, result, match.round);
+                    const pts = calcKoPts(pred, result, match.round, { room, isThirdPlace });
                     updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
                     const s = scores[uid] || { name: '', total: 0 };
                     s.total = (s.total || 0) + pts;
