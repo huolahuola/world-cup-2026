@@ -1264,6 +1264,7 @@ let finalAllSpecialPredsData = {};
 let r32MagicData = {};
 let r16MagicData = {};
 let qfMagicData = {};
+let sfMagicData = {};
 let currentKoRound = 'r32';
 let _koRoundAutoSet = false;
 let presenceData   = {};
@@ -1628,6 +1629,12 @@ function startApp() {
             renderLeaderboard();
             if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
         });
+        onValue(ref(db, `rooms/${currentRoom}/sfmagic`), snap => {
+            sfMagicData = snap.exists() ? snap.val() : {};
+            if (!document.getElementById('content-knockout').classList.contains('hidden') && currentKoRound === 'sf') renderKnockout();
+            renderLeaderboard();
+            if (!document.getElementById('content-myPreds').classList.contains('hidden')) renderMyPreds();
+        });
 
         // ── Presence ──
         const myPresRef = ref(db, `rooms/${currentRoom}/presence/${currentUser.id}`);
@@ -1807,7 +1814,7 @@ function renderKnockout() {
     const qfSpecialsHtml  = currentKoRound === 'qf'  ? renderQfSpecialsCard()  : '';
     const sfSpecialsHtml  = currentKoRound === 'sf' ? renderSfSpecialsCard() : '';
     const finalSpecialsHtml = currentKoRound === 'final' ? renderFinalSpecialsCard() : '';
-    const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : currentKoRound === 'r16' ? _r16MagicBannerHtml() : currentKoRound === 'qf' ? _qfMagicBannerHtml() : '';
+    const magicBanner = currentKoRound === 'r32' ? _magicBannerHtml() : currentKoRound === 'r16' ? _r16MagicBannerHtml() : currentKoRound === 'qf' ? _qfMagicBannerHtml() : currentKoRound === 'sf' ? _sfMagicBannerHtml() : '';
     const roundStatsHtml = renderRoundStats(currentKoRound, roundMatches);
     container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + qfSpecialsHtml + sfSpecialsHtml + finalSpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
 }
@@ -6797,6 +6804,28 @@ function _qfMagicBannerHtml() {
 
     return `<div class="glass rounded-2xl p-4 mb-3 border border-amber-500/30 bg-amber-900/10">
         <div class="flex items-center gap-2 mb-2"><span class="text-base">✨</span><p class="font-black text-sm text-amber-300">本轮魔法牌效果</p></div>
+        ${items}
+    </div>`;
+}
+
+// ─── SF Magic banner (supports multiple simultaneous "多多1️⃣善" +1 attacks) ──
+function _sfMagicBannerHtml() {
+    const attacks = Object.values(sfMagicData || {}).filter(m => m.type === 'plus_one');
+    if (!attacks.length) return '';
+    const items = attacks.map((atk, i) => {
+        const impact = atk.impact || 0;
+        const color = impact < 0 ? 'text-red-400' : impact > 0 ? 'text-green-400' : 'text-gray-400';
+        return `<div class="flex items-start gap-2 text-xs ${i ? 'mt-3' : ''}">
+        <span class="text-2xl leading-none">🃏</span>
+        <div><span class="font-black text-pink-300">${atk.card || '多多1️⃣善'}</span>
+        <span class="text-gray-300"> · ${atk.caster} 使用</span>
+        <div class="text-gray-400 mt-0.5">➡ <b class="text-white">${atk.targetName}</b> 本轮所有数字类竞猜（比分、进球球衣号码）全部 +1</div>
+        <div class="mt-1"><span class="${color}">⚡ 法力值 ${impact>0?'+':''}${impact} 分</span> 作用于 ${atk.targetName}</div>
+        </div></div>`;
+    }).join('');
+
+    return `<div class="glass rounded-2xl p-4 mb-3 border border-pink-500/30 bg-pink-900/10">
+        <div class="flex items-center gap-2 mb-2"><span class="text-base">✨</span><p class="font-black text-sm text-pink-300">本轮魔法牌效果</p></div>
         ${items}
     </div>`;
 }
