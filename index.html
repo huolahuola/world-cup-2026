@@ -2064,8 +2064,14 @@ function renderKoMatchCard(matchId, match) {
         .map(m => new Date(m.kickoff).getTime());
     const earliestInRound = roundKickoffs.length ? Math.min(...roundKickoffs) : null;
     const autoDeadline = earliestInRound ? new Date(earliestInRound - 60 * 60 * 1000) : null;
+    // Within the 'final' round, two matches coexist (third-place + the actual final) with their own deadlines —
+    // the one with the earlier kickoff is always the third-place match (third place is always played before the final).
+    const isThirdPlaceMatch = match.round === 'final' && match.kickoff && Object.values(koMatchesData)
+        .some(m => m.round === 'final' && m.kickoff && new Date(m.kickoff) > new Date(match.kickoff));
     const customQfDeadline = (match.round === 'qf' && roomSettingsData?.qfDeadline) ? new Date(roomSettingsData.qfDeadline)
-        : (match.round === 'sf' && roomSettingsData?.sfDeadline) ? new Date(roomSettingsData.sfDeadline) : null;
+        : (match.round === 'sf' && roomSettingsData?.sfDeadline) ? new Date(roomSettingsData.sfDeadline)
+        : (match.round === 'final' && isThirdPlaceMatch && roomSettingsData?.thirdPlaceDeadline) ? new Date(roomSettingsData.thirdPlaceDeadline)
+        : (match.round === 'final' && !isThirdPlaceMatch && roomSettingsData?.finalMatchDeadline) ? new Date(roomSettingsData.finalMatchDeadline) : null;
     const roundDeadline = customQfDeadline || autoDeadline;
     const koUnlockUntil = roomSettingsData?.koUnlockUntil ? new Date(roomSettingsData.koUnlockUntil) : null;
     const unlockedNames = (roomSettingsData?.unlockedNames || '').split(',').map(n => n.trim()).filter(Boolean);
@@ -2089,7 +2095,7 @@ function renderKoMatchCard(matchId, match) {
     } else {
         statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${_kickoffStr(kickoff)}</span>`;
     }
-    const deadlineBadge = ((match.round === 'qf' || match.round === 'sf') && customQfDeadline && !finished)
+    const deadlineBadge = ((match.round === 'qf' || match.round === 'sf' || match.round === 'final') && customQfDeadline && !finished)
         ? (afterQfDeadline
             ? `<span class="deadline-chip">🔒 已截止</span>`
             : `<span class="deadline-chip ${customQfDeadline - new Date() < 3600000 ? 'soon' : 'ok'}">⏰ 截止 ${customQfDeadline.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}${fmtCountdown(customQfDeadline) ? ' · ' + fmtCountdown(customQfDeadline) : ''}</span>`)
