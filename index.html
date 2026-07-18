@@ -1889,9 +1889,11 @@ function _calcRoundSpecialAccuracy(round, uid, userName) {
             if (ans && ans === q.answer) correct++;
         });
     } else if (round === 'final') {
+        // The 信心倍增 question (and any other dropdown-style choice question) has no correct
+        // answer to grade — only count the graded Y/N trivia questions
         Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
             const q = finalSpecialsData[key];
-            if (!q?.settled || !q.answer) return;
+            if (!q?.settled || !q.answer || (q.q || '').includes('信心倍增') || (q.opts && q.opts.length > 4)) return;
             total++;
             const ans = finalAllSpecialPredsData[uid]?.[key] || null;
             if (ans && ans === q.answer) correct++;
@@ -2064,8 +2066,14 @@ function renderKoMatchCard(matchId, match) {
         .map(m => new Date(m.kickoff).getTime());
     const earliestInRound = roundKickoffs.length ? Math.min(...roundKickoffs) : null;
     const autoDeadline = earliestInRound ? new Date(earliestInRound - 60 * 60 * 1000) : null;
+    // Within the 'final' round, two matches coexist (third-place + the actual final) with their own deadlines —
+    // the one with the earlier kickoff is always the third-place match (third place is always played before the final).
+    const isThirdPlaceMatch = match.round === 'final' && match.kickoff && Object.values(koMatchesData)
+        .some(m => m.round === 'final' && m.kickoff && new Date(m.kickoff) > new Date(match.kickoff));
     const customQfDeadline = (match.round === 'qf' && roomSettingsData?.qfDeadline) ? new Date(roomSettingsData.qfDeadline)
-        : (match.round === 'sf' && roomSettingsData?.sfDeadline) ? new Date(roomSettingsData.sfDeadline) : null;
+        : (match.round === 'sf' && roomSettingsData?.sfDeadline) ? new Date(roomSettingsData.sfDeadline)
+        : (match.round === 'final' && isThirdPlaceMatch && roomSettingsData?.thirdPlaceDeadline) ? new Date(roomSettingsData.thirdPlaceDeadline)
+        : (match.round === 'final' && !isThirdPlaceMatch && roomSettingsData?.finalMatchDeadline) ? new Date(roomSettingsData.finalMatchDeadline) : null;
     const roundDeadline = customQfDeadline || autoDeadline;
     const koUnlockUntil = roomSettingsData?.koUnlockUntil ? new Date(roomSettingsData.koUnlockUntil) : null;
     const unlockedNames = (roomSettingsData?.unlockedNames || '').split(',').map(n => n.trim()).filter(Boolean);
@@ -2089,7 +2097,7 @@ function renderKoMatchCard(matchId, match) {
     } else {
         statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${_kickoffStr(kickoff)}</span>`;
     }
-    const deadlineBadge = ((match.round === 'qf' || match.round === 'sf') && customQfDeadline && !finished)
+    const deadlineBadge = ((match.round === 'qf' || match.round === 'sf' || match.round === 'final') && customQfDeadline && !finished)
         ? (afterQfDeadline
             ? `<span class="deadline-chip">🔒 已截止</span>`
             : `<span class="deadline-chip ${customQfDeadline - new Date() < 3600000 ? 'soon' : 'ok'}">⏰ 截止 ${customQfDeadline.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}${fmtCountdown(customQfDeadline) ? ' · ' + fmtCountdown(customQfDeadline) : ''}</span>`)
@@ -2243,10 +2251,17 @@ function renderKoMatchCard(matchId, match) {
         const isR16form = match.round !== 'r32';
         const isSFform  = match.round === 'sf';
         const isQFform  = match.round === 'qf' || match.round === 'final';
-        const r90Pts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
-        const advPts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
-        const scorerPts = isSFform ? 12 : isQFform ? 8 : isR16form ? 5 : 4;
-        const exactPts  = isSFform ? 12 : isQFform ? 10 : 5;
+        const useFinalRoomSplitForm = match.round === 'final' && currentRoom === FREE_ROOM;
+        let r90Pts, advPts, scorerPts, exactPts;
+        if (useFinalRoomSplitForm) {
+            if (isThirdPlaceMatch) { r90Pts = 8; advPts = 8; scorerPts = 12; exactPts = 12; }
+            else { r90Pts = 10; advPts = 10; scorerPts = 15; exactPts = 15; }
+        } else {
+            r90Pts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
+            advPts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
+            scorerPts = isSFform ? 12 : isQFform ? 8 : isR16form ? 5 : 4;
+            exactPts  = isSFform ? 12 : isQFform ? 10 : 5;
+        }
         const r90PtsLabel    = `+${r90Pts}分`;
         const advPtsLabel    = `+${advPts}分`;
         const scorerPtsLabel = `+${scorerPts}分`;
@@ -2419,15 +2434,25 @@ window.submitKoPred = async function(matchId) {
     }
 };
 
-function calcKoPts(pred, result, round) {
+function calcKoPts(pred, result, round, opts = {}) {
     let pts = 0;
     const isSF    = round === 'sf';
     const isQF    = round && (round === 'qf' || round === 'final');
     const isR16up = round && round !== 'r32';
-    const r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-    const advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-    const scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
-    const exactPts  = isSF ? 12 : isQF ? 10 : 5;
+    // In the free/public room, the final round splits into two differently-weighted matches:
+    // the third-place match (40pts max) and the actual final (50pts max) — everywhere else the
+    // 'final' round uses the same flat qf-tier weights as before.
+    const useFinalRoomSplit = round === 'final' && opts.room === FREE_ROOM;
+    let r90Pts, advPts, scorerPts, exactPts;
+    if (useFinalRoomSplit) {
+        if (opts.isThirdPlace) { r90Pts = 8; advPts = 8; scorerPts = 12; exactPts = 12; }
+        else { r90Pts = 10; advPts = 10; scorerPts = 15; exactPts = 15; }
+    } else {
+        r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+        advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+        scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
+        exactPts  = isSF ? 12 : isQF ? 10 : 5;
+    }
     const specialPts = (isQF || isSF) ? (roomSettingsData?.qfSpecialPts || 12) : 5;
     if (pred.result90) {
         if (pred.result90 === result.outcome_90) pts += r90Pts;
@@ -2868,6 +2893,8 @@ window.submitKoResult = async function() {
     const advance = document.getElementById('koResAdvance')?.value || null;
     const match = koMatchesData[matchId];
     const isR16plus = match?.round && match.round !== 'r32';
+    const isThirdPlace = match?.round === 'final' && match.kickoff && Object.values(koMatchesData)
+        .some(m => m.round === 'final' && m.kickoff && new Date(m.kickoff) > new Date(match.kickoff));
     const s120hRaw = document.getElementById('koResScore120Home')?.value;
     const s120aRaw = document.getElementById('koResScore120Away')?.value;
     const score120Home = (isR16plus && s120hRaw !== '' && s120hRaw != null) ? parseInt(s120hRaw) : null;
@@ -2925,7 +2952,7 @@ window.submitKoResult = async function() {
                     else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
                     if (swapUid && allPreds[swapUid]?.[matchId]) pred = allPreds[swapUid][matchId];
                 }
-                const pts = calcKoPts(pred, result, match?.round);
+                const pts = calcKoPts(pred, result, match?.round, { room, isThirdPlace });
                 updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
                 const s = allScores[uid] || { name:'', total:0, exact:0, correct:0, wrong:0 };
                 s.total = (s.total||0) + pts;
@@ -3106,6 +3133,8 @@ window.batchSubmitKoResults = async function() {
             if (!match) continue;
             const outcome_90 = homeScore > awayScore ? 'W' : homeScore < awayScore ? 'L' : 'D';
             const result = { homeScore, awayScore, outcome_90, advance, scorer: null, specials: null };
+            const isThirdPlace = match.round === 'final' && match.kickoff && Object.values(koMatchesData)
+                .some(m => m.round === 'final' && m.kickoff && new Date(m.kickoff) > new Date(match.kickoff));
             for (const room of [PRIZE_ROOM, FREE_ROOM]) {
                 updates[`rooms/${room}/ko/matches/${matchId}/status`] = 'finished';
                 updates[`rooms/${room}/ko/matches/${matchId}/result`] = result;
@@ -3123,7 +3152,7 @@ window.batchSubmitKoResults = async function() {
                         else if (uName === mgSwap.player2Name) swapUid = nameToUid[mgSwap.player1Name];
                         if (swapUid && preds[swapUid]?.[matchId]) pred = preds[swapUid][matchId];
                     }
-                    const pts = calcKoPts(pred, result, match.round);
+                    const pts = calcKoPts(pred, result, match.round, { room, isThirdPlace });
                     updates[`rooms/${room}/ko/preds/${uid}/${matchId}/points`] = pts;
                     const s = scores[uid] || { name: '', total: 0 };
                     s.total = (s.total || 0) + pts;
@@ -4140,10 +4169,18 @@ function _scoreRange(uid) {
         const isSF = m.round === 'sf';
         const isQF = m.round === 'qf' || m.round === 'final';
         const isR16up = m.round !== 'r32';
-        const r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-        const advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-        const scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
-        const exactPts  = isSF ? 12 : isQF ? 10 : 5;
+        const isThirdPlace = m.round === 'final' && m.kickoff && Object.values(koMatchesData)
+            .some(om => om.round === 'final' && om.kickoff && new Date(om.kickoff) > new Date(m.kickoff));
+        let r90Pts, advPts, scorerPts, exactPts;
+        if (m.round === 'final' && currentRoom === FREE_ROOM) {
+            if (isThirdPlace) { r90Pts = 8; advPts = 8; scorerPts = 12; exactPts = 12; }
+            else { r90Pts = 10; advPts = 10; scorerPts = 15; exactPts = 15; }
+        } else {
+            r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+            advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+            scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
+            exactPts  = isSF ? 12 : isQF ? 10 : 5;
+        }
         let mx = 0;
         if (p.result90) mx += r90Pts;
         if (p.advance) mx += advPts;
@@ -4187,12 +4224,12 @@ function _scoreRange(uid) {
         if (stored != null) spEarned += stored;
         else if (sfsp[key]) { spPendingMax += sfSpPtsVal; spPendingCount++; }
     });
-    // Final specials
+    // Final specials — skip the 信心倍增 choice question and any dropdown-style (non-graded) question
     const finalsp = finalAllSpecialPredsData[uid] || {};
     const finalSpPtsVal = roomSettingsData?.finalSpecialPts || 12;
     Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
         const q = finalSpecialsData[key];
-        if (!q?.q) return;
+        if (!q?.q || q.q.includes('信心倍增') || (q.opts && q.opts.length > 4)) return;
         const stored = finalsp[`${key}Points`];
         if (stored != null) spEarned += stored;
         else if (finalsp[key]) { spPendingMax += finalSpPtsVal; spPendingCount++; }
@@ -4789,7 +4826,14 @@ window.generateRecapCard = async function(mode = 'quiz') {
             const isSF = m.round === 'sf';
             const isQF = m.round === 'qf' || m.round === 'final';
             const isR16up = m.round !== 'r32';
-            const maxPts = isSF ? 40 : isQF ? 30 : isR16up ? 16 : 8; // 8/8/12/12, 6/6/8/10, 3/3/5/5, 2/2/4 summed
+            let maxPts; // 8/8/12/12, 6/6/8/10, 3/3/5/5, 2/2/4 summed (final round in the public room splits into 40/50)
+            if (m.round === 'final' && currentRoom === FREE_ROOM) {
+                const isThirdPlace = m.kickoff && Object.values(koMatchesData)
+                    .some(om => om.round === 'final' && om.kickoff && new Date(om.kickoff) > new Date(m.kickoff));
+                maxPts = isThirdPlace ? 40 : 50;
+            } else {
+                maxPts = isSF ? 40 : isQF ? 30 : isR16up ? 16 : 8;
+            }
             bestMatch = { points: p.points, maxPts, label: `${m.home}vs${m.away}` };
         }
     });
@@ -7296,6 +7340,32 @@ function renderQfSpecialsCard() {
 }
 
 // ─── Final Special Questions (same shape as QF's) ──
+// Every this-round item (final-round matches' 4 options each, weighted by third-place/final split,
+// plus the other special questions) with what doubling it would be worth, for the "信心倍增" follow-up picker.
+function _finalDoubleChoiceOptions(excludeKey) {
+    const specialPts = roomSettingsData?.finalSpecialPts || 12;
+    const opts = [];
+    const finalMatches = Object.entries(koMatchesData)
+        .filter(([, m]) => m.round === 'final')
+        .sort((a, b) => (a[1].kickoff || '').localeCompare(b[1].kickoff || ''));
+    finalMatches.forEach(([, m]) => {
+        const isThirdPlace = m.kickoff && finalMatches.some(([, om]) => om.kickoff && new Date(om.kickoff) > new Date(m.kickoff));
+        const [r90, adv, scorer, exact] = isThirdPlace ? [8, 8, 12, 12] : [10, 10, 15, 15];
+        const label = `${m.home}vs${m.away}`;
+        opts.push(`${label}-90分钟结果 (${r90}→${r90 * 2}分)`);
+        opts.push(`${label}-晋级球队 (${adv}→${adv * 2}分)`);
+        opts.push(`${label}-首开纪录 (${scorer}→${scorer * 2}分)`);
+        opts.push(`${label}-精确比分 (${exact}→${exact * 2}分)`);
+    });
+    Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k) && k !== excludeKey).sort().forEach(k => {
+        const q = finalSpecialsData[k];
+        if (!q?.q || (q.opts && q.opts.length > 4)) return; // skip other dropdown-style (non-graded) questions
+        const shortQ = q.q.split('\n')[0].slice(0, 20) + (q.q.length > 20 ? '…' : '');
+        opts.push(`特别竞猜「${shortQ}」 (${specialPts}→${specialPts * 2}分)`);
+    });
+    return opts;
+}
+
 function renderFinalSpecialsCard() {
     const qKeys = Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k)).sort();
     if (!qKeys.length) return '';
@@ -7325,31 +7395,46 @@ function renderFinalSpecialsCard() {
         const myAns = finalSpecialPredsData[key] || null;
         const myPts = finalSpecialPredsData[key + 'Points'];
         const gotIt = isSettled && myAns && myAns === correctAns;
+        const isConfidenceQ = (qData.q || '').includes('信心倍增');
+        const gradeable = !isConfidenceQ;
 
         let badge = '';
-        if (isSettled) {
-            badge = gotIt
-                ? `<span class="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full border border-green-500/30">✅ +${myPts != null ? myPts : (roomSettingsData?.finalSpecialPts || 12)}分</span>`
-                : `<span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">❌ 未中</span>`;
-        } else if (!effectiveOpen) {
-            badge = '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>';
+        if (gradeable) {
+            if (isSettled) {
+                badge = gotIt
+                    ? `<span class="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full border border-green-500/30">✅ +${myPts != null ? myPts : (roomSettingsData?.finalSpecialPts || 12)}分</span>`
+                    : `<span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">❌ 未中</span>`;
+            } else if (!effectiveOpen) {
+                badge = '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>';
+            } else {
+                badge = '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">进行中</span>';
+            }
         } else {
-            badge = '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">进行中</span>';
+            badge = myAns
+                ? '<span class="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">已提交</span>'
+                : (effectiveOpen ? '<span class="text-xs bg-purple-400/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-400/30">待选择</span>' : '<span class="text-xs bg-gray-700/60 text-gray-500 px-2 py-0.5 rounded-full">🔒 已截止</span>');
         }
 
-        const optsHtml = opts.map(opt => {
-            const sel = myAns === opt;
-            const isCorrect = isSettled && opt === correctAns;
-            let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
-            if (isCorrect) cls += 'bg-green-500/20 border border-green-500/30 text-green-200';
-            else if (sel && isSettled) cls += 'bg-red-900/30 border border-red-500/20 text-gray-400 line-through';
-            else if (sel) cls += 'bg-purple-500/20 border border-purple-400/30 text-purple-200 cursor-pointer';
-            else cls += 'bg-white/5 border border-white/10 text-gray-300 ' + ((effectiveOpen && !isSettled) ? 'cursor-pointer' : '');
-            const escOpt = opt.replace(/"/g, '&quot;');
-            const radio = (effectiveOpen && !isSettled) ? `<input type="radio" name="finalsp_${key}" value="${escOpt}" ${myAns === opt ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
-            const tick = isCorrect ? '<span class="ml-auto text-xs text-green-400">✓</span>' : '';
-            return `<label class="${cls}">${radio}<span>${opt}</span>${tick}</label>`;
-        }).join('');
+        // The 信心倍增 question is answered directly as a dropdown — everyone gets one free
+        // pick of which item to double, no separate "do you want to use it" gate beforehand
+        const optsHtml = isConfidenceQ
+            ? `<select id="finalsp-select-${key}" data-key="${key}" class="w-full glass-dark rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none" ${effectiveOpen ? '' : 'disabled'}>
+                <option value="">— 请选择 —</option>
+                ${_finalDoubleChoiceOptions(key).concat(['不使用']).map(opt => `<option value="${opt.replace(/"/g, '&quot;')}" ${myAns === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+              </select>`
+            : opts.map(opt => {
+                const sel = myAns === opt;
+                const isCorrect = isSettled && opt === correctAns;
+                let cls = 'flex items-center gap-2 px-3 py-2 rounded-xl text-sm ';
+                if (isCorrect) cls += 'bg-green-500/20 border border-green-500/30 text-green-200';
+                else if (sel && isSettled) cls += 'bg-red-900/30 border border-red-500/20 text-gray-400 line-through';
+                else if (sel) cls += 'bg-purple-500/20 border border-purple-400/30 text-purple-200 cursor-pointer';
+                else cls += 'bg-white/5 border border-white/10 text-gray-300 ' + ((effectiveOpen && !isSettled) ? 'cursor-pointer' : '');
+                const escOpt = opt.replace(/"/g, '&quot;');
+                const radio = (effectiveOpen && !isSettled) ? `<input type="radio" name="finalsp_${key}" value="${escOpt}" ${myAns === opt ? 'checked' : ''} class="accent-purple-400 shrink-0">` : '';
+                const tick = isCorrect ? '<span class="ml-auto text-xs text-green-400">✓</span>' : '';
+                return `<label class="${cls}">${radio}<span>${opt}</span>${tick}</label>`;
+            }).join('');
 
         const SIM_EXCLUDE = ['小助手'];
         const _nameOf = uid => scoresData[uid]?.name || usersTableData[uid]?.name || null;
@@ -7404,7 +7489,7 @@ function renderFinalSpecialsCard() {
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-lg">✨</span>
                 <p class="font-black text-sm text-white">决赛特别竞猜</p>
-                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+${roomSettingsData?.finalSpecialPts || 12}分/题</span>
+                <span class="text-xs text-purple-300 bg-purple-400/10 px-2 py-0.5 rounded-full border border-purple-400/20">+${roomSettingsData?.finalSpecialPts || 12}分/题（信心倍增除外）</span>
                 ${_afterFinalDeadline
                     ? `<span class="deadline-chip">🔒 已截止</span>`
                     : _finalDeadline ? `<span class="deadline-chip ${fmtCountdown(_finalDeadline) && _finalDeadline - new Date() < 3600000 ? 'soon' : 'ok'}">⏰ 截止 ${_finalDeadline.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}${fmtCountdown(_finalDeadline) ? ' · ' + fmtCountdown(_finalDeadline) : ''}</span>` : ''}
@@ -7422,6 +7507,8 @@ window.saveFinalSpecialPreds = async function() {
     if (!currentUser) { toast('请先登录', 'error'); return; }
     const pred = {};
     Object.keys(finalSpecialsData || {}).filter(k => /^q\d+$/.test(k)).forEach(key => {
+        const select = document.getElementById(`finalsp-select-${key}`);
+        if (select) { if (select.value) pred[key] = select.value; return; }
         const radios = document.querySelectorAll(`input[name="finalsp_${key}"]`);
         radios.forEach(r => { if (r.checked) pred[key] = r.value; });
     });
