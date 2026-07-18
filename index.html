@@ -2251,10 +2251,17 @@ function renderKoMatchCard(matchId, match) {
         const isR16form = match.round !== 'r32';
         const isSFform  = match.round === 'sf';
         const isQFform  = match.round === 'qf' || match.round === 'final';
-        const r90Pts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
-        const advPts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
-        const scorerPts = isSFform ? 12 : isQFform ? 8 : isR16form ? 5 : 4;
-        const exactPts  = isSFform ? 12 : isQFform ? 10 : 5;
+        const useFinalRoomSplitForm = match.round === 'final' && currentRoom === FREE_ROOM;
+        let r90Pts, advPts, scorerPts, exactPts;
+        if (useFinalRoomSplitForm) {
+            if (isThirdPlaceMatch) { r90Pts = 8; advPts = 8; scorerPts = 12; exactPts = 12; }
+            else { r90Pts = 10; advPts = 10; scorerPts = 15; exactPts = 15; }
+        } else {
+            r90Pts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
+            advPts    = isSFform ? 8 : isQFform ? 6 : isR16form ? 3 : 2;
+            scorerPts = isSFform ? 12 : isQFform ? 8 : isR16form ? 5 : 4;
+            exactPts  = isSFform ? 12 : isQFform ? 10 : 5;
+        }
         const r90PtsLabel    = `+${r90Pts}分`;
         const advPtsLabel    = `+${advPts}分`;
         const scorerPtsLabel = `+${scorerPts}分`;
@@ -4162,10 +4169,18 @@ function _scoreRange(uid) {
         const isSF = m.round === 'sf';
         const isQF = m.round === 'qf' || m.round === 'final';
         const isR16up = m.round !== 'r32';
-        const r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-        const advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
-        const scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
-        const exactPts  = isSF ? 12 : isQF ? 10 : 5;
+        const isThirdPlace = m.round === 'final' && m.kickoff && Object.values(koMatchesData)
+            .some(om => om.round === 'final' && om.kickoff && new Date(om.kickoff) > new Date(m.kickoff));
+        let r90Pts, advPts, scorerPts, exactPts;
+        if (m.round === 'final' && currentRoom === FREE_ROOM) {
+            if (isThirdPlace) { r90Pts = 8; advPts = 8; scorerPts = 12; exactPts = 12; }
+            else { r90Pts = 10; advPts = 10; scorerPts = 15; exactPts = 15; }
+        } else {
+            r90Pts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+            advPts    = isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2;
+            scorerPts = isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4;
+            exactPts  = isSF ? 12 : isQF ? 10 : 5;
+        }
         let mx = 0;
         if (p.result90) mx += r90Pts;
         if (p.advance) mx += advPts;
@@ -4811,7 +4826,14 @@ window.generateRecapCard = async function(mode = 'quiz') {
             const isSF = m.round === 'sf';
             const isQF = m.round === 'qf' || m.round === 'final';
             const isR16up = m.round !== 'r32';
-            const maxPts = isSF ? 40 : isQF ? 30 : isR16up ? 16 : 8; // 8/8/12/12, 6/6/8/10, 3/3/5/5, 2/2/4 summed
+            let maxPts; // 8/8/12/12, 6/6/8/10, 3/3/5/5, 2/2/4 summed (final round in the public room splits into 40/50)
+            if (m.round === 'final' && currentRoom === FREE_ROOM) {
+                const isThirdPlace = m.kickoff && Object.values(koMatchesData)
+                    .some(om => om.round === 'final' && om.kickoff && new Date(om.kickoff) > new Date(m.kickoff));
+                maxPts = isThirdPlace ? 40 : 50;
+            } else {
+                maxPts = isSF ? 40 : isQF ? 30 : isR16up ? 16 : 8;
+            }
             bestMatch = { points: p.points, maxPts, label: `${m.home}vs${m.away}` };
         }
     });
