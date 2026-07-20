@@ -4817,9 +4817,13 @@ window.generateRecapCard = async function(mode = 'quiz') {
     const allSorted = Object.entries(_allScoreEntries())
         .filter(([, s]) => s.name && s.name !== '小助手')
         .sort((a, b) => (b[1].total || 0) - (a[1].total || 0));
-    const myRank = allSorted.findIndex(([u]) => u === uid) + 1;
-    const totalPlayers = allSorted.length;
     const myTotal = scoresData[uid]?.total || 0;
+    // Competition ranking (1224-style): a tie shares the same rank number instead of being split
+    // into consecutive ranks by array position — if two people both have the room's 3rd-highest
+    // total, both are "并列第3名", not one 3rd and one 4th.
+    const myRank = allSorted.filter(([, s]) => (s.total || 0) > myTotal).length + 1;
+    const myRankTied = allSorted.filter(([, s]) => (s.total || 0) === myTotal).length > 1;
+    const totalPlayers = allSorted.length;
 
     const roundLabels = { r32: '32进16', r16: '16进8', qf: '8进4', sf: '半决赛', final: '决赛' };
     const roundStats = [];
@@ -5266,7 +5270,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
 
     // Note: person names are never wrapped in HL() here — highlighting a Chinese name in red is a cultural taboo
     paragraphs.push(`亲爱的${name}，恭喜你完成了这趟四年一度的旅途——2026美加墨世界杯，感觉还好吗？还是一言难尽？`);
-    paragraphs.push(`这一路你一共命中了${HL(hitRate.correct + '次')}预测（命中率${HL(pct + '%')}），最终定格在${HL('第' + myRank + '名')}（共${totalPlayers}人），攒下了${HL(myTotal + '分')}。`);
+    paragraphs.push(`这一路你一共命中了${HL(hitRate.correct + '次')}预测（命中率${HL(pct + '%')}），最终定格在${HL((myRankTied ? '并列第' : '第') + myRank + '名')}（共${totalPlayers}人），攒下了${HL(myTotal + '分')}。`);
 
     let p3 = '';
     if (bestRound) p3 += `发挥最稳的是${HL(roundLabels[bestRound.round] || bestRound.round)}这一轮，命中率高达${HL(Math.round(bestRound.pct*100) + '%')}。`;
