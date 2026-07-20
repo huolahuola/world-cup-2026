@@ -1812,30 +1812,37 @@ function renderKnockout() {
     container.innerHTML = roundStatsHtml + magicBanner + r32SpecialsHtml + r16SpecialsHtml + qfSpecialsHtml + sfSpecialsHtml + finalSpecialsHtml + roundMatches.map(([mid,m]) => renderKoMatchCard(mid, m)).join('');
 }
 
-function _calcPredAccuracy(pred, result) {
+// Fixed-schema accuracy: every applicable slot for this match counts toward `total`
+// regardless of whether the user actually filled it in (a blank counts as a miss) —
+// this keeps the denominator in lockstep with _calcSimilarity's fixed question count.
+function _calcPredAccuracy(pred, match) {
     let correct = 0, total = 0;
-    if (!pred || !result) return { correct, total };
-    if (pred.result90) {
+    const result = match?.result;
+    if (!result) return { correct, total };
+    pred = pred || {};
+    const isR16up = match.round !== 'r32';
+
+    total++;
+    if (pred.result90 && pred.result90 === result.outcome_90) correct++;
+
+    total++;
+    if (pred.advance && pred.advance === result.advance) correct++;
+
+    total++;
+    if (pred.scorer && pred.scorer === result.scorer) correct++;
+
+    if (isR16up) {
         total++;
-        if (pred.result90 === result.outcome_90) correct++;
+        if (pred.exactScoreHome != null && pred.exactScoreAway != null &&
+            result.score120Home != null && result.score120Away != null &&
+            pred.exactScoreHome === result.score120Home && pred.exactScoreAway === result.score120Away) correct++;
     }
-    if (pred.advance) {
-        total++;
-        if (pred.advance === result.advance) correct++;
-    }
-    if (pred.scorer) {
-        total++;
-        if (pred.scorer === result.scorer) correct++;
-    }
-    if (pred.exactScoreHome != null && pred.exactScoreAway != null && result.homeScore != null) {
-        total++;
-        if (pred.exactScoreHome === result.homeScore && pred.exactScoreAway === result.awayScore) correct++;
-    }
-    if (pred.specials && result.specials) {
+
+    if (result.specials) {
         for (const [key, ans] of Object.entries(result.specials)) {
-            if (!ans || pred.specials[key] === undefined) continue;
+            if (!ans) continue;
             total++;
-            if (pred.specials[key] === ans) correct++;
+            if (pred.specials && pred.specials[key] === ans) correct++;
         }
     }
     return { correct, total };
@@ -1915,7 +1922,7 @@ function _calcOverallHitRate(uid, userName) {
             else if (userName === swap.player2Name) effUid = nameToUid[swap.player1Name] || uid;
         }
         const pred = koAllPredsData[effUid]?.[mid];
-        const acc = _calcPredAccuracy(pred, m.result);
+        const acc = _calcPredAccuracy(pred, m);
         correct += acc.correct;
         total += acc.total;
     });
@@ -1967,7 +1974,7 @@ function renderRoundStats(round, roundMatches) {
             const { pred } = isR32
                 ? _magicEffectiveKoPred(currentUser.name, mid)
                 : { pred: koPredsData[mid] || null };
-            const { correct, total } = _calcPredAccuracy(pred, match.result);
+            const { correct, total } = _calcPredAccuracy(pred, match);
             myCorrect += correct;
             myTotal += total;
         }
@@ -1989,7 +1996,7 @@ function renderRoundStats(round, roundMatches) {
                     else if (s.name === swap.player2Name) effUid = nameToUid[swap.player1Name] || uid;
                 }
                 const pred = koAllPredsData[effUid]?.[mid];
-                const acc = _calcPredAccuracy(pred, match.result);
+                const acc = _calcPredAccuracy(pred, match);
                 correct += acc.correct;
                 total += acc.total;
             }
@@ -2064,8 +2071,14 @@ function renderKoMatchCard(matchId, match) {
         .map(m => new Date(m.kickoff).getTime());
     const earliestInRound = roundKickoffs.length ? Math.min(...roundKickoffs) : null;
     const autoDeadline = earliestInRound ? new Date(earliestInRound - 60 * 60 * 1000) : null;
+    // Within the 'final' round, two matches coexist (third-place + the actual final) with their own deadlines —
+    // the one with the earlier kickoff is always the third-place match (third place is always played before the final).
+    const isThirdPlaceMatch = match.round === 'final' && match.kickoff && Object.values(koMatchesData)
+        .some(m => m.round === 'final' && m.kickoff && new Date(m.kickoff) > new Date(match.kickoff));
     const customQfDeadline = (match.round === 'qf' && roomSettingsData?.qfDeadline) ? new Date(roomSettingsData.qfDeadline)
-        : (match.round === 'sf' && roomSettingsData?.sfDeadline) ? new Date(roomSettingsData.sfDeadline) : null;
+        : (match.round === 'sf' && roomSettingsData?.sfDeadline) ? new Date(roomSettingsData.sfDeadline)
+        : (match.round === 'final' && isThirdPlaceMatch && roomSettingsData?.thirdPlaceDeadline) ? new Date(roomSettingsData.thirdPlaceDeadline)
+        : (match.round === 'final' && !isThirdPlaceMatch && roomSettingsData?.finalMatchDeadline) ? new Date(roomSettingsData.finalMatchDeadline) : null;
     const roundDeadline = customQfDeadline || autoDeadline;
     const koUnlockUntil = roomSettingsData?.koUnlockUntil ? new Date(roomSettingsData.koUnlockUntil) : null;
     const unlockedNames = (roomSettingsData?.unlockedNames || '').split(',').map(n => n.trim()).filter(Boolean);
@@ -2089,7 +2102,7 @@ function renderKoMatchCard(matchId, match) {
     } else {
         statusBadge = `<span class="text-xs bg-blue-900/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full">${_kickoffStr(kickoff)}</span>`;
     }
-    const deadlineBadge = ((match.round === 'qf' || match.round === 'sf') && customQfDeadline && !finished)
+    const deadlineBadge = ((match.round === 'qf' || match.round === 'sf' || match.round === 'final') && customQfDeadline && !finished)
         ? (afterQfDeadline
             ? `<span class="deadline-chip">🔒 已截止</span>`
             : `<span class="deadline-chip ${customQfDeadline - new Date() < 3600000 ? 'soon' : 'ok'}">⏰ 截止 ${customQfDeadline.toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}${fmtCountdown(customQfDeadline) ? ' · ' + fmtCountdown(customQfDeadline) : ''}</span>`)
@@ -4771,7 +4784,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
         if (!roundMatches.length) continue;
         let c = 0, t = 0;
         roundMatches.forEach(([mid, m]) => {
-            const acc = _calcPredAccuracy(koAllPredsData[uid]?.[mid], m.result);
+            const acc = _calcPredAccuracy(koAllPredsData[uid]?.[mid], m);
             c += acc.correct; t += acc.total;
         });
         const spAcc = _calcRoundSpecialAccuracy(round, uid, name);
@@ -4828,7 +4841,8 @@ window.generateRecapCard = async function(mode = 'quiz') {
     });
     const teamEntries = Object.entries(teamStats).map(([team, s]) => ({ team, ...s, total: s.hits + s.misses, pct: s.hits / (s.hits + s.misses) }));
     const bestTeam = teamEntries.filter(t => t.total >= 2).sort((a, b) => b.pct - a.pct || b.total - a.total)[0] || null;
-    const worstTeam = teamEntries.filter(t => t.lostPts > 0).sort((a, b) => b.lostPts - a.lostPts)[0] || null;
+    // Only worth calling out if the point cost is actually meaningful — a couple of stray points isn't a story
+    const worstTeam = teamEntries.filter(t => t.lostPts >= 10).sort((a, b) => b.lostPts - a.lostPts)[0] || null;
 
     const cp = champPredsData[uid] || {};
 
@@ -4849,6 +4863,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
 
     // "独具慧眼": a correct advance-pick that nobody else in the room got right
     let uniqueCall = null;
+    let uniqueCallMid = null;
     for (const [mid, m] of chronoMatches) {
         const p = koAllPredsData[uid]?.[mid];
         if (!p?.advance || p.advance !== m.result.advance) continue;
@@ -4858,8 +4873,32 @@ window.generateRecapCard = async function(mode = 'quiz') {
             if (!name2 || name2 === '小助手') return false;
             return preds?.[mid]?.advance === m.result.advance;
         });
-        if (!othersRight) { uniqueCall = `${m.home}vs${m.away} 押${m.result.advance}晋级`; break; }
+        if (!othersRight) { uniqueCall = `${m.home}vs${m.away} 押${m.result.advance}晋级`; uniqueCallMid = mid; break; }
     }
+
+    // Room-wide match facts: how the whole room called each match, independent of this user —
+    // biggest consensus upset, and the most evenly-split match (with a look at who ended up right)
+    const namedUidsAll = Object.keys(scoresData).filter(u => scoresData[u]?.name && scoresData[u].name !== '小助手');
+    const matchFacts = [];
+    chronoMatches.forEach(([mid, m]) => {
+        const picks = namedUidsAll.map(u => koAllPredsData[u]?.[mid]?.advance).filter(Boolean);
+        if (picks.length < 6) return; // too small a sample to be a meaningful "room" fact
+        const tally = {};
+        picks.forEach(t => { tally[t] = (tally[t] || 0) + 1; });
+        const [topTeam, topN] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+        const frac = topN / picks.length;
+        const majorityRight = topTeam === m.result.advance;
+        const rightUids = namedUidsAll.filter(u => koAllPredsData[u]?.[mid]?.advance === m.result.advance);
+        matchFacts.push({ mid, label: `${m.home}vs${m.away}`, topTeam, topN, n: picks.length, frac, majorityRight, actual: m.result.advance, rightUids });
+    });
+    const biggestUpset = matchFacts.filter(f => !f.majorityRight && f.frac >= 0.6).sort((a, b) => b.frac - a.frac)[0] || null;
+    // "Lone hero" — a near-unanimous-wrong match where exactly one person called it right.
+    // Prefer the viewer's own moment (if they have one) over a more dramatic stranger's, since a personal callout lands better.
+    const loneHeroCandidates = matchFacts.filter(f => !f.majorityRight && f.rightUids.length === 1 && f.mid !== biggestUpset?.mid);
+    const loneHero = loneHeroCandidates.find(f => f.rightUids[0] === uid)
+        || loneHeroCandidates.sort((a, b) => b.frac - a.frac)[0] || null;
+    const mostDivided = matchFacts.filter(f => !f.majorityRight && (!biggestUpset || f.mid !== biggestUpset.mid) && (!loneHero || f.mid !== loneHero.mid))
+        .sort((a, b) => Math.abs(a.frac - 0.5) - Math.abs(b.frac - 0.5))[0] || null;
 
     // Champion loyalty: did the champion pick change between the two submission windows?
     const loyaltyNote = (cp.champion && cp.midway)
@@ -4924,7 +4963,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
 
     let p4 = '';
     if (bestTeam) p4 += `你最看好的球队是${HL(bestTeam.team)}，晋级判断${bestTeam.hits}中${bestTeam.total}，几乎没看走眼。`;
-    if (worstTeam) p4 += `不过在${HL(worstTeam.team)}身上，你判断晋级失误了${worstTeam.misses}次，这部分的"晋级判断分"全打了水漂，一共错过了${HL(worstTeam.lostPts + '分')}。`;
+    if (worstTeam) p4 += `不过对${HL(worstTeam.team)}是真看走眼了，${worstTeam.misses}次押注全部落空，白白扔掉了${HL(worstTeam.lostPts + '分')}。`;
     if (p4) paragraphs.push(p4);
 
     let p5 = '';
@@ -4932,8 +4971,71 @@ window.generateRecapCard = async function(mode = 'quiz') {
     if (uniqueCall) p5 += `更有一次全场独具慧眼——${HL(uniqueCall)}，整个房间只有你一个人猜对。`;
     if (p5) paragraphs.push(p5);
 
+    // Room-wide fun facts — shared tournament trivia, personalized with a callout if this user was involved
+    let p6 = '';
+    if (biggestUpset) {
+        const bu = biggestUpset;
+        if (bu.frac >= 0.95) {
+            p6 += `说说全场的趣事：「${HL(bu.label)}」这一战，房间里${bu.n}人清一色都押${bu.topTeam}晋级，结果爆冷输给了${HL(bu.actual)}，堪称本届最没人猜到的一次翻车。`;
+        } else {
+            p6 += `说说全场的趣事：「${HL(bu.label)}」这一战，${Math.round(bu.frac * 100)}%的人（${bu.topN}/${bu.n}）都以为${bu.topTeam}稳了，最后爆冷输给${HL(bu.actual)}，全场哗然。`;
+        }
+        if (bu.mid !== uniqueCallMid && bu.rightUids.includes(uid) && bu.rightUids.length <= 3) {
+            p6 += `而你，正是全场仅有的${bu.rightUids.length}人看穿这一切的人之一，堪称先知。`;
+        }
+    }
+    if (p6) paragraphs.push(p6);
+
+    let pHero = '';
+    if (loneHero && loneHero.mid !== uniqueCallMid) {
+        const isMe = loneHero.rightUids[0] === uid;
+        const heroName = isMe ? '你' : (scoresData[loneHero.rightUids[0]]?.name || '神秘玩家');
+        pHero = `全场孤胆英雄奖颁给「${HL(loneHero.label)}」这一战——${Math.round(loneHero.frac * 100)}%的人都押${loneHero.topTeam}，唯独${HL(heroName)}一人押中了真正的赢家${loneHero.actual}${isMe ? '，简直是先知本尊' : ''}。`;
+    }
+    if (pHero) paragraphs.push(pHero);
+
+    let p7 = '';
+    if (mostDivided) {
+        const md = mostDivided;
+        p7 += `全场分歧最大的一战是「${HL(md.label)}」——押${md.topTeam}和押${md.actual}的人几乎五五开，最终${HL(md.actual)}笑到了最后。`;
+        if (md.mid !== uniqueCallMid && md.rightUids.includes(uid) && md.rightUids.length <= Math.ceil(md.n / 2)) {
+            p7 += `你就是看对方向的那一小撮人之一。`;
+        }
+    }
+    if (p7) paragraphs.push(p7);
+
     if (loyaltyNote) paragraphs.push(`冠军人选上，你${loyaltyNote}。`);
-    if (magicNotes.length) paragraphs.push(`魔法交锋这件事上：${magicNotes.slice(0, 2).join('；')}。`);
+    if (magicNotes.length) {
+        let magicVerdict = '';
+        const swapEntry = Object.values(r32MagicData || {}).find(m => m.type === 'soul_swap' && (m.player1Name === name || m.player2Name === name));
+        if (swapEntry) {
+            let delta = 0;
+            Object.entries(koMatchesData).forEach(([mid, m]) => {
+                if (m.round !== 'r32' || m.status !== 'finished' || !m.result) return;
+                const pred = koAllPredsData[uid]?.[mid];
+                if (!pred) return;
+                delta += (pred.points || 0) - calcKoPts(pred, m.result, 'r32');
+            });
+            Object.keys(r32SpecialsData || {}).forEach(key => {
+                if (!/^q\d+$/.test(key)) return;
+                const q = r32SpecialsData[key];
+                if (!q?.settled || !q?.answer) return;
+                const predEntry = r32AllSpecialPredsData[uid] || {};
+                const honestPts = predEntry[key] === q.answer ? 5 : 0;
+                delta += (predEntry[`${key}Points`] || 0) - honestPts;
+            });
+            if (delta > 0) magicVerdict = `细算下来，这波灵魂互换让你净赚了${HL(delta + '分')}，血赚不亏。`;
+            else if (delta < 0) magicVerdict = `细算下来，这波灵魂互换让你倒贴了${HL(Math.abs(delta) + '分')}，纯纯给对方陪跑。`;
+            else magicVerdict = `细算下来，这波灵魂互换你和对方最终打平，谁也没占到便宜。`;
+        } else {
+            const castCount = magicNotes.filter(n => n.startsWith('🃏 你对')).length;
+            const targetCount = magicNotes.length - castCount;
+            if (castCount > targetCount) magicVerdict = `整体上你出手比挨打多，是这轮魔法交锋里更主动的那一个。`;
+            else if (targetCount > castCount) magicVerdict = `整体上你挨的算计比出的多，下次该反击了。`;
+            else magicVerdict = `一来一回，谁也没能在魔法这件事上真正占到便宜。`;
+        }
+        paragraphs.push(`魔法交锋这件事上：${magicNotes.slice(0, 2).join('；')}。${magicVerdict}`);
+    }
 
     if (isFull && ci) {
         const ciPct = ci.total ? Math.round(ci.watched / ci.total * 100) : 0;
@@ -4992,10 +5094,10 @@ window.generateRecapCard = async function(mode = 'quiz') {
     const theme = TEAM_COLORS[cp.champion] || null;
 
     const C = {
-        bg: '#0d1117', bgCard: '#161b22', border: 'rgba(255,255,255,0.08)',
-        gold: '#fbbf24', white: '#f0f6fc', gray1: '#8b949e', gray2: '#484f58',
-        accent: theme ? theme.a : '#c084fc',
-        highlight: theme ? theme.b : '#fbbf24',
+        bg: '#ffffff', bgCard: '#f6f8fa', border: 'rgba(31,35,40,0.12)',
+        gold: '#b45309', white: '#1f2328', gray1: '#57606a', gray2: '#8b949e',
+        accent: theme ? theme.a : '#7c3aed',
+        highlight: theme ? theme.a : '#b45309',
     };
 
     // Rich-text wrapping: tokenize the ⟦…⟧ markers into per-character highlight flags, then wrap
@@ -5058,21 +5160,8 @@ window.generateRecapCard = async function(mode = 'quiz') {
         if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw; ctx.stroke(); }
     };
 
-    // ── Background: full-bleed team-color stripes (if a champion pick exists), dark panels on top for legibility ──
-    if (theme) {
-        const STRIPE_W = 34;
-        for (let x = 0, i = 0; x < W; x += STRIPE_W, i++) {
-            ctx.fillStyle = i % 2 === 0 ? theme.a : theme.b;
-            ctx.fillRect(x, 0, STRIPE_W, H);
-        }
-        // Soften the stripes so they read as a themed backdrop rather than fighting the content
-        ctx.fillStyle = 'rgba(13,17,23,0.82)';
-        ctx.fillRect(0, 0, W, H);
-    } else {
-        ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(255,255,255,0.022)';
-        for (let dx = 0; dx < W; dx += 32) for (let dy = 0; dy < H; dy += 32) { ctx.beginPath(); ctx.arc(dx, dy, 1, 0, Math.PI*2); ctx.fill(); }
-    }
+    // ── Background: simple flat white ──
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
 
     // Header
     ctx.fillStyle = C.bgCard; ctx.fillRect(0, 0, W, HDR_H);
@@ -5088,10 +5177,10 @@ window.generateRecapCard = async function(mode = 'quiz') {
         ctx.fillText(`✨ 以你押注的冠军「${cp.champion}」配色（${theme.name}）定制`, P + 6, HDR_H * 0.85);
     }
 
-    // Narrative body — draw a dark rounded panel behind the text so the stripes stay a backdrop only
+    // Narrative body panel
     const bodyTop = HDR_H + 12;
     const bodyH = 12 + totalLines * LINE_H + Math.max(0, paragraphs.length - 1) * PARA_GAP + 12;
-    rr(P - 8, bodyTop, W - (P-8)*2, bodyH, 12, 'rgba(22,27,34,0.55)', C.border);
+    rr(P - 8, bodyTop, W - (P-8)*2, bodyH, 12, C.bgCard, C.border);
 
     let cy = bodyTop + 12 + FONT_SIZE * 0.85;
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
