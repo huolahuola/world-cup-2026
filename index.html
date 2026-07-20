@@ -5017,6 +5017,10 @@ window.generateRecapCard = async function(mode = 'quiz') {
         });
         return best;
     }
+    function _maxPtsForRound(rnd) {
+        const isSF = rnd === 'sf', isQF = rnd === 'qf' || rnd === 'final', isR16up = rnd !== 'r32';
+        return (isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2) * 2 + (isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4) + (isR16up ? (isSF ? 12 : isQF ? 10 : 5) : 0);
+    }
     function _luckyScorerFor(u) {
         const scorerPtsForRound = rnd => ({ sf: 12, qf: 8, final: 8, r16: 5, r32: 4 }[rnd] || 4);
         const gains = {};
@@ -5093,8 +5097,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
             // Call out a literal perfect score (every one of the match's predictions correct) if
             // nobody else in the room also hit the max on that same match — an even stronger claim
             // than just "highest points this match".
-            const isSF = matchBest.round === 'sf', isQF = matchBest.round === 'qf' || matchBest.round === 'final', isR16up = matchBest.round !== 'r32';
-            const maxPossible = (isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2) * 2 + (isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4) + (isR16up ? (isSF ? 12 : isQF ? 10 : 5) : 0);
+            const maxPossible = _maxPtsForRound(matchBest.round);
             const isPerfect = Math.round(matchBest.myPts) === maxPossible;
             const soloPerfect = isPerfect && !namedUidsAll.some(u2 => u2 !== u && koAllPredsData[u2]?.[matchBest.mid]?.points === maxPossible);
             const detail = soloPerfect
@@ -5320,6 +5323,34 @@ window.generateRecapCard = async function(mode = 'quiz') {
         }
     }
     if (p7) paragraphs.push(p7);
+
+    // Room-wide tally of literal perfect scores (every prediction on a match correct), split into
+    // r32 (no exact-score requirement, so an easier bar) vs r16-and-up (much rarer, since it also
+    // requires nailing the precise score)
+    let perfectEasy = 0, perfectHard = 0, hardPerfectExample = null;
+    chronoMatches.forEach(([mid, m]) => {
+        const maxPossible = _maxPtsForRound(m.round);
+        namedUidsAll.forEach(u => {
+            if (koAllPredsData[u]?.[mid]?.points === maxPossible) {
+                if (m.round === 'r32') perfectEasy++;
+                else {
+                    perfectHard++;
+                    if (!hardPerfectExample) hardPerfectExample = { name: scoresData[u]?.name || '', label: `${m.home}vs${m.away}` };
+                }
+            }
+        });
+    });
+    const perfectTotal = perfectEasy + perfectHard;
+    if (perfectTotal > 0) {
+        let line = `本届一共产生了${HL(perfectTotal + '人次')}单场满分`;
+        if (perfectHard > 0) {
+            line += `，其中${perfectEasy}次来自门槛较低的32强轮（不需要精确比分），真正高难度的满分（16进8及以上，还得猜中精确比分）只有${HL(perfectHard + '次')}`;
+            if (hardPerfectExample) line += `——${hardPerfectExample.name}的「${hardPerfectExample.label}」`;
+        } else {
+            line += '，全部来自32强轮';
+        }
+        paragraphs.push(line + '。');
+    }
 
     // Every named player in the room gets one line — nobody goes unmentioned
     if (awardsRoster.length) {
