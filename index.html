@@ -5041,14 +5041,39 @@ window.generateRecapCard = async function(mode = 'quiz') {
         const worst = entries.filter(([, s]) => s.lost >= 8).sort((a, b) => b[1].lost - a[1].lost)[0] || null;
         return { best, worst };
     }
+    // Ranking, used by the "just-missed-the-podium" award below
+    const _rankedTotals = namedUidsAll.map(u => scoresData[u]?.total || 0).sort((a, b) => b - a);
+    const NEGATIVE_TITLES = new Set(['单场翻车', '轮次翻车', '死心塌地', '看走眼大师', '墙头草']);
     function _candidatesFor(u, uName) {
         const out = [];
+        // Hero titles embed the underdog's own name (e.g. "巴拉圭先知"), so two different lone-hero
+        // moments naturally get two different titles instead of fighting over one generic label.
         const heroMatch = matchFacts.find(f => !f.majorityRight && f.rightUids.length === 1 && f.rightUids[0] === u) || null;
-        if (heroMatch) out.push({ title: '孤胆英雄', strength: heroMatch.frac * 100, detail: `「${heroMatch.label}」全场唯独他/她押中了${heroMatch.actual}` });
+        if (heroMatch) out.push({ title: `${heroMatch.actual}先知`, strength: heroMatch.frac * 100, detail: `「${heroMatch.label}」全场唯独他/她押中了${heroMatch.actual}` });
 
-        const { carry, flop } = _carryFlopFor(u);
-        if (carry && carry.dev >= 6) out.push({ title: 'Carry之王', strength: carry.dev, detail: `「${carry.label}」独得${Math.round(carry.myPts)}分（全场平均${carry.avg.toFixed(1)}）` });
-        if (flop && flop.dev <= -6) out.push({ title: '翻车现场', strength: -flop.dev, detail: `「${flop.label}」只拿了${Math.round(flop.myPts)}分（全场平均${flop.avg.toFixed(1)}）` });
+        // Carry/flop split into match-only vs round-only slots (rather than one merged "best of either"
+        // slot) so two people who each lead one sub-category don't have to fight over a single title.
+        const mDevs = [];
+        chronoMatches.forEach(([mid, m]) => {
+            if (matchPtsAvg[mid] == null) return;
+            const myPts = koAllPredsData[u]?.[mid]?.points;
+            if (myPts == null) return;
+            mDevs.push({ label: `${m.home}vs${m.away}`, myPts, avg: matchPtsAvg[mid], dev: myPts - matchPtsAvg[mid] });
+        });
+        const rDevs = [];
+        Object.entries(roundPtsAvg).forEach(([rnd, avg]) => {
+            let sum = 0, has = false;
+            roundMidsByRound[rnd].forEach(mid => { const p = koAllPredsData[u]?.[mid]?.points; if (p != null) { sum += p; has = true; } });
+            if (has) rDevs.push({ label: roundLabels[rnd] || rnd, myPts: sum, avg, dev: sum - avg });
+        });
+        const matchBest = mDevs.length ? mDevs.reduce((a, b) => b.dev > a.dev ? b : a) : null;
+        const matchWorst = mDevs.length ? mDevs.reduce((a, b) => b.dev < a.dev ? b : a) : null;
+        const roundBest = rDevs.length ? rDevs.reduce((a, b) => b.dev > a.dev ? b : a) : null;
+        const roundWorst = rDevs.length ? rDevs.reduce((a, b) => b.dev < a.dev ? b : a) : null;
+        if (matchBest && matchBest.dev >= 6) out.push({ title: '单场之王', strength: matchBest.dev, detail: `「${matchBest.label}」单场独得${Math.round(matchBest.myPts)}分（全场平均${matchBest.avg.toFixed(1)}）` });
+        if (matchWorst && matchWorst.dev <= -6) out.push({ title: '单场翻车', strength: -matchWorst.dev, detail: `「${matchWorst.label}」单场只拿${Math.round(matchWorst.myPts)}分（全场平均${matchWorst.avg.toFixed(1)}）` });
+        if (roundBest && roundBest.dev >= 8) out.push({ title: '轮次之王', strength: roundBest.dev, detail: `${roundBest.label}整轮独得${Math.round(roundBest.myPts)}分（全场平均${roundBest.avg.toFixed(1)}）` });
+        if (roundWorst && roundWorst.dev <= -8) out.push({ title: '轮次翻车', strength: -roundWorst.dev, detail: `${roundWorst.label}整轮只拿${Math.round(roundWorst.myPts)}分（全场平均${roundWorst.avg.toFixed(1)}）` });
 
         const ml = _misplacedLoyaltyFor(u);
         if (ml) out.push({ title: '死心塌地', strength: ml[1].attempts * 10, detail: `${ml[1].attempts}次押${ml[0]}首开纪录，从未等到` });
@@ -5068,6 +5093,16 @@ window.generateRecapCard = async function(mode = 'quiz') {
             if (ucp2.champion !== ucp2.midway) out.push({ title: '墙头草', strength: 5, detail: `冠军人选从${ucp2.champion}半程倒戈到${ucp2.midway}` });
             else out.push({ title: '忠诚玩家', strength: 3, detail: `冠军人选${ucp2.champion}从头到尾没变过` });
         }
+
+        // "Just missed the podium" — only for rank 2 or 3, and only if the gap is genuinely close;
+        // weighted toward rank 2 so a near-miss of 1st beats a photo-finish for 3rd.
+        const myTotal = scoresData[u]?.total || 0;
+        const rank = _rankedTotals.indexOf(myTotal) + 1;
+        if (rank === 2 || rank === 3) {
+            const gapAbove = _rankedTotals[rank - 2] - myTotal;
+            if (gapAbove <= 15) out.push({ title: '总分黑马', strength: (4 - rank) * 20 - gapAbove, detail: `总分第${rank}名（${myTotal}分），只差第${rank - 1}名${gapAbove}分` });
+        }
+
         // Always-available fallback so nobody can end up with zero candidates
         const hr = _calcOverallHitRate(u, uName);
         const pct = hr.total ? Math.round(hr.correct / hr.total * 100) : 0;
@@ -5079,10 +5114,13 @@ window.generateRecapCard = async function(mode = 'quiz') {
         const uName = scoresData[u]?.name || '';
         _candidatesFor(u, uName).forEach(c => _allAwardCandidates.push({ uid: u, name: uName, ...c }));
     });
-    _allAwardCandidates.sort((a, b) => b.strength - a.strength);
+    // Hand out positive/neutral titles first (across everyone), and only fall back to a negative
+    // title for someone once every positive option they qualified for has already gone to someone else.
     const _awardAssigned = {};
     const _usedTitles = new Set();
-    _allAwardCandidates.forEach(c => {
+    const _positiveCands = _allAwardCandidates.filter(c => !NEGATIVE_TITLES.has(c.title)).sort((a, b) => b.strength - a.strength);
+    const _negativeCands = _allAwardCandidates.filter(c => NEGATIVE_TITLES.has(c.title)).sort((a, b) => b.strength - a.strength);
+    [..._positiveCands, ..._negativeCands].forEach(c => {
         if (_awardAssigned[c.uid] || _usedTitles.has(c.title)) return;
         _awardAssigned[c.uid] = c;
         _usedTitles.add(c.title);
