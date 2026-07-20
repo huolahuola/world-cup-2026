@@ -1388,6 +1388,7 @@ async function bootstrap() {
     } else {
         show('landingPage');
         loadPublicLandingSummary();
+        loadLandingDanmaku();
     }
 }
 
@@ -1445,8 +1446,21 @@ async function loadPublicLandingSummary() {
         });
         const avgPct = hrTotal ? Math.round(hrCorrect / hrTotal * 100) : null;
 
+        const roundOrder = { r32: 0, r16: 1, qf: 2, sf: 3, final: 4 };
+        const noDramaMatches = [];
+        finishedEntries.forEach(([mid, m]) => {
+            const picks = namedUids.map(u => preds[u]?.[mid]?.advance).filter(Boolean);
+            if (picks.length < 6) return;
+            const tally = {};
+            picks.forEach(t => { tally[t] = (tally[t] || 0) + 1; });
+            const [topTeam, topN] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+            if (topTeam === m.result.advance && topN / picks.length >= 0.99) noDramaMatches.push({ label: `${m.home}vs${m.away}`, round: m.round });
+        });
+        noDramaMatches.sort((a, b) => (roundOrder[b.round] ?? -1) - (roundOrder[a.round] ?? -1));
+
         const highlights = [];
         if (biggestUpset) highlights.push(`💥 全场最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
+        if (noDramaMatches.length) highlights.push(`😌 整届杯赛有${noDramaMatches.length}场淘汰赛，所有人对晋级球队的判断完全一致且全部猜对（比如「${noDramaMatches[0].label}」）`);
         if (avgPct != null) highlights.push(`📈 淘汰赛胜负预测平均命中率${avgPct}%`);
 
         el.innerHTML = `
@@ -1456,13 +1470,86 @@ async function loadPublicLandingSummary() {
                     ${tile('参赛人数', namedUids.length)}
                     ${tile('淘汰赛战罢', `${finishedCount}/${totalCount}`)}
                 </div>
-                ${highlights.length ? `<div class="space-y-1.5 text-left border-t border-white/10 pt-3">
-                    ${highlights.map(h => `<p class="text-[11px] text-gray-400 leading-snug">${h}</p>`).join('')}
+                ${highlights.length ? `<div class="text-left border-t border-white/10 pt-3" style="min-height:34px">
+                    <p id="lpHlText" class="text-[11px] text-gray-400 leading-snug" style="transition:opacity .4s ease"></p>
                 </div>` : ''}
             </div>`;
+        if (highlights.length) _startLpHighlightRotator(highlights);
     } catch (e) {
         el.innerHTML = `<p class="text-xs text-gray-500 py-4">战报加载失败，不影响登录</p>`;
     }
+}
+
+let _lpHlRotatorTimer = null;
+function _startLpHighlightRotator(highlights) {
+    if (_lpHlRotatorTimer) clearInterval(_lpHlRotatorTimer);
+    let i = 0;
+    const show = () => {
+        const el = document.getElementById('lpHlText');
+        if (!el) { clearInterval(_lpHlRotatorTimer); return; }
+        el.style.opacity = '0';
+        setTimeout(() => {
+            const el2 = document.getElementById('lpHlText');
+            if (!el2) return;
+            el2.textContent = highlights[i % highlights.length];
+            el2.style.opacity = '1';
+            i++;
+        }, 400);
+    };
+    show();
+    _lpHlRotatorTimer = setInterval(show, 4000);
+}
+
+// Danmaku: anonymous excerpts from everyone's match-watching diary notes (checkin.*.note),
+// pulled from both rooms per the site owner's call, floating across the landing page.
+// No names attached — purely atmospheric, not attributed to anyone.
+async function loadLandingDanmaku() {
+    const container = document.getElementById('lpDanmaku');
+    if (!container || !db) return;
+    const rooms = ['public', 'dqdm'];
+    const notes = [];
+    for (const room of rooms) {
+        try {
+            const snap = await get(ref(db, `rooms/${room}/checkin`));
+            if (!snap.exists()) continue;
+            Object.values(snap.val()).forEach(userMatches => {
+                Object.values(userMatches || {}).forEach(entry => {
+                    const note = entry?.note?.trim();
+                    if (note) notes.push(note);
+                });
+            });
+        } catch (e) {}
+    }
+    if (!notes.length) return;
+
+    const LANES = 9;
+    const laneLastUse = new Array(LANES).fill(-Infinity);
+    function pickLane(now) {
+        // Prefer a lane that's been idle the longest, so notes don't stack on the same row
+        let best = 0;
+        for (let i = 1; i < LANES; i++) if (laneLastUse[i] < laneLastUse[best]) best = i;
+        laneLastUse[best] = now;
+        return best;
+    }
+    function spawnOne() {
+        if (!document.getElementById('landingPage') || document.getElementById('landingPage').classList.contains('hidden')) return;
+        const text = notes[Math.floor(Math.random() * notes.length)];
+        const lane = pickLane(Date.now());
+        const topPct = 6 + lane * (86 / LANES);
+        const span = document.createElement('div');
+        span.textContent = text.length > 32 ? text.slice(0, 32) + '…' : text;
+        span.style.cssText = `position:absolute; top:${topPct}%; left:0; white-space:nowrap; color:rgba(255,255,255,0.88); font-size:13px; font-weight:600; text-shadow:0 1px 4px rgba(0,0,0,0.85); will-change:transform;`;
+        const duration = 11 + Math.random() * 7;
+        span.style.animation = `lpDanmakuFly ${duration}s linear forwards`;
+        container.appendChild(span);
+        span.addEventListener('animationend', () => span.remove());
+    }
+    spawnOne();
+    const interval = setInterval(() => {
+        const lp = document.getElementById('landingPage');
+        if (!lp || lp.classList.contains('hidden')) { clearInterval(interval); return; }
+        spawnOne();
+    }, 1600);
 }
 
 // ─── Login ────────────────────────────────────────────────
