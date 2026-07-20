@@ -4328,8 +4328,8 @@ function _refreshMyProfileCard() {
             avatarEl.innerHTML = currentUser.name.charAt(0).toUpperCase();
         }
     }
-    // Recap cards: open to everyone
-    document.getElementById('recapBtnRow')?.classList.remove('hidden');
+    // Recap cards + summary poster: not opened up to the public room
+    if (currentRoom !== 'public') document.getElementById('recapBtnRow')?.classList.remove('hidden');
 }
 
 window.handleAvatarUpload = function(event) {
