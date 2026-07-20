@@ -1399,16 +1399,18 @@ async function loadPublicLandingSummary() {
     if (!el || !db) return;
     const PUBLIC_ROOM = 'public';
     try {
-        const [settingsSnap, scoresSnap, matchesSnap, predsSnap] = await Promise.all([
+        const [settingsSnap, scoresSnap, matchesSnap, predsSnap, champPredsSnap] = await Promise.all([
             get(ref(db, `rooms/${PUBLIC_ROOM}/settings`)),
             get(ref(db, `rooms/${PUBLIC_ROOM}/scores`)),
             get(ref(db, `rooms/${PUBLIC_ROOM}/ko/matches`)),
             get(ref(db, `rooms/${PUBLIC_ROOM}/ko/preds`)),
+            get(ref(db, `rooms/${PUBLIC_ROOM}/champPreds`)),
         ]);
         const settings = settingsSnap.exists() ? settingsSnap.val() : {};
         const scores = scoresSnap.exists() ? scoresSnap.val() : {};
         const matches = matchesSnap.exists() ? matchesSnap.val() : {};
         const preds = predsSnap.exists() ? predsSnap.val() : {};
+        const champPreds = champPredsSnap.exists() ? champPredsSnap.val() : {};
         const champion = settings?.champion || '';
         const namedUids = Object.keys(scores).filter(u => scores[u]?.name && scores[u].name !== '小助手');
         const finishedEntries = Object.entries(matches).filter(([, m]) => m.status === 'finished' && m.result);
@@ -1458,9 +1460,34 @@ async function loadPublicLandingSummary() {
         });
         noDramaMatches.sort((a, b) => (roundOrder[b.round] ?? -1) - (roundOrder[a.round] ?? -1));
 
+        // Perfect-score tally (aggregate count only, no names)
+        function maxPtsForRound(rnd) {
+            const isSF = rnd === 'sf', isQF = rnd === 'qf' || rnd === 'final', isR16up = rnd !== 'r32';
+            return (isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2) * 2 + (isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4) + (isR16up ? (isSF ? 12 : isQF ? 10 : 5) : 0);
+        }
+        let perfectTotal = 0;
+        finishedEntries.forEach(([mid, m]) => {
+            const mx = maxPtsForRound(m.round);
+            perfectTotal += namedUids.filter(u => preds[u]?.[mid]?.points === mx).length;
+        });
+
+        // Champion pick tracking (aggregate counts only, no names)
+        const champ = settings?.champion;
+        let champLine = null;
+        if (champ) {
+            const initialPickers = namedUids.filter(u => champPreds[u]?.champion === champ).length;
+            const midwayHolders = namedUids.filter(u => champPreds[u]?.champion === champ && champPreds[u]?.midway === champ).length;
+            if (initialPickers) {
+                champLine = `🏆 小组赛前就有${initialPickers}人看好${champ}夺冠`;
+                champLine += midwayHolders < initialPickers ? `，半程二次选择时只剩${midwayHolders}人坚守` : '，且全员坚守到底';
+            }
+        }
+
         const highlights = [];
         if (biggestUpset) highlights.push(`💥 整届杯赛最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
         if (noDramaMatches.length) highlights.push(`😌 整届杯赛有${noDramaMatches.length}场淘汰赛，所有人对晋级球队的判断完全一致且全部猜对（比如「${noDramaMatches[0].label}」）`);
+        if (perfectTotal) highlights.push(`🎯 整届杯赛累计产生${perfectTotal}人次单场满分预测`);
+        if (champLine) highlights.push(champLine);
         if (avgPct != null) highlights.push(`📈 淘汰赛胜负预测平均命中率${avgPct}%`);
 
         el.innerHTML = `
@@ -1520,6 +1547,16 @@ async function loadLandingDanmaku() {
     if (!container || !db) return;
     const rooms = ['public', 'dqdm'];
     const notes = [];
+    // Skip notes that mention watching at a specific person's place, or watching together
+    // with a specific named person — those reveal a third party who never opted into this.
+    const SAFE_COMPANION_WORDS = ['自己', '我', '我们', '家人', '朋友', '朋友们', '大家', '老公', '老婆', '男朋友', '女朋友', '同事', '同学', '室友', '家里人'];
+    function isPrivacySensitive(note) {
+        const homeMatch = note.match(/在([^，。！？,.!?\s]{0,6})家/);
+        if (homeMatch && homeMatch[1] && !SAFE_COMPANION_WORDS.includes(homeMatch[1])) return true;
+        const withMatch = note.match(/(?:和|跟)([^，。！？,.!?\s]{0,6})(?:一起|一块)/);
+        if (withMatch && withMatch[1] && !SAFE_COMPANION_WORDS.includes(withMatch[1])) return true;
+        return false;
+    }
     for (const room of rooms) {
         try {
             const snap = await get(ref(db, `rooms/${room}/checkin`));
@@ -1527,7 +1564,7 @@ async function loadLandingDanmaku() {
             Object.values(snap.val()).forEach(userMatches => {
                 Object.values(userMatches || {}).forEach(entry => {
                     const note = entry?.note?.trim();
-                    if (note) notes.push(note);
+                    if (note && !isPrivacySensitive(note)) notes.push(note);
                 });
             });
         } catch (e) {}
