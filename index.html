@@ -9,6 +9,8 @@
     <style>
         :root { --header-h: 56px; }
         .hidden { display: none !important; }
+        @keyframes lpDanmakuFly { from { transform: translateX(110vw); } to { transform: translateX(-110%); } }
+        @keyframes lpHlFade { 0%, 100% { opacity: 0; transform: translateY(4px); } 10%, 90% { opacity: 1; transform: translateY(0); } }
         * { box-sizing: border-box; }
         body {
             background: linear-gradient(135deg, #050d1a 0%, #0a1628 50%, #0d0a1e 100%);
@@ -4918,6 +4920,241 @@ window.generatePredCard = async function(mode = 'full') {
     toast(isShare ? '🌍 分享图已生成！' : '📋 完整存档已生成！');
 };
 
+// ─── Shared, viewer-independent tournament analysis: room-wide match facts and the full
+// awards-roster title assignment (same category catalog + greedy uniqueness as the personal
+// recap card uses internally). Used by generateEventSummaryPoster so its podium titles always
+// match what each player's own recap card would say. generateRecapCard keeps its own inline
+// copy of this same logic (personalized with viewer-specific tie-breaks) — left untouched here
+// to avoid risking a regression in an already-tested function.
+function computeAwardsRoster() {
+    const chronoMatches = Object.entries(koMatchesData)
+        .filter(([, m]) => m.status === 'finished' && m.result && m.kickoff)
+        .sort((a, b) => a[1].kickoff.localeCompare(b[1].kickoff));
+    const namedUidsAll = Object.keys(scoresData).filter(u => scoresData[u]?.name && scoresData[u].name !== '小助手');
+    const roundLabels = { r32: '32进16', r16: '16进8', qf: '8进4', sf: '半决赛', final: '决赛' };
+
+    const matchFacts = [];
+    chronoMatches.forEach(([mid, m]) => {
+        const picks = namedUidsAll.map(u => koAllPredsData[u]?.[mid]?.advance).filter(Boolean);
+        if (picks.length < 6) return;
+        const tally = {};
+        picks.forEach(t => { tally[t] = (tally[t] || 0) + 1; });
+        const [topTeam, topN] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+        const frac = topN / picks.length;
+        const majorityRight = topTeam === m.result.advance;
+        const rightUids = namedUidsAll.filter(u => koAllPredsData[u]?.[mid]?.advance === m.result.advance);
+        matchFacts.push({ mid, label: `${m.home}vs${m.away}`, topTeam, topN, n: picks.length, frac, majorityRight, actual: m.result.advance, rightUids });
+    });
+    const biggestUpset = matchFacts.filter(f => !f.majorityRight && f.frac >= 0.6).sort((a, b) => b.frac - a.frac)[0] || null;
+
+    const matchPtsAvg = {};
+    chronoMatches.forEach(([mid]) => {
+        const ptsList = namedUidsAll.map(u => koAllPredsData[u]?.[mid]?.points).filter(p => p != null);
+        if (ptsList.length >= 6) matchPtsAvg[mid] = ptsList.reduce((a, b) => a + b, 0) / ptsList.length;
+    });
+    const roundMidsByRound = {};
+    ['r32', 'r16', 'qf', 'sf', 'final'].forEach(rnd => {
+        roundMidsByRound[rnd] = Object.entries(koMatchesData).filter(([, m]) => m.round === rnd && m.status === 'finished' && m.result).map(([mid]) => mid);
+    });
+    const roundPtsAvg = {};
+    Object.entries(roundMidsByRound).forEach(([rnd, mids]) => {
+        if (!mids.length) return;
+        const totals = namedUidsAll.map(u => {
+            let sum = 0, has = false;
+            mids.forEach(mid => { const p = koAllPredsData[u]?.[mid]?.points; if (p != null) { sum += p; has = true; } });
+            return has ? sum : null;
+        }).filter(v => v != null);
+        if (totals.length >= 6) roundPtsAvg[rnd] = totals.reduce((a, b) => a + b, 0) / totals.length;
+    });
+    function _misplacedLoyaltyFor(u) {
+        const sLoy = {};
+        chronoMatches.forEach(([mid, m]) => {
+            const p = koAllPredsData[u]?.[mid];
+            if (!p?.scorer) return;
+            sLoy[p.scorer] = sLoy[p.scorer] || { attempts: 0, hits: 0 };
+            sLoy[p.scorer].attempts++;
+            if (p.scorer === m.result.scorer) sLoy[p.scorer].hits++;
+        });
+        return Object.entries(sLoy).filter(([, s]) => s.attempts >= 2 && s.hits === 0).sort((a, b) => b[1].attempts - a[1].attempts)[0] || null;
+    }
+    function _bestStreakFor(u) {
+        let cur = 0, best = 0;
+        chronoMatches.forEach(([mid, m]) => {
+            const p = koAllPredsData[u]?.[mid];
+            const hit = p?.result90 && p.result90 === m.result.outcome_90;
+            cur = hit ? cur + 1 : 0;
+            best = Math.max(best, cur);
+        });
+        return best;
+    }
+    function _maxPtsForRound(rnd) {
+        const isSF = rnd === 'sf', isQF = rnd === 'qf' || rnd === 'final', isR16up = rnd !== 'r32';
+        return (isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2) * 2 + (isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4) + (isR16up ? (isSF ? 12 : isQF ? 10 : 5) : 0);
+    }
+    function _luckyScorerFor(u) {
+        const scorerPtsForRound = rnd => ({ sf: 12, qf: 8, final: 8, r16: 5, r32: 4 }[rnd] || 4);
+        const gains = {};
+        chronoMatches.forEach(([mid, m]) => {
+            const p = koAllPredsData[u]?.[mid];
+            if (p?.scorer && p.scorer === m.result.scorer) gains[p.scorer] = (gains[p.scorer] || 0) + scorerPtsForRound(m.round);
+        });
+        return Object.entries(gains).sort((a, b) => b[1] - a[1])[0] || null;
+    }
+    function _teamRecordsFor(u) {
+        const advPtsForRound = rnd => ({ sf: 8, qf: 6, final: 6, r16: 3, r32: 2 }[rnd] || 2);
+        const stats = {};
+        chronoMatches.forEach(([mid, m]) => {
+            const p = koAllPredsData[u]?.[mid];
+            if (!p?.advance) return;
+            stats[p.advance] = stats[p.advance] || { hits: 0, misses: 0, lost: 0 };
+            if (p.advance === m.result.advance) stats[p.advance].hits++;
+            else { stats[p.advance].misses++; stats[p.advance].lost += advPtsForRound(m.round); }
+        });
+        const entries = Object.entries(stats);
+        const best = entries.filter(([, s]) => s.hits + s.misses >= 3 && s.misses === 0).sort((a, b) => b[1].hits - a[1].hits)[0] || null;
+        const worst = entries.filter(([, s]) => s.lost >= 8).sort((a, b) => b[1].lost - a[1].lost)[0] || null;
+        return { best, worst };
+    }
+    function _magicDamageFor(uName) {
+        let hits = 0, damage = 0;
+        [r32MagicData, r16MagicData, qfMagicData, sfMagicData].forEach(roundMagic => {
+            Object.values(roundMagic || {}).forEach(m => {
+                if (m.targetName !== uName) return;
+                hits++;
+                damage += m.netScoreChange ?? m.impact ?? 0;
+            });
+        });
+        return { hits, damage };
+    }
+    const _rankedTotals = namedUidsAll.map(u => scoresData[u]?.total || 0).sort((a, b) => b - a);
+    const _lastMatchMid = chronoMatches.length ? chronoMatches[chronoMatches.length - 1][0] : null;
+    function _preLastMatchTotal(u) {
+        const p = _lastMatchMid ? koAllPredsData[u]?.[_lastMatchMid]?.points : null;
+        return (scoresData[u]?.total || 0) - (p || 0);
+    }
+    const NEGATIVE_TITLES = new Set(['单场翻车', '轮次翻车', '死心塌地', '看走眼大师']);
+    function _candidatesFor(u, uName) {
+        const out = [];
+        const heroMatch = matchFacts.find(f => !f.majorityRight && f.rightUids.length === 1 && f.rightUids[0] === u) || null;
+        if (heroMatch) out.push({ title: `${heroMatch.actual}先知`, strength: heroMatch.frac * 100, detail: `「${heroMatch.label}」全场唯独他/她押中了${heroMatch.actual}` });
+
+        const mDevs = [];
+        chronoMatches.forEach(([mid, m]) => {
+            if (matchPtsAvg[mid] == null) return;
+            const myPts = koAllPredsData[u]?.[mid]?.points;
+            if (myPts == null) return;
+            mDevs.push({ mid, round: m.round, label: `${m.home}vs${m.away}`, myPts, avg: matchPtsAvg[mid], dev: myPts - matchPtsAvg[mid] });
+        });
+        const rDevs = [];
+        Object.entries(roundPtsAvg).forEach(([rnd, avg]) => {
+            let sum = 0, has = false;
+            roundMidsByRound[rnd].forEach(mid => { const p = koAllPredsData[u]?.[mid]?.points; if (p != null) { sum += p; has = true; } });
+            if (has) rDevs.push({ label: roundLabels[rnd] || rnd, myPts: sum, avg, dev: sum - avg });
+        });
+        const matchBest = mDevs.length ? mDevs.reduce((a, b) => b.dev > a.dev ? b : a) : null;
+        const matchWorst = mDevs.length ? mDevs.reduce((a, b) => b.dev < a.dev ? b : a) : null;
+        const roundBest = rDevs.length ? rDevs.reduce((a, b) => b.dev > a.dev ? b : a) : null;
+        const roundWorst = rDevs.length ? rDevs.reduce((a, b) => b.dev < a.dev ? b : a) : null;
+        if (matchBest && matchBest.dev >= 6) {
+            const maxPossible = _maxPtsForRound(matchBest.round);
+            const isPerfect = Math.round(matchBest.myPts) === maxPossible;
+            const soloPerfect = isPerfect && !namedUidsAll.some(u2 => u2 !== u && koAllPredsData[u2]?.[matchBest.mid]?.points === maxPossible);
+            const detail = soloPerfect
+                ? `「${matchBest.label}」这一场，全场唯独他/她一人拿到了满分${maxPossible}分`
+                : `「${matchBest.label}」单场独得${Math.round(matchBest.myPts)}分（全场平均${matchBest.avg.toFixed(1)}）`;
+            out.push({ title: '单场之王', strength: matchBest.dev, detail });
+        }
+        if (matchWorst && matchWorst.dev <= -6) out.push({ title: '单场翻车', strength: -matchWorst.dev, detail: `「${matchWorst.label}」单场只拿${Math.round(matchWorst.myPts)}分（全场平均${matchWorst.avg.toFixed(1)}）` });
+        if (roundBest && roundBest.dev >= 8) out.push({ title: '轮次之王', strength: roundBest.dev, detail: `${roundBest.label}整轮独得${Math.round(roundBest.myPts)}分（全场平均${roundBest.avg.toFixed(1)}）` });
+        if (roundWorst && roundWorst.dev <= -8) out.push({ title: '轮次翻车', strength: -roundWorst.dev, detail: `${roundWorst.label}整轮只拿${Math.round(roundWorst.myPts)}分（全场平均${roundWorst.avg.toFixed(1)}）` });
+
+        const ml = _misplacedLoyaltyFor(u);
+        if (ml) out.push({ title: '死心塌地', strength: ml[1].attempts * 10, detail: `${ml[1].attempts}次押${ml[0]}首开纪录，从未等到` });
+
+        const myScorerPicks = {};
+        chronoMatches.forEach(([mid]) => {
+            const s = koAllPredsData[u]?.[mid]?.scorer;
+            if (s) myScorerPicks[s] = (myScorerPicks[s] || 0) + 1;
+        });
+        const soloPick = Object.entries(myScorerPicks)
+            .filter(([scorer, cnt]) => cnt >= 2 && !namedUidsAll.some(u2 => u2 !== u && chronoMatches.some(([mid]) => koAllPredsData[u2]?.[mid]?.scorer === scorer)))
+            .sort((a, b) => b[1] - a[1])[0] || null;
+        if (soloPick) out.push({ title: '剑走偏锋', strength: soloPick[1] * 8, detail: `全场唯一敢押${soloPick[0]}首开纪录的人，一连押了${soloPick[1]}次，虽然没等到，但没人有这份独立判断` });
+
+        const lucky = _luckyScorerFor(u);
+        if (lucky && lucky[1] >= 15) out.push({ title: '幸运射手', strength: lucky[1] * 0.3, detail: `靠押中${lucky[0]}累计拿了${lucky[1]}分` });
+
+        const streak = _bestStreakFor(u);
+        if (streak >= 4) out.push({ title: '连胜达人', strength: streak, detail: `连续${streak}场比赛，90分钟胜平负结果全部猜中，一次没失手` });
+
+        const { best: bestTeamRec, worst: worstTeamRec } = _teamRecordsFor(u);
+        if (bestTeamRec) {
+            const isChampionRun = bestTeamRec[0] === roomSettingsData?.champion && bestTeamRec[1].hits >= 5;
+            const detail = isChampionRun
+                ? `从32强到夺冠，对${bestTeamRec[0]}的晋级判断${bestTeamRec[1].hits}战${bestTeamRec[1].hits}中，全程零失误押中了这条冠军之路`
+                : `晋级判断${bestTeamRec[1].hits}战${bestTeamRec[1].hits}中，看${bestTeamRec[0]}从未失手`;
+            out.push({ title: '晋级判官', strength: bestTeamRec[1].hits * 5, detail });
+        }
+        if (worstTeamRec) out.push({ title: '看走眼大师', strength: worstTeamRec[1].lost, detail: `押${worstTeamRec[0]}晋级${worstTeamRec[1].misses}次全部落空，扔了${worstTeamRec[1].lost}分` });
+
+        const { hits: magicHits, damage: magicDamage } = _magicDamageFor(uName);
+        if (magicHits >= 2) {
+            const myTotal0 = scoresData[u]?.total || 0;
+            const wouldBeTotal = myTotal0 - magicDamage;
+            const leaderTotal = _rankedTotals[0];
+            const wouldLead = wouldBeTotal > leaderTotal;
+            out.push({
+                title: '众矢之的', strength: magicHits * 20 - magicDamage,
+                detail: `全场被魔法攻击${magicHits}次最多的人，合计被打掉${-magicDamage}分${wouldLead ? `——若无这些攻击，${wouldBeTotal}分本该是遥遥领先的第一名` : ''}`,
+            });
+        }
+
+        const myTotal = scoresData[u]?.total || 0;
+        const rank = _rankedTotals.indexOf(myTotal) + 1;
+        if (rank === 1) {
+            const gapBelow = myTotal - (_rankedTotals[1] ?? 0);
+            const myPreLast = _preLastMatchTotal(u);
+            const priorLeader = namedUidsAll.reduce((best, u2) => _preLastMatchTotal(u2) > _preLastMatchTotal(best) ? u2 : best, u);
+            if (priorLeader !== u && _preLastMatchTotal(priorLeader) > myPreLast) {
+                const priorLeaderName = scoresData[priorLeader]?.name || '';
+                const myLastPts = (koAllPredsData[u]?.[_lastMatchMid]?.points) || 0;
+                const gapBefore = _preLastMatchTotal(priorLeader) - myPreLast;
+                out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `最后一战前你还落后${priorLeaderName}${gapBefore}分屈居第二，结果那一战你独得${myLastPts}分，绝地反超${gapBelow}分夺冠` });
+            } else {
+                out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `总分第1名（${myTotal}分），领先第2名${gapBelow}分，全场独一档` });
+            }
+        }
+        if (rank === 2 || rank === 3) {
+            const gapAbove = _rankedTotals[rank - 2] - myTotal;
+            if (gapAbove <= 15) out.push({ title: '总分黑马', strength: (4 - rank) * 20 - gapAbove, detail: `总分第${rank}名（${myTotal}分），只差第${rank - 1}名${gapAbove}分` });
+        }
+
+        const hr = _calcOverallHitRate(u, uName);
+        const pct = hr.total ? Math.round(hr.correct / hr.total * 100) : 0;
+        out.push({ title: '全面型选手', strength: 0.1, detail: `命中率${pct}%，老实但稳，没有明显短板` });
+        return out;
+    }
+    const _allAwardCandidates = [];
+    namedUidsAll.forEach(u => {
+        const uName = scoresData[u]?.name || '';
+        _candidatesFor(u, uName).forEach(c => _allAwardCandidates.push({ uid: u, name: uName, ...c }));
+    });
+    const _awardAssigned = {};
+    const _usedTitles = new Set();
+    const _positiveCands = _allAwardCandidates.filter(c => !NEGATIVE_TITLES.has(c.title)).sort((a, b) => b.strength - a.strength);
+    const _negativeCands = _allAwardCandidates.filter(c => NEGATIVE_TITLES.has(c.title)).sort((a, b) => b.strength - a.strength);
+    [..._positiveCands, ..._negativeCands].forEach(c => {
+        if (_awardAssigned[c.uid] || _usedTitles.has(c.title)) return;
+        _awardAssigned[c.uid] = c;
+        _usedTitles.add(c.title);
+    });
+    const awardsRoster = namedUidsAll.map(u => {
+        const c = _awardAssigned[u];
+        return { uid: u, name: c.name, title: c.title, detail: c.detail };
+    });
+    return { awardsRoster, matchFacts, biggestUpset, namedUidsAll, chronoMatches };
+}
+
 // ─── Recap card: "我的世界杯回忆" (early access, gated in the HTML to 拉球王) ──
 window.generateRecapCard = async function(mode = 'quiz') {
     const uid = currentUser?.id;
@@ -5728,8 +5965,9 @@ window.generateRecapCard = async function(mode = 'quiz') {
 // ─── Event summary poster: a shareable "whole competition" recap, distinct from the
 // per-player recap card above — built for posting (e.g. WeChat Moments), not personalization.
 window.generateEventSummaryPoster = async function() {
-    const namedUidsAll = Object.keys(scoresData).filter(u => scoresData[u]?.name && scoresData[u].name !== '小助手');
+    const { awardsRoster, matchFacts, biggestUpset, namedUidsAll, chronoMatches: chronoM } = computeAwardsRoster();
     if (!namedUidsAll.length) { toast('暂无数据，无法生成', 'error'); return; }
+    const titleByUid = Object.fromEntries(awardsRoster.map(a => [a.uid, a.title]));
 
     // Standings, with competition ranking (ties share a rank)
     const standingEntries = namedUidsAll.map(u => ({ uid: u, name: scoresData[u].name, total: scoresData[u].total || 0 }));
@@ -5737,23 +5975,6 @@ window.generateEventSummaryPoster = async function() {
     const rankOf = e => standingEntries.filter(x => x.total > e.total).length + 1;
     const podiumEntries = standingEntries.filter(e => rankOf(e) <= 3);
 
-    const finishedMatches = Object.entries(koMatchesData).filter(([, m]) => m.status === 'finished' && m.result);
-    const chronoM = finishedMatches.sort((a, b) => (a[1].kickoff || '').localeCompare(b[1].kickoff || ''));
-
-    // Biggest consensus upset + lone heroes (same logic family as the per-player recap's room facts)
-    const matchFacts = [];
-    chronoM.forEach(([mid, m]) => {
-        const picks = namedUidsAll.map(u => koAllPredsData[u]?.[mid]?.advance).filter(Boolean);
-        if (picks.length < 6) return;
-        const tally = {};
-        picks.forEach(t => { tally[t] = (tally[t] || 0) + 1; });
-        const [topTeam, topN] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
-        const frac = topN / picks.length;
-        const majorityRight = topTeam === m.result.advance;
-        const rightUids = namedUidsAll.filter(u => koAllPredsData[u]?.[mid]?.advance === m.result.advance);
-        matchFacts.push({ label: `${m.home}vs${m.away}`, topTeam, n: picks.length, frac, majorityRight, actual: m.result.advance, rightUids });
-    });
-    const biggestUpset = matchFacts.filter(f => !f.majorityRight && f.frac >= 0.6).sort((a, b) => b.frac - a.frac)[0] || null;
     const loneHeroes = matchFacts.filter(f => !f.majorityRight && f.rightUids.length === 1)
         .sort((a, b) => b.frac - a.frac)
         .map(f => `${scoresData[f.rightUids[0]]?.name || ''}独具慧眼押中「${f.label}」的冷门${f.actual}`);
@@ -5857,7 +6078,14 @@ window.generateEventSummaryPoster = async function() {
         ctx.font = f(28); ctx.fillStyle = medalColors[rank - 1] || C.gray1;
         ctx.fillText(medals[rank - 1] || `#${rank}`, P + 16, cy + PODIUM_ROW_H / 2);
         ctx.font = f(18, true); ctx.fillStyle = C.ink;
-        ctx.fillText(_cn ? (_cn(e.name) || e.name) : e.name, P + 70, cy + PODIUM_ROW_H / 2 - 10);
+        const displayName = _cn ? (_cn(e.name) || e.name) : e.name;
+        ctx.fillText(displayName, P + 70, cy + PODIUM_ROW_H / 2 - 10);
+        const title = titleByUid[e.uid];
+        if (title) {
+            const nameW = ctx.measureText(displayName).width;
+            ctx.font = f(11, true); ctx.fillStyle = C.accent;
+            ctx.fillText(title, P + 70 + nameW + 10, cy + PODIUM_ROW_H / 2 - 10);
+        }
         ctx.font = f(11); ctx.fillStyle = C.gray1;
         ctx.fillText(`${isTied ? '并列第' : '第'}${rank}名`, P + 70, cy + PODIUM_ROW_H / 2 + 14);
         ctx.textAlign = 'right';
