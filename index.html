@@ -1502,7 +1502,8 @@ async function loadPublicLandingSummary() {
 
         el.innerHTML = `
             <div class="glass rounded-2xl p-4 mb-3">
-                ${(champion || topScorer) ? `<p class="text-sm text-gray-300 mb-3 text-center">${champion ? `🏆 冠军 <span class="text-yellow-400 font-black">${champion}</span>` : ''}${champion && topScorer ? '　' : ''}${topScorer ? `🎯 预测王 <span class="text-yellow-400 font-black">${topScorer.name}</span>` : ''}</p>` : ''}
+                ${champion ? `<p class="text-sm text-gray-300 mb-1 text-center">🏆 本届世界杯冠军 <span class="text-yellow-400 font-black">${champion}</span></p>` : ''}
+                ${topScorer ? `<p class="text-sm text-gray-300 mb-3 text-center">🎯 本届世界杯预测王 <span class="text-yellow-400 font-black">${topScorer.name}</span></p>` : ''}
                 <div class="flex gap-2 mb-3">
                     ${tile('参赛人数', namedUids.length)}
                     ${tile('淘汰赛战罢', `${finishedCount}/${totalCount}`)}
@@ -6197,7 +6198,7 @@ window.generateEventSummaryPoster = async function() {
     const HL_ROW_H = 46;
     const HL_H = 40 + highlights.length * HL_ROW_H;
     const FOOTER_H = 156;
-    const MEMORIAL_H = 48;
+    const MEMORIAL_H = 28;
     const H = HDR_H + 24 + PODIUM_H + 20 + HL_H + 20 + FOOTER_H + MEMORIAL_H + P;
 
     const SCALE = 2;
@@ -6309,12 +6310,10 @@ window.generateEventSummaryPoster = async function() {
     ctx.textBaseline = 'alphabetic';
 
     // A quiet, restrained memorial — no likeness, just a small mark of remembrance
-    cy += FOOTER_H + 20;
+    cy += FOOTER_H + 28;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = f(9); ctx.fillStyle = C.gray2;
-    ctx.fillText('built by lajin', W / 2, cy);
     ctx.font = f(11); ctx.fillStyle = C.gray2;
-    ctx.fillText('🐾 in memory of 旺旺与她的孩子们 🧡', W / 2, cy + 20);
+    ctx.fillText('built by lajin　🐾 in memory of 旺旺与她的孩子们 🧡', W / 2, cy);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 
     cv.toBlob(blob => {
