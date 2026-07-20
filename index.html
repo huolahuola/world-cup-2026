@@ -5739,7 +5739,6 @@ window.generateEventSummaryPoster = async function() {
         return { name: scoresData[u]?.name || '', pct: hr.total ? hr.correct / hr.total : 0 };
     });
     const avgPct = hitRates.length ? Math.round(hitRates.reduce((s, x) => s + x.pct, 0) / hitRates.length * 100) : 0;
-    const bestHitRate = hitRates.sort((a, b) => b.pct - a.pct)[0] || null;
 
     // Build the highlight lines (kept short and single-line by design)
     const highlights = [];
@@ -5748,7 +5747,7 @@ window.generateEventSummaryPoster = async function() {
     if (perfectTotal) highlights.push(`🎯 全场累计产生${perfectTotal}人次单场满分预测`);
     const champ = roomSettingsData?.champion;
     if (champ) highlights.push(`🏆 最终冠军：${champ}`);
-    if (bestHitRate) highlights.push(`📈 全场平均预测命中率${avgPct}%，最准的是${bestHitRate.name}（${Math.round(bestHitRate.pct * 100)}%）`);
+    if (hitRates.length) highlights.push(`📈 全场平均预测命中率${avgPct}%`);
 
     // ── Canvas ──
     const W = 800, P = 36;
