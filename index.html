@@ -5129,25 +5129,10 @@ window.generateRecapCard = async function(mode = 'quiz') {
         }
 
         // Always-available fallback so nobody can end up with zero candidates — for someone with no
-        // single standout stat, be honest about it but still ground it in a couple of solid numbers.
+        // single standout stat, be honest about it but still ground it in one solid number.
         const hr = _calcOverallHitRate(u, uName);
         const pct = hr.total ? Math.round(hr.correct / hr.total * 100) : 0;
-        let groupHits = 0, groupTotal = 0;
-        Object.keys(groupsData || {}).forEach(gid => {
-            const g = groupsData[gid];
-            const p = groupPredsData[`${u}_${gid}`];
-            if (!g?.winner || !p?.winner) return;
-            groupTotal++;
-            if (p.winner === g.winner) groupHits++;
-        });
-        const ucp2 = champPredsData[u] || {};
-        const loyaltyBit = (ucp2.champion && ucp2.midway)
-            ? (ucp2.champion === ucp2.midway ? `，冠军人选${ucp2.champion}也是从头到尾没变过` : `，冠军人选倒是半程从${ucp2.champion}换到了${ucp2.midway}`)
-            : '';
-        out.push({
-            title: '全面型选手', strength: 0.1,
-            detail: `命中率${pct}%，小组赛冠军看对${groupHits}/${groupTotal}个${loyaltyBit}——没有爆炸性高光，但几乎没有明显短板`,
-        });
+        out.push({ title: '全面型选手', strength: 0.1, detail: `命中率${pct}%，老实但稳，没有明显短板` });
         return out;
     }
     const _allAwardCandidates = [];
