@@ -4945,56 +4945,103 @@ window.generateRecapCard = async function(mode = 'quiz') {
     const mostDivided = matchFacts.filter(f => !f.majorityRight && (!biggestUpset || f.mid !== biggestUpset.mid) && (!loneHero || f.mid !== loneHero.mid))
         .sort((a, b) => Math.abs(a.frac - 0.5) - Math.abs(b.frac - 0.5))[0] || null;
 
-    // Carry / flop: how this user's points on a match (or a whole round) compared to the room average —
-    // a different lens than bestMatch/bestRound above, which only look at this user's own numbers in isolation.
-    const matchDevs = [];
-    chronoMatches.forEach(([mid, m]) => {
+    // Carry / flop: how a user's points on a match (or a whole round) compare to the room average —
+    // a different lens than bestMatch/bestRound above, which only look at a user's own numbers in isolation.
+    // Averages are computed once, room-wide, so the same lens can be reused for every named user below (the awards roster).
+    const matchPtsAvg = {};
+    chronoMatches.forEach(([mid]) => {
         const ptsList = namedUidsAll.map(u => koAllPredsData[u]?.[mid]?.points).filter(p => p != null);
-        if (ptsList.length < 6) return;
-        const myPts = koAllPredsData[uid]?.[mid]?.points;
-        if (myPts == null) return;
-        const avg = ptsList.reduce((a, b) => a + b, 0) / ptsList.length;
-        matchDevs.push({ type: 'match', label: `${m.home}vs${m.away}`, myPts, avg, dev: myPts - avg });
+        if (ptsList.length >= 6) matchPtsAvg[mid] = ptsList.reduce((a, b) => a + b, 0) / ptsList.length;
     });
-    const roundDevs = [];
+    const roundMidsByRound = {};
     ['r32', 'r16', 'qf', 'sf', 'final'].forEach(rnd => {
-        const roundMids = Object.entries(koMatchesData).filter(([, m]) => m.round === rnd && m.status === 'finished' && m.result).map(([mid]) => mid);
-        if (!roundMids.length) return;
-        const totalsByUser = {};
-        namedUidsAll.forEach(u => {
+        roundMidsByRound[rnd] = Object.entries(koMatchesData).filter(([, m]) => m.round === rnd && m.status === 'finished' && m.result).map(([mid]) => mid);
+    });
+    const roundPtsAvg = {};
+    Object.entries(roundMidsByRound).forEach(([rnd, mids]) => {
+        if (!mids.length) return;
+        const totals = namedUidsAll.map(u => {
             let sum = 0, has = false;
-            roundMids.forEach(mid => { const p = koAllPredsData[u]?.[mid]?.points; if (p != null) { sum += p; has = true; } });
-            if (has) totalsByUser[u] = sum;
+            mids.forEach(mid => { const p = koAllPredsData[u]?.[mid]?.points; if (p != null) { sum += p; has = true; } });
+            return has ? sum : null;
+        }).filter(v => v != null);
+        if (totals.length >= 6) roundPtsAvg[rnd] = totals.reduce((a, b) => a + b, 0) / totals.length;
+    });
+    function _carryFlopFor(u) {
+        const mDevs = [];
+        chronoMatches.forEach(([mid, m]) => {
+            if (matchPtsAvg[mid] == null) return;
+            const myPts = koAllPredsData[u]?.[mid]?.points;
+            if (myPts == null) return;
+            mDevs.push({ type: 'match', label: `${m.home}vs${m.away}`, myPts, avg: matchPtsAvg[mid], dev: myPts - matchPtsAvg[mid] });
         });
-        const vals = Object.values(totalsByUser);
-        if (vals.length < 6 || totalsByUser[uid] == null) return;
-        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-        roundDevs.push({ type: 'round', label: roundLabels[rnd] || rnd, myPts: totalsByUser[uid], avg, dev: totalsByUser[uid] - avg });
-    });
-    const matchCarry = matchDevs.filter(d => d.dev >= 8).sort((a, b) => b.dev - a.dev)[0] || null;
-    const roundCarry = roundDevs.filter(d => d.dev >= 10).sort((a, b) => b.dev - a.dev)[0] || null;
-    const carryPick = (matchCarry && roundCarry) ? (matchCarry.dev >= roundCarry.dev ? matchCarry : roundCarry) : (matchCarry || roundCarry);
-    const matchFlop = matchDevs.filter(d => d.dev <= -8).sort((a, b) => a.dev - b.dev)[0] || null;
-    const roundFlop = roundDevs.filter(d => d.dev <= -10).sort((a, b) => a.dev - b.dev)[0] || null;
-    const flopPick = (matchFlop && roundFlop) ? (matchFlop.dev <= roundFlop.dev ? matchFlop : roundFlop) : (matchFlop || roundFlop);
-
-    // Misplaced scorer loyalty: the same first-scorer pick made 2+ times, never once correct
-    const scorerLoyalty = {};
-    chronoMatches.forEach(([mid, m]) => {
-        const p = koAllPredsData[uid]?.[mid];
-        if (!p?.scorer) return;
-        scorerLoyalty[p.scorer] = scorerLoyalty[p.scorer] || { attempts: 0, hits: 0 };
-        scorerLoyalty[p.scorer].attempts++;
-        if (p.scorer === m.result.scorer) scorerLoyalty[p.scorer].hits++;
-    });
-    const misplacedLoyalty = Object.entries(scorerLoyalty)
-        .filter(([, s]) => s.attempts >= 2 && s.hits === 0)
-        .sort((a, b) => b[1].attempts - a[1].attempts)[0] || null;
+        const rDevs = [];
+        Object.entries(roundPtsAvg).forEach(([rnd, avg]) => {
+            let sum = 0, has = false;
+            roundMidsByRound[rnd].forEach(mid => { const p = koAllPredsData[u]?.[mid]?.points; if (p != null) { sum += p; has = true; } });
+            if (has) rDevs.push({ type: 'round', label: roundLabels[rnd] || rnd, myPts: sum, avg, dev: sum - avg });
+        });
+        const carry = [...mDevs.filter(d => d.dev >= 8), ...rDevs.filter(d => d.dev >= 10)].sort((a, b) => b.dev - a.dev)[0] || null;
+        const flop = [...mDevs.filter(d => d.dev <= -8), ...rDevs.filter(d => d.dev <= -10)].sort((a, b) => a.dev - b.dev)[0] || null;
+        return { carry, flop };
+    }
+    function _misplacedLoyaltyFor(u) {
+        const sLoy = {};
+        chronoMatches.forEach(([mid, m]) => {
+            const p = koAllPredsData[u]?.[mid];
+            if (!p?.scorer) return;
+            sLoy[p.scorer] = sLoy[p.scorer] || { attempts: 0, hits: 0 };
+            sLoy[p.scorer].attempts++;
+            if (p.scorer === m.result.scorer) sLoy[p.scorer].hits++;
+        });
+        return Object.entries(sLoy).filter(([, s]) => s.attempts >= 2 && s.hits === 0).sort((a, b) => b[1].attempts - a[1].attempts)[0] || null;
+    }
+    const { carry: carryPick, flop: flopPick } = _carryFlopFor(uid);
+    const misplacedLoyalty = _misplacedLoyaltyFor(uid);
 
     // Champion loyalty: did the champion pick change between the two submission windows?
     const loyaltyNote = (cp.champion && cp.midway)
         ? (cp.champion === cp.midway ? `从头到尾力挺 ${cp.champion}，忠诚玩家` : `半程从 ${cp.champion} 倒戈支持 ${cp.midway}，墙头草认证`)
         : null;
+
+    // ── All-room awards roster: every named player gets exactly one title, from their single most
+    // distinctive stat (first match in this priority order wins) — so nobody in the room goes unmentioned.
+    function _bestStreakFor(u) {
+        let cur = 0, best = 0;
+        chronoMatches.forEach(([mid, m]) => {
+            const p = koAllPredsData[u]?.[mid];
+            const hit = p?.result90 && p.result90 === m.result.outcome_90;
+            cur = hit ? cur + 1 : 0;
+            best = Math.max(best, cur);
+        });
+        return best;
+    }
+    function _pickAwardTitle(u, uName) {
+        const heroMatch = matchFacts.find(f => !f.majorityRight && f.rightUids.length === 1 && f.rightUids[0] === u) || null;
+        if (heroMatch) return { title: '孤胆英雄', detail: `「${heroMatch.label}」全场唯独他/她押中了${heroMatch.actual}` };
+        const { carry, flop } = _carryFlopFor(u);
+        const ml = _misplacedLoyaltyFor(u);
+        if (ml && ml[1].attempts >= 3) return { title: '死心塌地', detail: `${ml[1].attempts}次押${ml[0]}首开纪录，从未等到` };
+        if (carry && carry.dev >= 12) return { title: 'carry之王', detail: `「${carry.label}」独得${Math.round(carry.myPts)}分（全场平均${carry.avg.toFixed(1)}）` };
+        if (flop && flop.dev <= -10) return { title: '翻车现场', detail: `「${flop.label}」只拿了${Math.round(flop.myPts)}分（全场平均${flop.avg.toFixed(1)}）` };
+        const streak = _bestStreakFor(u);
+        if (streak >= 6) return { title: '连胜达人', detail: `连续${streak}场命中` };
+        if (ml) return { title: '痴心错付', detail: `${ml[1].attempts}次押${ml[0]}首开纪录，颗粒无收` };
+        if (carry) return { title: '高光时刻', detail: `「${carry.label}」比全场平均高出${carry.dev.toFixed(1)}分` };
+        if (flop) return { title: '低谷时刻', detail: `「${flop.label}」比全场平均低了${Math.abs(flop.dev).toFixed(1)}分` };
+        const ucp2 = champPredsData[u] || {};
+        if (ucp2.champion && ucp2.midway) {
+            if (ucp2.champion !== ucp2.midway) return { title: '墙头草', detail: `冠军人选从${ucp2.champion}半程倒戈到${ucp2.midway}` };
+            return { title: '忠诚玩家', detail: `冠军人选${ucp2.champion}从头到尾没变过` };
+        }
+        const hr = _calcOverallHitRate(u, uName);
+        const pct = hr.total ? Math.round(hr.correct / hr.total * 100) : 0;
+        return { title: '稳健型选手', detail: `命中率${pct}%，不功不过` };
+    }
+    const awardsRoster = namedUidsAll.map(u => {
+        const uName = scoresData[u]?.name || '';
+        return { uid: u, name: uName, isMe: u === uid, ..._pickAwardTitle(u, uName) };
+    });
 
     const magicNotes = [];
     Object.values(r32MagicData || {}).forEach(m => {
@@ -5043,7 +5090,8 @@ window.generateRecapCard = async function(mode = 'quiz') {
     const pct = hitRate.total ? Math.round(hitRate.correct / hitRate.total * 100) : 0;
     const paragraphs = [];
 
-    paragraphs.push(`亲爱的${HL(name)}，恭喜你完成了这趟四年一度的旅途——2026美加墨世界杯，感觉还好吗？还是一言难尽？`);
+    // Note: person names are never wrapped in HL() here — highlighting a Chinese name in red is a cultural taboo
+    paragraphs.push(`亲爱的${name}，恭喜你完成了这趟四年一度的旅途——2026美加墨世界杯，感觉还好吗？还是一言难尽？`);
     paragraphs.push(`这一路你一共命中了${HL(hitRate.correct + '次')}预测（命中率${HL(pct + '%')}），最终定格在${HL('第' + myRank + '名')}（共${totalPlayers}人），攒下了${HL(myTotal + '分')}。`);
 
     let p3 = '';
@@ -5100,7 +5148,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
     if (loneHero && loneHero.mid !== uniqueCallMid) {
         const isMe = loneHero.rightUids[0] === uid;
         const heroName = isMe ? '你' : (scoresData[loneHero.rightUids[0]]?.name || '神秘玩家');
-        pHero = `全场孤胆英雄奖颁给「${HL(loneHero.label)}」这一战——${Math.round(loneHero.frac * 100)}%的人都押${loneHero.topTeam}，唯独${HL(heroName)}一人押中了真正的赢家${loneHero.actual}${isMe ? '，简直是先知本尊' : ''}。`;
+        pHero = `全场孤胆英雄奖颁给「${HL(loneHero.label)}」这一战——${Math.round(loneHero.frac * 100)}%的人都押${loneHero.topTeam}，唯独${heroName}一人押中了真正的赢家${loneHero.actual}${isMe ? '，简直是先知本尊' : ''}。`;
     }
     if (pHero) paragraphs.push(pHero);
 
@@ -5113,6 +5161,14 @@ window.generateRecapCard = async function(mode = 'quiz') {
         }
     }
     if (p7) paragraphs.push(p7);
+
+    // Every named player in the room gets one line — nobody goes unmentioned
+    if (awardsRoster.length) {
+        paragraphs.push('顺便颁个奖，把房间里每个人的本届高光/翻车都点个名：');
+        awardsRoster.forEach(a => {
+            paragraphs.push(`${a.isMe ? '（你）' : ''}${a.name}：${HL(a.title)}——${a.detail}。`);
+        });
+    }
 
     if (loyaltyNote) paragraphs.push(`冠军人选上，你${loyaltyNote}。`);
     if (magicNotes.length) {
