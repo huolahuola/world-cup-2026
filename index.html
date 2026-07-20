@@ -1502,8 +1502,7 @@ async function loadPublicLandingSummary() {
 
         el.innerHTML = `
             <div class="glass rounded-2xl p-4 mb-3">
-                ${champion ? `<p class="text-sm text-gray-300 mb-1 text-center">🏆 本届世界杯冠军 <span class="text-yellow-400 font-black">${champion}</span></p>` : ''}
-                ${topScorer ? `<p class="text-sm text-gray-300 mb-3 text-center">🎯 本届世界杯预测王 <span class="text-yellow-400 font-black">${topScorer.name}</span></p>` : ''}
+                ${(champion || topScorer) ? `<p class="text-sm text-gray-300 mb-3 text-center">${champion ? `🏆 冠军 <span class="text-yellow-400 font-black">${champion}</span>` : ''}${champion && topScorer ? '　' : ''}${topScorer ? `🎯 预测王 <span class="text-yellow-400 font-black">${topScorer.name}</span>` : ''}</p>` : ''}
                 <div class="flex gap-2 mb-3">
                     ${tile('参赛人数', namedUids.length)}
                     ${tile('淘汰赛战罢', `${finishedCount}/${totalCount}`)}
