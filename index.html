@@ -5041,9 +5041,21 @@ window.generateRecapCard = async function(mode = 'quiz') {
         const worst = entries.filter(([, s]) => s.lost >= 8).sort((a, b) => b[1].lost - a[1].lost)[0] || null;
         return { best, worst };
     }
+    // How often — and how hard — a player got hit by other people's magic cards, across every round
+    function _magicDamageFor(uName) {
+        let hits = 0, damage = 0;
+        [r32MagicData, r16MagicData, qfMagicData, sfMagicData].forEach(roundMagic => {
+            Object.values(roundMagic || {}).forEach(m => {
+                if (m.targetName !== uName) return;
+                hits++;
+                damage += m.netScoreChange ?? m.impact ?? 0;
+            });
+        });
+        return { hits, damage };
+    }
     // Ranking, used by the "just-missed-the-podium" award below
     const _rankedTotals = namedUidsAll.map(u => scoresData[u]?.total || 0).sort((a, b) => b - a);
-    const NEGATIVE_TITLES = new Set(['单场翻车', '轮次翻车', '死心塌地', '看走眼大师', '墙头草']);
+    const NEGATIVE_TITLES = new Set(['单场翻车', '轮次翻车', '死心塌地', '看走眼大师']);
     function _candidatesFor(u, uName) {
         const out = [];
         // Hero titles embed the underdog's own name (e.g. "巴拉圭先知"), so two different lone-hero
@@ -5088,25 +5100,54 @@ window.generateRecapCard = async function(mode = 'quiz') {
         if (bestTeamRec) out.push({ title: '晋级判官', strength: bestTeamRec[1].hits * 5, detail: `晋级判断${bestTeamRec[1].hits}中${bestTeamRec[1].hits}，看${bestTeamRec[0]}从未失手` });
         if (worstTeamRec) out.push({ title: '看走眼大师', strength: worstTeamRec[1].lost, detail: `押${worstTeamRec[0]}晋级${worstTeamRec[1].misses}次全部落空，扔了${worstTeamRec[1].lost}分` });
 
-        const ucp2 = champPredsData[u] || {};
-        if (ucp2.champion && ucp2.midway) {
-            if (ucp2.champion !== ucp2.midway) out.push({ title: '墙头草', strength: 5, detail: `冠军人选从${ucp2.champion}半程倒戈到${ucp2.midway}` });
-            else out.push({ title: '忠诚玩家', strength: 3, detail: `冠军人选${ucp2.champion}从头到尾没变过` });
+        // Most/hardest magic-attacked player — if their lost points were added back, would they be #1?
+        const { hits: magicHits, damage: magicDamage } = _magicDamageFor(uName);
+        if (magicHits >= 2) {
+            const myTotal0 = scoresData[u]?.total || 0;
+            const wouldBeTotal = myTotal0 - magicDamage; // damage is already negative/zero
+            const leaderTotal = _rankedTotals[0];
+            const wouldLead = wouldBeTotal > leaderTotal;
+            out.push({
+                title: '众矢之的', strength: magicHits * 20 - magicDamage,
+                detail: `全场被魔法攻击${magicHits}次最多的人，合计被打掉${-magicDamage}分${wouldLead ? `——若无这些攻击，${wouldBeTotal}分本该是遥遥领先的第一名` : ''}`,
+            });
+        }
+
+        // The actual #1 — this should outrank any single-round/single-match stat of theirs
+        const myTotal = scoresData[u]?.total || 0;
+        const rank = _rankedTotals.indexOf(myTotal) + 1;
+        if (rank === 1) {
+            const gapBelow = myTotal - (_rankedTotals[1] ?? 0);
+            out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `总分第1名（${myTotal}分），领先第2名${gapBelow}分，全场独一档` });
         }
 
         // "Just missed the podium" — only for rank 2 or 3, and only if the gap is genuinely close;
         // weighted toward rank 2 so a near-miss of 1st beats a photo-finish for 3rd.
-        const myTotal = scoresData[u]?.total || 0;
-        const rank = _rankedTotals.indexOf(myTotal) + 1;
         if (rank === 2 || rank === 3) {
             const gapAbove = _rankedTotals[rank - 2] - myTotal;
             if (gapAbove <= 15) out.push({ title: '总分黑马', strength: (4 - rank) * 20 - gapAbove, detail: `总分第${rank}名（${myTotal}分），只差第${rank - 1}名${gapAbove}分` });
         }
 
-        // Always-available fallback so nobody can end up with zero candidates
+        // Always-available fallback so nobody can end up with zero candidates — for someone with no
+        // single standout stat, be honest about it but still ground it in a couple of solid numbers.
         const hr = _calcOverallHitRate(u, uName);
         const pct = hr.total ? Math.round(hr.correct / hr.total * 100) : 0;
-        out.push({ title: '稳健型选手', strength: 0.1, detail: `命中率${pct}%，不功不过` });
+        let groupHits = 0, groupTotal = 0;
+        Object.keys(groupsData || {}).forEach(gid => {
+            const g = groupsData[gid];
+            const p = groupPredsData[`${u}_${gid}`];
+            if (!g?.winner || !p?.winner) return;
+            groupTotal++;
+            if (p.winner === g.winner) groupHits++;
+        });
+        const ucp2 = champPredsData[u] || {};
+        const loyaltyBit = (ucp2.champion && ucp2.midway)
+            ? (ucp2.champion === ucp2.midway ? `，冠军人选${ucp2.champion}也是从头到尾没变过` : `，冠军人选倒是半程从${ucp2.champion}换到了${ucp2.midway}`)
+            : '';
+        out.push({
+            title: '全面型选手', strength: 0.1,
+            detail: `命中率${pct}%，小组赛冠军看对${groupHits}/${groupTotal}个${loyaltyBit}——没有爆炸性高光，但几乎没有明显短板`,
+        });
         return out;
     }
     const _allAwardCandidates = [];
