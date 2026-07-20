@@ -5097,6 +5097,12 @@ function computeAwardsRoster() {
         }
         if (worstTeamRec) out.push({ title: '看走眼大师', strength: worstTeamRec[1].lost, detail: `押${worstTeamRec[0]}晋级${worstTeamRec[1].misses}次全部落空，扔了${worstTeamRec[1].lost}分` });
 
+        // Both the champion pick and the golden-boot pick landed, and neither one wavered
+        const cpBoth = champPredsData[u] || {};
+        if (cpBoth.champion && cpBoth.champion === roomSettingsData?.champion && cpBoth.goldenBoot && cpBoth.goldenBootPoints > 0) {
+            out.push({ title: '双押全中', strength: 30, detail: `冠军选${cpBoth.champion}、金靴选${cpBoth.goldenBoot}，从头到尾没有动摇，两个预测全部命中` });
+        }
+
         const { hits: magicHits, damage: magicDamage } = _magicDamageFor(uName);
         if (magicHits >= 2) {
             const myTotal0 = scoresData[u]?.total || 0;
@@ -5104,7 +5110,7 @@ function computeAwardsRoster() {
             const leaderTotal = _rankedTotals[0];
             const wouldLead = wouldBeTotal > leaderTotal;
             out.push({
-                title: '众矢之的', strength: magicHits * 20 - magicDamage,
+                title: '头号种子', strength: magicHits * 20 - magicDamage,
                 detail: `全场被魔法攻击${magicHits}次最多的人，合计被打掉${-magicDamage}分${wouldLead ? `——若无这些攻击，${wouldBeTotal}分本该是遥遥领先的第一名` : ''}`,
             });
         }
@@ -5504,6 +5510,12 @@ window.generateRecapCard = async function(mode = 'quiz') {
         }
         if (worstTeamRec) out.push({ title: '看走眼大师', strength: worstTeamRec[1].lost, detail: `押${worstTeamRec[0]}晋级${worstTeamRec[1].misses}次全部落空，扔了${worstTeamRec[1].lost}分` });
 
+        // Both the champion pick and the golden-boot pick landed, and neither one wavered
+        const cpBoth = champPredsData[u] || {};
+        if (cpBoth.champion && cpBoth.champion === roomSettingsData?.champion && cpBoth.goldenBoot && cpBoth.goldenBootPoints > 0) {
+            out.push({ title: '双押全中', strength: 30, detail: `冠军选${cpBoth.champion}、金靴选${cpBoth.goldenBoot}，从头到尾没有动摇，两个预测全部命中` });
+        }
+
         // Most/hardest magic-attacked player — if their lost points were added back, would they be #1?
         const { hits: magicHits, damage: magicDamage } = _magicDamageFor(uName);
         if (magicHits >= 2) {
@@ -5512,7 +5524,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
             const leaderTotal = _rankedTotals[0];
             const wouldLead = wouldBeTotal > leaderTotal;
             out.push({
-                title: '众矢之的', strength: magicHits * 20 - magicDamage,
+                title: '头号种子', strength: magicHits * 20 - magicDamage,
                 detail: `全场被魔法攻击${magicHits}次最多的人，合计被打掉${-magicDamage}分${wouldLead ? `——若无这些攻击，${wouldBeTotal}分本该是遥遥领先的第一名` : ''}`,
             });
         }
@@ -5774,7 +5786,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
         trait = { t: '有始有终、说到做到', b: '愿你在生活里也能这样，认定的事就坚持到底，收获属于自己的高光时刻。' };
     } else if (myAward?.title === '总冠军') {
         trait = { t: '关键时刻能扛住，笑到最后的那种人', b: '愿你在工作生活里也能在最后一刻顶住压力，把最关键的一棒跑好。' };
-    } else if (myAward?.title === '众矢之的') {
+    } else if (myAward?.title === '头号种子') {
         trait = { t: '扛得住针对，越被盯上越顶得住', b: '愿你往后也能在压力和非议中站稳，把别人的针对活成自己的勋章。' };
     } else if (myAward?.title?.endsWith('先知') || myAward?.title === '剑走偏锋') {
         trait = { t: '独立思考、不随大流', b: '愿你往后的日子里也依然有勇气相信自己的判断，走出一条与众不同的路。' };
@@ -5786,6 +5798,8 @@ window.generateRecapCard = async function(mode = 'quiz') {
         trait = { t: '专注沉稳，状态好的时候一往无前', b: '愿你在工作生活里也能找到自己的连胜节奏，把手感延续得更久一些。' };
     } else if (myAward?.title === '总分黑马') {
         trait = { t: '虽千万人吾往矣，差一点就登顶', b: '愿你下次再冲一把，把这口气咽下去变成继续向前的动力。' };
+    } else if (myAward?.title === '双押全中') {
+        trait = { t: '认准了就不轻易改变，信仰最终兑现', b: '愿你在生活里也能保有这份笃定，认准的事不摇摆，时间会给你答案。' };
     } else if (['死心塌地', '单场翻车', '轮次翻车', '看走眼大师'].includes(myAward?.title)) {
         trait = { t: '认定了就一条路走到黑，虽败犹荣', b: '愿你这份执着换个地方也能开花结果，下次一定能等到属于你的那次命中。' };
     } else if (loyaltyNote && loyaltyNote.includes('墙头草')) {
@@ -6000,6 +6014,8 @@ window.generateEventSummaryPoster = async function() {
     // Build the highlight lines (kept short and single-line by design)
     const highlights = [];
     if (biggestUpset) highlights.push(`💥 全场最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
+    const noDramaMatches = matchFacts.filter(f => f.majorityRight && f.frac >= 0.99);
+    if (noDramaMatches.length) highlights.push(`😌 全场有${noDramaMatches.length}场比赛，所有人对晋级球队的判断完全一致且全部猜对（比如「${noDramaMatches[0].label}」）`);
     loneHeroes.slice(0, 2).forEach(h => highlights.push(`🕵️ ${h}`));
     if (perfectTotal) highlights.push(`🎯 全场累计产生${perfectTotal}人次单场满分预测`);
     const champ = roomSettingsData?.champion;
