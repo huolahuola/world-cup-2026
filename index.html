@@ -5806,7 +5806,8 @@ window.generateEventSummaryPoster = async function() {
     const HL_ROW_H = 46;
     const HL_H = 40 + highlights.length * HL_ROW_H;
     const FOOTER_H = 156;
-    const H = HDR_H + 24 + PODIUM_H + 20 + HL_H + 20 + FOOTER_H + P;
+    const MEMORIAL_H = 28;
+    const H = HDR_H + 24 + PODIUM_H + 20 + HL_H + 20 + FOOTER_H + MEMORIAL_H + P;
 
     const SCALE = 2;
     const cv = document.createElement('canvas');
@@ -5908,6 +5909,13 @@ window.generateEventSummaryPoster = async function() {
     const _dtStr = _now.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
     ctx.fillText('生成于 ' + _dtStr, P + 18, cy + 108);
     ctx.textBaseline = 'alphabetic';
+
+    // A quiet, restrained memorial — no likeness, just a small mark of remembrance
+    cy += FOOTER_H + 24;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = f(11); ctx.fillStyle = C.gray2;
+    ctx.fillText('🐾 in memory of 旺旺与她的孩子们 🧡', W / 2, cy);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 
     cv.toBlob(blob => {
         const a = document.createElement('a');
