@@ -722,7 +722,7 @@ setTimeout(function() {
                         <button onclick="generateRecapCard('quiz')" class="flex-1 text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-purple-500/30" style="background:linear-gradient(135deg,#a855f7,#ec4899)">🎬 生成我的竞猜回忆</button>
                         <button onclick="generateRecapCard('full')" class="flex-1 text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-purple-500/30" style="background:linear-gradient(135deg,#a855f7,#ec4899)">🎬 生成我的竞猜+看球回忆</button>
                     </div>
-                    <button onclick="generateEventSummaryPoster()" class="w-full text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-amber-500/30" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">📊 生成整届杯赛总结海报（可发朋友圈）</button>
+                    <button id="posterBtnWrap" onclick="generateEventSummaryPoster()" class="w-full text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-amber-500/30" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">📊 生成整届杯赛总结海报（可发朋友圈）</button>
                 </div>
                 <div id="myPredsContainer" class="space-y-2">
                     <div class="text-center py-8 text-gray-400">暂无预测</div>
@@ -4328,8 +4328,9 @@ function _refreshMyProfileCard() {
             avatarEl.innerHTML = currentUser.name.charAt(0).toUpperCase();
         }
     }
-    // Recap cards + summary poster: not opened up to the public room
-    if (currentRoom !== 'public') document.getElementById('recapBtnRow')?.classList.remove('hidden');
+    // Recap cards: open to everyone; the shareable summary poster stays prize-room-only
+    document.getElementById('recapBtnRow')?.classList.remove('hidden');
+    document.getElementById('posterBtnWrap')?.classList.toggle('hidden', currentRoom === 'public');
 }
 
 window.handleAvatarUpload = function(event) {
@@ -5293,9 +5294,12 @@ function computeAwardsRoster() {
     const _positiveCands = _allAwardCandidates.filter(c => !NEGATIVE_TITLES.has(c.title)).sort((a, b) => b.strength - a.strength);
     const _negativeCands = _allAwardCandidates.filter(c => NEGATIVE_TITLES.has(c.title)).sort((a, b) => b.strength - a.strength);
     [..._positiveCands, ..._negativeCands].forEach(c => {
-        if (_awardAssigned[c.uid] || _usedTitles.has(c.title)) return;
+        if (_awardAssigned[c.uid]) return;
+        // '全面型选手' is an honest catch-all, not a unique award — never let title-uniqueness
+        // block it, or anyone past the first person who needs it ends up with no title at all.
+        if (c.title !== '全面型选手' && _usedTitles.has(c.title)) return;
         _awardAssigned[c.uid] = c;
-        _usedTitles.add(c.title);
+        if (c.title !== '全面型选手') _usedTitles.add(c.title);
     });
     const awardsRoster = namedUidsAll.map(u => {
         const c = _awardAssigned[u];
@@ -5717,9 +5721,12 @@ window.generateRecapCard = async function(mode = 'quiz') {
     const _positiveCands = _allAwardCandidates.filter(c => !NEGATIVE_TITLES.has(c.title)).sort((a, b) => b.strength - a.strength);
     const _negativeCands = _allAwardCandidates.filter(c => NEGATIVE_TITLES.has(c.title)).sort((a, b) => b.strength - a.strength);
     [..._positiveCands, ..._negativeCands].forEach(c => {
-        if (_awardAssigned[c.uid] || _usedTitles.has(c.title)) return;
+        if (_awardAssigned[c.uid]) return;
+        // '全面型选手' is an honest catch-all, not a unique award — never let title-uniqueness
+        // block it, or anyone past the first person who needs it ends up with no title at all.
+        if (c.title !== '全面型选手' && _usedTitles.has(c.title)) return;
         _awardAssigned[c.uid] = c;
-        _usedTitles.add(c.title);
+        if (c.title !== '全面型选手') _usedTitles.add(c.title);
     });
     const awardsRoster = namedUidsAll.map(u => {
         const c = _awardAssigned[u];
