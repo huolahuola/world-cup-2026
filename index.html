@@ -719,6 +719,7 @@ setTimeout(function() {
                         <button onclick="generateRecapCard('quiz')" class="flex-1 text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-purple-500/30" style="background:linear-gradient(135deg,#a855f7,#ec4899)">🎬 生成我的竞猜回忆</button>
                         <button onclick="generateRecapCard('full')" class="flex-1 text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-purple-500/30" style="background:linear-gradient(135deg,#a855f7,#ec4899)">🎬 生成我的竞猜+看球回忆</button>
                     </div>
+                    <button onclick="generateEventSummaryPoster()" class="w-full text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-amber-500/30" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">📊 生成全场总结海报（可发朋友圈）</button>
                 </div>
                 <div id="myPredsContainer" class="space-y-2">
                     <div class="text-center py-8 text-gray-400">暂无预测</div>
@@ -5640,6 +5641,184 @@ window.generateRecapCard = async function(mode = 'quiz') {
         URL.revokeObjectURL(a.href);
     }, 'image/png');
     toast('🎬 回忆卡片已生成！');
+};
+
+// ─── Event summary poster: a shareable "whole competition" recap, distinct from the
+// per-player recap card above — built for posting (e.g. WeChat Moments), not personalization.
+window.generateEventSummaryPoster = async function() {
+    const namedUidsAll = Object.keys(scoresData).filter(u => scoresData[u]?.name && scoresData[u].name !== '小助手');
+    if (!namedUidsAll.length) { toast('暂无数据，无法生成', 'error'); return; }
+
+    // Standings, with competition ranking (ties share a rank)
+    const standingEntries = namedUidsAll.map(u => ({ uid: u, name: scoresData[u].name, total: scoresData[u].total || 0 }));
+    standingEntries.sort((a, b) => b.total - a.total);
+    const rankOf = e => standingEntries.filter(x => x.total > e.total).length + 1;
+    const podiumEntries = standingEntries.filter(e => rankOf(e) <= 3);
+
+    const finishedMatches = Object.entries(koMatchesData).filter(([, m]) => m.status === 'finished' && m.result);
+    const chronoM = finishedMatches.sort((a, b) => (a[1].kickoff || '').localeCompare(b[1].kickoff || ''));
+
+    // Biggest consensus upset + lone heroes (same logic family as the per-player recap's room facts)
+    const matchFacts = [];
+    chronoM.forEach(([mid, m]) => {
+        const picks = namedUidsAll.map(u => koAllPredsData[u]?.[mid]?.advance).filter(Boolean);
+        if (picks.length < 6) return;
+        const tally = {};
+        picks.forEach(t => { tally[t] = (tally[t] || 0) + 1; });
+        const [topTeam, topN] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+        const frac = topN / picks.length;
+        const majorityRight = topTeam === m.result.advance;
+        const rightUids = namedUidsAll.filter(u => koAllPredsData[u]?.[mid]?.advance === m.result.advance);
+        matchFacts.push({ label: `${m.home}vs${m.away}`, topTeam, n: picks.length, frac, majorityRight, actual: m.result.advance, rightUids });
+    });
+    const biggestUpset = matchFacts.filter(f => !f.majorityRight && f.frac >= 0.6).sort((a, b) => b.frac - a.frac)[0] || null;
+    const loneHeroes = matchFacts.filter(f => !f.majorityRight && f.rightUids.length === 1)
+        .sort((a, b) => b.frac - a.frac)
+        .map(f => `${scoresData[f.rightUids[0]]?.name || ''}独具慧眼押中「${f.label}」的冷门${f.actual}`);
+
+    // Perfect-score tally
+    function maxPtsForRound(rnd) {
+        const isSF = rnd === 'sf', isQF = rnd === 'qf' || rnd === 'final', isR16up = rnd !== 'r32';
+        return (isSF ? 8 : isQF ? 6 : isR16up ? 3 : 2) * 2 + (isSF ? 12 : isQF ? 8 : isR16up ? 5 : 4) + (isR16up ? (isSF ? 12 : isQF ? 10 : 5) : 0);
+    }
+    let perfectTotal = 0;
+    chronoM.forEach(([mid, m]) => {
+        const mx = maxPtsForRound(m.round);
+        perfectTotal += namedUidsAll.filter(u => koAllPredsData[u]?.[mid]?.points === mx).length;
+    });
+
+    // Build the highlight lines (kept short and single-line by design)
+    const highlights = [];
+    if (biggestUpset) highlights.push(`💥 全场最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
+    loneHeroes.slice(0, 2).forEach(h => highlights.push(`🕵️ ${h}`));
+    if (perfectTotal) highlights.push(`🎯 全场累计产生${perfectTotal}人次单场满分预测`);
+    const champ = roomSettingsData?.champion;
+    if (champ) highlights.push(`🏆 最终冠军：${champ}`);
+    highlights.push(`👥 共${namedUidsAll.length}人参赛，${chronoM.length}场淘汰赛全部战罢`);
+
+    // ── Canvas ──
+    const W = 800, P = 36;
+    const ff = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif';
+    const f = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px ${ff}`;
+    const C = { bg: '#ffffff', bgCard: '#f6f8fa', border: 'rgba(31,35,40,0.12)', ink: '#1f2328', gray1: '#57606a', gray2: '#8b949e', gold: '#b45309', accent: '#7c3aed' };
+
+    const HDR_H = 168;
+    const PODIUM_ROW_H = 76;
+    const PODIUM_H = 40 + podiumEntries.length * (PODIUM_ROW_H + 10);
+    const HL_ROW_H = 46;
+    const HL_H = 40 + highlights.length * HL_ROW_H;
+    const FOOTER_H = 156;
+    const H = HDR_H + 24 + PODIUM_H + 20 + HL_H + 20 + FOOTER_H + P;
+
+    const SCALE = 2;
+    const cv = document.createElement('canvas');
+    cv.width = W * SCALE; cv.height = H * SCALE;
+    const ctx = cv.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+
+    const rr = (x, y, w, h, r, fill, stroke, sw = 1) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw; ctx.stroke(); }
+    };
+
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+
+    // Header
+    ctx.fillStyle = C.bgCard; ctx.fillRect(0, 0, W, HDR_H);
+    ctx.fillStyle = C.accent; ctx.fillRect(0, HDR_H - 4, W, 4);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = f(15, true); ctx.fillStyle = C.gold;
+    ctx.fillText('2026 FIFA 美加墨世界杯', W / 2, 46);
+    ctx.font = f(28, true); ctx.fillStyle = C.ink;
+    ctx.fillText('竞猜大赛 · 全场总结', W / 2, 86);
+    ctx.font = f(12); ctx.fillStyle = C.gray1;
+    ctx.fillText('一个从零搭建的竞猜网站，陪大家追完了整届世界杯', W / 2, 122);
+    ctx.font = f(10); ctx.fillStyle = C.accent;
+    ctx.fillText('huolahuola.github.io/world-cup-2026', W / 2, 144);
+
+    // Podium
+    let cy = HDR_H + 24;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = f(17, true); ctx.fillStyle = C.ink;
+    ctx.fillText('🏆 最终排名', P, cy + 14);
+    cy += 34;
+    const medals = ['🥇', '🥈', '🥉'];
+    const medalColors = ['#b45309', '#6b7280', '#b45309'];
+    podiumEntries.forEach(e => {
+        const rank = rankOf(e);
+        const isTied = podiumEntries.filter(x => rankOf(x) === rank).length > 1;
+        rr(P, cy, W - P * 2, PODIUM_ROW_H, 12, C.bgCard, C.border);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.font = f(28); ctx.fillStyle = medalColors[rank - 1] || C.gray1;
+        ctx.fillText(medals[rank - 1] || `#${rank}`, P + 16, cy + PODIUM_ROW_H / 2);
+        ctx.font = f(18, true); ctx.fillStyle = C.ink;
+        ctx.fillText(_cn ? (_cn(e.name) || e.name) : e.name, P + 70, cy + PODIUM_ROW_H / 2 - 10);
+        ctx.font = f(11); ctx.fillStyle = C.gray1;
+        ctx.fillText(`${isTied ? '并列第' : '第'}${rank}名`, P + 70, cy + PODIUM_ROW_H / 2 + 14);
+        ctx.textAlign = 'right';
+        ctx.font = f(26, true); ctx.fillStyle = C.gold;
+        ctx.fillText(`${e.total}`, W - P - 16, cy + PODIUM_ROW_H / 2 - 6);
+        ctx.font = f(11); ctx.fillStyle = C.gray2;
+        ctx.fillText('分', W - P - 16, cy + PODIUM_ROW_H / 2 + 14);
+        cy += PODIUM_ROW_H + 10;
+    });
+
+    // Highlights
+    cy += 10;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.font = f(17, true); ctx.fillStyle = C.ink;
+    ctx.fillText('✨ 全场高光时刻', P, cy + 14);
+    cy += 34;
+    rr(P, cy, W - P * 2, highlights.length * HL_ROW_H, 12, C.bgCard, C.border);
+    highlights.forEach((h, i) => {
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.font = f(13); ctx.fillStyle = C.ink;
+        ctx.fillText(h, P + 18, cy + i * HL_ROW_H + HL_ROW_H / 2);
+        if (i < highlights.length - 1) {
+            ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(P + 14, cy + (i + 1) * HL_ROW_H); ctx.lineTo(W - P - 14, cy + (i + 1) * HL_ROW_H); ctx.stroke();
+        }
+    });
+    cy += highlights.length * HL_ROW_H + 20;
+
+    // Footer (QR + branding)
+    rr(P, cy, W - P * 2, FOOTER_H, 10, C.bgCard, C.border);
+    ctx.fillStyle = C.accent; ctx.fillRect(P, cy + 12, 3, FOOTER_H - 24);
+    const QR = 100, qrX = W - P - 20 - QR, qrY = cy + (FOOTER_H - QR) / 2;
+    const siteUrl = 'https://huolahuola.github.io/world-cup-2026/';
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(siteUrl)}&size=${QR * 2}x${QR * 2}&bgcolor=f6f8fa&color=1f2328&margin=2`;
+    await new Promise(res => {
+        const img = new Image(); img.crossOrigin = 'anonymous';
+        img.onload = () => { rr(qrX - 4, qrY - 4, QR + 8, QR + 8, 6, '#f6f8fa'); ctx.drawImage(img, qrX, qrY, QR, QR); res(); };
+        img.onerror = res; img.src = qrSrc;
+    });
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = f(18, true); ctx.fillStyle = C.gold;
+    ctx.fillText('扫码，来一起猜下一届！', P + 18, cy + 40);
+    ctx.font = f(11); ctx.fillStyle = C.ink;
+    ctx.fillText('这是我自己动手做的一个网站 🙋', P + 18, cy + 66);
+    ctx.font = f(10); ctx.fillStyle = C.gray1;
+    ctx.fillText('2026 FIFA 世界杯竞猜', P + 18, cy + 88);
+    ctx.font = f(9); ctx.fillStyle = C.gray2;
+    const _now = new Date();
+    const _dtStr = _now.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    ctx.fillText('生成于 ' + _dtStr, P + 18, cy + 108);
+    ctx.textBaseline = 'alphabetic';
+
+    cv.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `wc2026_summary_poster.png`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }, 'image/png');
+    toast('📊 全场总结海报已生成！');
 };
 
 // ─── Render: My Predictions ───────────────────────────────
