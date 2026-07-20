@@ -358,6 +358,10 @@ setTimeout(function() {
 
         </div>
     </div>
+
+    <!-- Danmaku layer: anonymous excerpts from everyone's match-watching diary notes, floating
+         across the screen — purely decorative, no attribution, sits above content but ignores clicks -->
+    <div id="lpDanmaku" class="absolute inset-0 overflow-hidden" style="pointer-events:none"></div>
 </div>
 
 <!-- ══════════ PREDICTION MODAL ══════════ -->
@@ -6014,8 +6018,10 @@ window.generateEventSummaryPoster = async function() {
     // Build the highlight lines (kept short and single-line by design)
     const highlights = [];
     if (biggestUpset) highlights.push(`💥 全场最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
-    const noDramaMatches = matchFacts.filter(f => f.majorityRight && f.frac >= 0.99);
-    if (noDramaMatches.length) highlights.push(`😌 全场有${noDramaMatches.length}场比赛，所有人对晋级球队的判断完全一致且全部猜对（比如「${noDramaMatches[0].label}」）`);
+    const roundOrder = { r32: 0, r16: 1, qf: 2, sf: 3, final: 4 };
+    const noDramaMatches = matchFacts.filter(f => f.majorityRight && f.frac >= 0.99)
+        .sort((a, b) => (roundOrder[koMatchesData[b.mid]?.round] ?? -1) - (roundOrder[koMatchesData[a.mid]?.round] ?? -1));
+    if (noDramaMatches.length) highlights.push(`😌 整届杯赛有${noDramaMatches.length}场淘汰赛，所有人对晋级球队的判断完全一致且全部猜对（比如「${noDramaMatches[0].label}」）`);
     loneHeroes.slice(0, 2).forEach(h => highlights.push(`🕵️ ${h}`));
     if (perfectTotal) highlights.push(`🎯 全场累计产生${perfectTotal}人次单场满分预测`);
     const champ = roomSettingsData?.champion;
