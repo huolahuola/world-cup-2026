@@ -3463,6 +3463,8 @@ function renderLeaderboard() {
     const KO_COLS = ['r32','r16','qf','sf','final'];
     const KO_COL_LABELS = { r32:'32进16', r16:'16进8', qf:'8进4', sf:'半决赛', final:'决赛' };
     const koTableRows = allSorted.map(([uid, s]) => {
+        const champPts     = (champPredsData[uid]||{}).champPoints     || 0;
+        const bonusPts     = (champPredsData[uid]||{}).bonusPoints     || 0;
         const midwayPts    = (champPredsData[uid]||{}).midwayPoints    || 0;
         const topScoPts    = (champPredsData[uid]||{}).topScorerPoints  || 0;
         const goldenPts    = (champPredsData[uid]||{}).goldenBootPoints  || 0;
@@ -3495,7 +3497,9 @@ function renderLeaderboard() {
                                      : `<td class="text-center py-1.5 px-0.5 text-xs text-gray-600">–</td>`;
         return `<tr class="border-b border-white/5 ${isMe?'text-yellow-300':'text-gray-300'}">
             <td class="py-1.5 pr-1.5 font-bold truncate max-w-[60px] text-xs">${_cn(s.name)||'?'}</td>
+            ${c(champPts,   'text-yellow-400')}
             ${c(midwayPts,  'text-amber-400')}
+            ${c(bonusPts,   'text-amber-300')}
             ${c(topScoPts,  'text-orange-400')}
             ${c(goldenPts,  'text-red-400')}
             ${c(top2Pts,    'text-green-400')}
@@ -3516,11 +3520,13 @@ function renderLeaderboard() {
             <span id="koRoundChevron" class="text-gray-500 text-xs">▶ 展开</span>
         </button>
         <div id="koRoundScoresSection" class="hidden mt-3 overflow-x-auto">
-            <table class="w-full min-w-[620px]">
+            <table class="w-full min-w-[720px]">
                 <thead>
                     <tr class="text-gray-500 border-b border-white/10 text-[10px]">
                         <th class="text-left py-1.5 pr-1.5">玩家</th>
+                        <th class="text-center py-1.5 px-0.5 text-yellow-400">冠军预测</th>
                         <th class="text-center py-1.5 px-0.5 text-amber-500">半程冠军</th>
+                        <th class="text-center py-1.5 px-0.5 text-amber-300">双选一致</th>
                         <th class="text-center py-1.5 px-0.5 text-orange-400">小组射手</th>
                         <th class="text-center py-1.5 px-0.5 text-red-400">最佳射手</th>
                         <th class="text-center py-1.5 px-0.5 text-green-500">前两名</th>
@@ -3577,16 +3583,18 @@ window.loadSimLeaderboard = async function(forceRefresh) {
 
     // Update sidebar score + rank to reflect simulation
     if (currentUser?.name) {
-        const myIdx = result.scores.findIndex(s => s.name === currentUser.name);
-        if (myIdx >= 0) {
-            const me = result.scores[myIdx];
-            const simRank = myIdx + 1;
+        const me = result.scores.find(s => s.name === currentUser.name);
+        if (me) {
+            // Same competition-ranking fix as _updateSidebarUser: ties share a rank instead of
+            // being split by array position.
+            const simRank = result.scores.filter(s => s.simPts > me.simPts).length + 1;
+            const tied = result.scores.filter(s => s.simPts === me.simPts).length > 1;
             const total = result.scores.length;
             const medals = ['🥇','🥈','🥉'];
             const scoreEl = document.getElementById('sidebarScore');
             const rankEl = document.getElementById('sidebarRank');
             if (scoreEl) scoreEl.textContent = me.simPts;
-            if (rankEl) rankEl.textContent = `${medals[simRank-1]||`#${simRank}`} 模拟第 ${simRank} 名，共 ${total} 人`;
+            if (rankEl) rankEl.textContent = `${medals[simRank-1]||`#${simRank}`} 模拟${tied ? '并列' : ''}第 ${simRank} 名，共 ${total} 人`;
         }
     }
 };
@@ -4023,10 +4031,14 @@ function _updateSidebarUser() {
         .sort((a,b) => (b.total||0) - (a.total||0));
     const my = all.find(s => s.name === currentUser.name);
     if (scoreEl) scoreEl.textContent = my?.total || 0;
-    if (rankEl && all.length > 0) {
-        const rank = all.findIndex(s => s.name === currentUser.name) + 1;
+    if (rankEl && all.length > 0 && my) {
+        // Competition ranking: a tie shares the same rank number rather than being split into
+        // consecutive ranks by array position (see also generateRecapCard's myRank).
+        const myTotal = my.total || 0;
+        const rank = all.filter(s => (s.total || 0) > myTotal).length + 1;
+        const tied = all.filter(s => (s.total || 0) === myTotal).length > 1;
         const medals = ['🥇','🥈','🥉'];
-        rankEl.textContent = rank > 0 ? `${medals[rank-1] || `#${rank}`} 第 ${rank} 名，共 ${all.length} 人` : '';
+        rankEl.textContent = `${medals[rank-1] || `#${rank}`} ${tied ? '并列' : ''}第 ${rank} 名，共 ${all.length} 人`;
     }
 }
 
@@ -4070,8 +4082,8 @@ function _refreshMyProfileCard() {
             avatarEl.innerHTML = currentUser.name.charAt(0).toUpperCase();
         }
     }
-    // Recap cards: early access, 拉球王 only for now
-    document.getElementById('recapBtnRow')?.classList.toggle('hidden', currentUser.name !== '拉球王');
+    // Recap cards: open to everyone
+    document.getElementById('recapBtnRow')?.classList.remove('hidden');
 }
 
 window.handleAvatarUpload = function(event) {
