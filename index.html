@@ -5004,8 +5004,9 @@ window.generateRecapCard = async function(mode = 'quiz') {
         ? (cp.champion === cp.midway ? `从头到尾力挺 ${cp.champion}，忠诚玩家` : `半程从 ${cp.champion} 倒戈支持 ${cp.midway}，墙头草认证`)
         : null;
 
-    // ── All-room awards roster: every named player gets exactly one title, from their single most
-    // distinctive stat (first match in this priority order wins) — so nobody in the room goes unmentioned.
+    // ── All-room awards roster: gather every plausible title for every named player, each tagged with
+    // a numeric "strength", then greedily hand out the strongest (uid, title) pair first so nobody in
+    // the room goes unmentioned AND no two players end up with the same title.
     function _bestStreakFor(u) {
         let cur = 0, best = 0;
         chronoMatches.forEach(([mid, m]) => {
@@ -5016,31 +5017,79 @@ window.generateRecapCard = async function(mode = 'quiz') {
         });
         return best;
     }
-    function _pickAwardTitle(u, uName) {
+    function _luckyScorerFor(u) {
+        const scorerPtsForRound = rnd => ({ sf: 12, qf: 8, final: 8, r16: 5, r32: 4 }[rnd] || 4);
+        const gains = {};
+        chronoMatches.forEach(([mid, m]) => {
+            const p = koAllPredsData[u]?.[mid];
+            if (p?.scorer && p.scorer === m.result.scorer) gains[p.scorer] = (gains[p.scorer] || 0) + scorerPtsForRound(m.round);
+        });
+        return Object.entries(gains).sort((a, b) => b[1] - a[1])[0] || null;
+    }
+    function _teamRecordsFor(u) {
+        const advPtsForRound = rnd => ({ sf: 8, qf: 6, final: 6, r16: 3, r32: 2 }[rnd] || 2);
+        const stats = {};
+        chronoMatches.forEach(([mid, m]) => {
+            const p = koAllPredsData[u]?.[mid];
+            if (!p?.advance) return;
+            stats[p.advance] = stats[p.advance] || { hits: 0, misses: 0, lost: 0 };
+            if (p.advance === m.result.advance) stats[p.advance].hits++;
+            else { stats[p.advance].misses++; stats[p.advance].lost += advPtsForRound(m.round); }
+        });
+        const entries = Object.entries(stats);
+        const best = entries.filter(([, s]) => s.hits + s.misses >= 3 && s.misses === 0).sort((a, b) => b[1].hits - a[1].hits)[0] || null;
+        const worst = entries.filter(([, s]) => s.lost >= 8).sort((a, b) => b[1].lost - a[1].lost)[0] || null;
+        return { best, worst };
+    }
+    function _candidatesFor(u, uName) {
+        const out = [];
         const heroMatch = matchFacts.find(f => !f.majorityRight && f.rightUids.length === 1 && f.rightUids[0] === u) || null;
-        if (heroMatch) return { title: '孤胆英雄', detail: `「${heroMatch.label}」全场唯独他/她押中了${heroMatch.actual}` };
+        if (heroMatch) out.push({ title: '孤胆英雄', strength: heroMatch.frac * 100, detail: `「${heroMatch.label}」全场唯独他/她押中了${heroMatch.actual}` });
+
         const { carry, flop } = _carryFlopFor(u);
+        if (carry && carry.dev >= 6) out.push({ title: 'Carry之王', strength: carry.dev, detail: `「${carry.label}」独得${Math.round(carry.myPts)}分（全场平均${carry.avg.toFixed(1)}）` });
+        if (flop && flop.dev <= -6) out.push({ title: '翻车现场', strength: -flop.dev, detail: `「${flop.label}」只拿了${Math.round(flop.myPts)}分（全场平均${flop.avg.toFixed(1)}）` });
+
         const ml = _misplacedLoyaltyFor(u);
-        if (ml && ml[1].attempts >= 3) return { title: '死心塌地', detail: `${ml[1].attempts}次押${ml[0]}首开纪录，从未等到` };
-        if (carry && carry.dev >= 12) return { title: 'carry之王', detail: `「${carry.label}」独得${Math.round(carry.myPts)}分（全场平均${carry.avg.toFixed(1)}）` };
-        if (flop && flop.dev <= -10) return { title: '翻车现场', detail: `「${flop.label}」只拿了${Math.round(flop.myPts)}分（全场平均${flop.avg.toFixed(1)}）` };
+        if (ml) out.push({ title: '死心塌地', strength: ml[1].attempts * 10, detail: `${ml[1].attempts}次押${ml[0]}首开纪录，从未等到` });
+
+        const lucky = _luckyScorerFor(u);
+        if (lucky) out.push({ title: '幸运射手', strength: lucky[1], detail: `靠押中${lucky[0]}累计拿了${lucky[1]}分` });
+
         const streak = _bestStreakFor(u);
-        if (streak >= 6) return { title: '连胜达人', detail: `连续${streak}场命中` };
-        if (ml) return { title: '痴心错付', detail: `${ml[1].attempts}次押${ml[0]}首开纪录，颗粒无收` };
-        if (carry) return { title: '高光时刻', detail: `「${carry.label}」比全场平均高出${carry.dev.toFixed(1)}分` };
-        if (flop) return { title: '低谷时刻', detail: `「${flop.label}」比全场平均低了${Math.abs(flop.dev).toFixed(1)}分` };
+        if (streak >= 4) out.push({ title: '连胜达人', strength: streak, detail: `连续${streak}场命中` });
+
+        const { best: bestTeamRec, worst: worstTeamRec } = _teamRecordsFor(u);
+        if (bestTeamRec) out.push({ title: '晋级判官', strength: bestTeamRec[1].hits * 5, detail: `晋级判断${bestTeamRec[1].hits}中${bestTeamRec[1].hits}，看${bestTeamRec[0]}从未失手` });
+        if (worstTeamRec) out.push({ title: '看走眼大师', strength: worstTeamRec[1].lost, detail: `押${worstTeamRec[0]}晋级${worstTeamRec[1].misses}次全部落空，扔了${worstTeamRec[1].lost}分` });
+
         const ucp2 = champPredsData[u] || {};
         if (ucp2.champion && ucp2.midway) {
-            if (ucp2.champion !== ucp2.midway) return { title: '墙头草', detail: `冠军人选从${ucp2.champion}半程倒戈到${ucp2.midway}` };
-            return { title: '忠诚玩家', detail: `冠军人选${ucp2.champion}从头到尾没变过` };
+            if (ucp2.champion !== ucp2.midway) out.push({ title: '墙头草', strength: 5, detail: `冠军人选从${ucp2.champion}半程倒戈到${ucp2.midway}` });
+            else out.push({ title: '忠诚玩家', strength: 3, detail: `冠军人选${ucp2.champion}从头到尾没变过` });
         }
+        // Always-available fallback so nobody can end up with zero candidates
         const hr = _calcOverallHitRate(u, uName);
         const pct = hr.total ? Math.round(hr.correct / hr.total * 100) : 0;
-        return { title: '稳健型选手', detail: `命中率${pct}%，不功不过` };
+        out.push({ title: '稳健型选手', strength: 0.1, detail: `命中率${pct}%，不功不过` });
+        return out;
     }
-    const awardsRoster = namedUidsAll.map(u => {
+    const _allAwardCandidates = [];
+    namedUidsAll.forEach(u => {
         const uName = scoresData[u]?.name || '';
-        return { uid: u, name: uName, isMe: u === uid, ..._pickAwardTitle(u, uName) };
+        _candidatesFor(u, uName).forEach(c => _allAwardCandidates.push({ uid: u, name: uName, ...c }));
+    });
+    _allAwardCandidates.sort((a, b) => b.strength - a.strength);
+    const _awardAssigned = {};
+    const _usedTitles = new Set();
+    _allAwardCandidates.forEach(c => {
+        if (_awardAssigned[c.uid] || _usedTitles.has(c.title)) return;
+        _awardAssigned[c.uid] = c;
+        _usedTitles.add(c.title);
+    });
+    const awardsRoster = namedUidsAll.map(u => {
+        const c = _awardAssigned[u];
+        return { uid: u, name: c.name, isMe: u === uid, title: c.title, detail: c.detail };
     });
 
     const magicNotes = [];
@@ -5143,14 +5192,8 @@ window.generateRecapCard = async function(mode = 'quiz') {
         }
     }
     if (p6) paragraphs.push(p6);
-
-    let pHero = '';
-    if (loneHero && loneHero.mid !== uniqueCallMid) {
-        const isMe = loneHero.rightUids[0] === uid;
-        const heroName = isMe ? '你' : (scoresData[loneHero.rightUids[0]]?.name || '神秘玩家');
-        pHero = `全场孤胆英雄奖颁给「${HL(loneHero.label)}」这一战——${Math.round(loneHero.frac * 100)}%的人都押${loneHero.topTeam}，唯独${heroName}一人押中了真正的赢家${loneHero.actual}${isMe ? '，简直是先知本尊' : ''}。`;
-    }
-    if (pHero) paragraphs.push(pHero);
+    // Note: no standalone "lone hero" callout here anymore — it's now folded into the
+    // all-room awards roster below, which names every player (including any lone heroes) once each.
 
     let p7 = '';
     if (mostDivided) {
