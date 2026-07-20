@@ -1399,20 +1399,30 @@ async function loadPublicLandingSummary() {
     if (!el || !db) return;
     const PUBLIC_ROOM = 'public';
     try {
-        const [settingsSnap, scoresSnap, matchesSnap, predsSnap, champPredsSnap] = await Promise.all([
+        const [settingsSnap, scoresSnap, matchesSnap, predsSnap, champPredsSnap, dqdmScoresSnap] = await Promise.all([
             get(ref(db, `rooms/${PUBLIC_ROOM}/settings`)),
             get(ref(db, `rooms/${PUBLIC_ROOM}/scores`)),
             get(ref(db, `rooms/${PUBLIC_ROOM}/ko/matches`)),
             get(ref(db, `rooms/${PUBLIC_ROOM}/ko/preds`)),
             get(ref(db, `rooms/${PUBLIC_ROOM}/champPreds`)),
+            get(ref(db, `rooms/dqdm/scores`)),
         ]);
         const settings = settingsSnap.exists() ? settingsSnap.val() : {};
         const scores = scoresSnap.exists() ? scoresSnap.val() : {};
         const matches = matchesSnap.exists() ? matchesSnap.val() : {};
         const preds = predsSnap.exists() ? predsSnap.val() : {};
         const champPreds = champPredsSnap.exists() ? champPredsSnap.val() : {};
+        const dqdmScores = dqdmScoresSnap.exists() ? dqdmScoresSnap.val() : {};
         const champion = settings?.champion || '';
         const namedUids = Object.keys(scores).filter(u => scores[u]?.name && scores[u].name !== '小助手');
+
+        // Overall top predictor across the real prize room — a deliberate, named exception
+        // to the "no individuals" rule for anonymous visitors, per the site owner's call.
+        let topScorer = null;
+        Object.values(dqdmScores).forEach(v => {
+            if (!v?.name || v.name === '小助手') return;
+            if (!topScorer || (v.total || 0) > topScorer.total) topScorer = { name: v.name, total: v.total || 0 };
+        });
         const finishedEntries = Object.entries(matches).filter(([, m]) => m.status === 'finished' && m.result);
         const finishedCount = finishedEntries.length;
         const totalCount = Object.keys(matches).length;
@@ -1492,7 +1502,8 @@ async function loadPublicLandingSummary() {
 
         el.innerHTML = `
             <div class="glass rounded-2xl p-4 mb-3">
-                ${champion ? `<p class="text-sm text-gray-300 mb-3 text-center">🏆 本届冠军 <span class="text-yellow-400 font-black">${champion}</span></p>` : ''}
+                ${champion ? `<p class="text-sm text-gray-300 mb-1 text-center">🏆 本届世界杯冠军 <span class="text-yellow-400 font-black">${champion}</span></p>` : ''}
+                ${topScorer ? `<p class="text-sm text-gray-300 mb-3 text-center">🎯 本届世界杯预测王 <span class="text-yellow-400 font-black">${topScorer.name}</span></p>` : ''}
                 <div class="flex gap-2 mb-3">
                     ${tile('参赛人数', namedUids.length)}
                     ${tile('淘汰赛战罢', `${finishedCount}/${totalCount}`)}
@@ -6187,7 +6198,7 @@ window.generateEventSummaryPoster = async function() {
     const HL_ROW_H = 46;
     const HL_H = 40 + highlights.length * HL_ROW_H;
     const FOOTER_H = 156;
-    const MEMORIAL_H = 28;
+    const MEMORIAL_H = 48;
     const H = HDR_H + 24 + PODIUM_H + 20 + HL_H + 20 + FOOTER_H + MEMORIAL_H + P;
 
     const SCALE = 2;
@@ -6299,10 +6310,12 @@ window.generateEventSummaryPoster = async function() {
     ctx.textBaseline = 'alphabetic';
 
     // A quiet, restrained memorial — no likeness, just a small mark of remembrance
-    cy += FOOTER_H + 24;
+    cy += FOOTER_H + 20;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = f(9); ctx.fillStyle = C.gray2;
+    ctx.fillText('built by lajin', W / 2, cy);
     ctx.font = f(11); ctx.fillStyle = C.gray2;
-    ctx.fillText('🐾 in memory of 旺旺与她的孩子们 🧡', W / 2, cy);
+    ctx.fillText('🐾 in memory of 旺旺与她的孩子们 🧡', W / 2, cy + 20);
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 
     cv.toBlob(blob => {
