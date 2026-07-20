@@ -732,7 +732,7 @@ setTimeout(function() {
                         <button onclick="generateRecapCard('quiz')" class="flex-1 text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-purple-500/30" style="background:linear-gradient(135deg,#a855f7,#ec4899)">🎬 生成我的竞猜回忆</button>
                         <button onclick="generateRecapCard('full')" class="flex-1 text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-purple-500/30" style="background:linear-gradient(135deg,#a855f7,#ec4899)">🎬 生成我的竞猜+看球回忆</button>
                     </div>
-                    <button onclick="generateEventSummaryPoster()" class="w-full text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-amber-500/30" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">📊 生成全场总结海报（可发朋友圈）</button>
+                    <button onclick="generateEventSummaryPoster()" class="w-full text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-amber-500/30" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">📊 生成整届杯赛总结海报（可发朋友圈）</button>
                 </div>
                 <div id="myPredsContainer" class="space-y-2">
                     <div class="text-center py-8 text-gray-400">暂无预测</div>
@@ -1459,7 +1459,7 @@ async function loadPublicLandingSummary() {
         noDramaMatches.sort((a, b) => (roundOrder[b.round] ?? -1) - (roundOrder[a.round] ?? -1));
 
         const highlights = [];
-        if (biggestUpset) highlights.push(`💥 全场最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
+        if (biggestUpset) highlights.push(`💥 整届杯赛最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
         if (noDramaMatches.length) highlights.push(`😌 整届杯赛有${noDramaMatches.length}场淘汰赛，所有人对晋级球队的判断完全一致且全部猜对（比如「${noDramaMatches[0].label}」）`);
         if (avgPct != null) highlights.push(`📈 淘汰赛胜负预测平均命中率${avgPct}%`);
 
@@ -1470,8 +1470,9 @@ async function loadPublicLandingSummary() {
                     ${tile('参赛人数', namedUids.length)}
                     ${tile('淘汰赛战罢', `${finishedCount}/${totalCount}`)}
                 </div>
-                ${highlights.length ? `<div class="text-left border-t border-white/10 pt-3" style="min-height:34px">
-                    <p id="lpHlText" class="text-[11px] text-gray-400 leading-snug" style="transition:opacity .4s ease"></p>
+                ${highlights.length ? `<div class="text-left border-t border-white/10 pt-3" style="min-height:56px">
+                    <div id="lpHlText" class="space-y-1.5" style="transition:opacity .4s ease"></div>
+                    <div id="lpHlDots" class="flex gap-1 justify-center mt-2"></div>
                 </div>` : ''}
             </div>`;
         if (highlights.length) _startLpHighlightRotator(highlights);
@@ -1483,7 +1484,17 @@ async function loadPublicLandingSummary() {
 let _lpHlRotatorTimer = null;
 function _startLpHighlightRotator(highlights) {
     if (_lpHlRotatorTimer) clearInterval(_lpHlRotatorTimer);
-    let i = 0;
+    // Two lines per "page", so a page rotates as a pair rather than one lonely line at a time
+    const pages = [];
+    for (let k = 0; k < highlights.length; k += 2) pages.push(highlights.slice(k, k + 2));
+    let page = 0;
+    const renderDots = () => {
+        const dotsEl = document.getElementById('lpHlDots');
+        if (!dotsEl) return;
+        dotsEl.innerHTML = pages.map((_, idx) =>
+            `<span style="width:${idx === page ? '14px' : '5px'}; height:5px; border-radius:3px; background:${idx === page ? '#fbbf24' : 'rgba(255,255,255,0.25)'}; transition:all .3s ease; display:inline-block"></span>`
+        ).join('');
+    };
     const show = () => {
         const el = document.getElementById('lpHlText');
         if (!el) { clearInterval(_lpHlRotatorTimer); return; }
@@ -1491,13 +1502,14 @@ function _startLpHighlightRotator(highlights) {
         setTimeout(() => {
             const el2 = document.getElementById('lpHlText');
             if (!el2) return;
-            el2.textContent = highlights[i % highlights.length];
+            el2.innerHTML = pages[page % pages.length].map(h => `<p class="text-[11px] text-gray-400 leading-snug">${h}</p>`).join('');
             el2.style.opacity = '1';
-            i++;
-        }, 400);
+            renderDots();
+            page++;
+        }, 350);
     };
     show();
-    _lpHlRotatorTimer = setInterval(show, 4000);
+    _lpHlRotatorTimer = setInterval(show, 2800);
 }
 
 // Danmaku: anonymous excerpts from everyone's match-watching diary notes (checkin.*.note),
@@ -1531,14 +1543,16 @@ async function loadLandingDanmaku() {
         laneLastUse[best] = now;
         return best;
     }
+    const DANMAKU_COLORS = ['#fde047', '#7dd3fc', '#fca5a5', '#86efac', '#f0abfc', '#fdba74', '#a5b4fc', '#ffffff'];
     function spawnOne() {
         if (!document.getElementById('landingPage') || document.getElementById('landingPage').classList.contains('hidden')) return;
         const text = notes[Math.floor(Math.random() * notes.length)];
         const lane = pickLane(Date.now());
         const topPct = 6 + lane * (86 / LANES);
+        const color = DANMAKU_COLORS[Math.floor(Math.random() * DANMAKU_COLORS.length)];
         const span = document.createElement('div');
         span.textContent = text.length > 32 ? text.slice(0, 32) + '…' : text;
-        span.style.cssText = `position:absolute; top:${topPct}%; left:0; white-space:nowrap; color:rgba(255,255,255,0.88); font-size:13px; font-weight:600; text-shadow:0 1px 4px rgba(0,0,0,0.85); will-change:transform;`;
+        span.style.cssText = `position:absolute; top:${topPct}%; left:0; white-space:nowrap; color:${color}; font-size:13px; font-weight:700; text-shadow:0 1px 4px rgba(0,0,0,0.9); will-change:transform;`;
         const duration = 11 + Math.random() * 7;
         span.style.animation = `lpDanmakuFly ${duration}s linear forwards`;
         container.appendChild(span);
@@ -5170,7 +5184,7 @@ function computeAwardsRoster() {
         const soloPick = Object.entries(myScorerPicks)
             .filter(([scorer, cnt]) => cnt >= 2 && !namedUidsAll.some(u2 => u2 !== u && chronoMatches.some(([mid]) => koAllPredsData[u2]?.[mid]?.scorer === scorer)))
             .sort((a, b) => b[1] - a[1])[0] || null;
-        if (soloPick) out.push({ title: '剑走偏锋', strength: soloPick[1] * 8, detail: `全场唯一敢押${soloPick[0]}首开纪录的人，一连押了${soloPick[1]}次，虽然没等到，但没人有这份独立判断` });
+        if (soloPick) out.push({ title: '剑走偏锋', strength: soloPick[1] * 8, detail: `整届杯赛唯一敢押${soloPick[0]}首开纪录的人，一连押了${soloPick[1]}次，虽然没等到，但没人有这份独立判断` });
 
         const lucky = _luckyScorerFor(u);
         if (lucky && lucky[1] >= 15) out.push({ title: '幸运射手', strength: lucky[1] * 0.3, detail: `靠押中${lucky[0]}累计拿了${lucky[1]}分` });
@@ -5218,7 +5232,7 @@ function computeAwardsRoster() {
                 const gapBefore = _preLastMatchTotal(priorLeader) - myPreLast;
                 out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `最后一战前你还落后${priorLeaderName}${gapBefore}分屈居第二，结果那一战你独得${myLastPts}分，绝地反超${gapBelow}分夺冠` });
             } else {
-                out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `总分第1名（${myTotal}分），领先第2名${gapBelow}分，全场独一档` });
+                out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `总分第1名（${myTotal}分），领先第2名${gapBelow}分，整届杯赛独一档` });
             }
         }
         if (rank === 2 || rank === 3) {
@@ -5580,7 +5594,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
         const soloPick = Object.entries(myScorerPicks)
             .filter(([scorer, cnt]) => cnt >= 2 && !namedUidsAll.some(u2 => u2 !== u && chronoMatches.some(([mid]) => koAllPredsData[u2]?.[mid]?.scorer === scorer)))
             .sort((a, b) => b[1] - a[1])[0] || null;
-        if (soloPick) out.push({ title: '剑走偏锋', strength: soloPick[1] * 8, detail: `全场唯一敢押${soloPick[0]}首开纪录的人，一连押了${soloPick[1]}次，虽然没等到，但没人有这份独立判断` });
+        if (soloPick) out.push({ title: '剑走偏锋', strength: soloPick[1] * 8, detail: `整届杯赛唯一敢押${soloPick[0]}首开纪录的人，一连押了${soloPick[1]}次，虽然没等到，但没人有这份独立判断` });
 
         // Discounted relative to other categories: almost everyone in the room profited from the same
         // obvious top scorer at some point, so this isn't a very distinctive claim on its own — it
@@ -5635,7 +5649,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
                 const gapBefore = _preLastMatchTotal(priorLeader) - myPreLast;
                 out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `最后一战前你还落后${priorLeaderName}${gapBefore}分屈居第二，结果那一战你独得${myLastPts}分，绝地反超${gapBelow}分夺冠` });
             } else {
-                out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `总分第1名（${myTotal}分），领先第2名${gapBelow}分，全场独一档` });
+                out.push({ title: '总冠军', strength: 50 + gapBelow, detail: `总分第1名（${myTotal}分），领先第2名${gapBelow}分，整届杯赛独一档` });
             }
         }
 
@@ -5738,7 +5752,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
 
     let p5 = '';
     if (bestStreak >= 3) p5 += `你还打出过连续${HL(bestStreak + '场')}命中的连胜纪录，手感火热的时候真的挡不住。`;
-    if (uniqueCall) p5 += `更有一次全场独具慧眼——${HL(uniqueCall)}，整个房间只有你一个人猜对。`;
+    if (uniqueCall) p5 += `更有一次整届杯赛独具慧眼——${HL(uniqueCall)}，整个房间只有你一个人猜对。`;
     if (p5) paragraphs.push(p5);
 
     // Carry / flop, relative to the room average on the same match or round (not just your own absolute numbers)
@@ -5765,12 +5779,12 @@ window.generateRecapCard = async function(mode = 'quiz') {
     if (biggestUpset) {
         const bu = biggestUpset;
         if (bu.frac >= 0.95) {
-            p6 += `说说全场的趣事：「${HL(bu.label)}」这一战，房间里${bu.n}人清一色都押${bu.topTeam}晋级，结果爆冷输给了${HL(bu.actual)}，堪称本届最没人猜到的一次翻车。`;
+            p6 += `说说整届杯赛的趣事：「${HL(bu.label)}」这一战，房间里${bu.n}人清一色都押${bu.topTeam}晋级，结果爆冷输给了${HL(bu.actual)}，堪称本届最没人猜到的一次翻车。`;
         } else {
-            p6 += `说说全场的趣事：「${HL(bu.label)}」这一战，${Math.round(bu.frac * 100)}%的人（${bu.topN}/${bu.n}）都以为${bu.topTeam}稳了，最后爆冷输给${HL(bu.actual)}，全场哗然。`;
+            p6 += `说说整届杯赛的趣事：「${HL(bu.label)}」这一战，${Math.round(bu.frac * 100)}%的人（${bu.topN}/${bu.n}）都以为${bu.topTeam}稳了，最后爆冷输给${HL(bu.actual)}，全场哗然。`;
         }
         if (bu.mid !== uniqueCallMid && bu.rightUids.includes(uid) && bu.rightUids.length <= 3) {
-            p6 += `而你，正是全场仅有的${bu.rightUids.length}人看穿这一切的人之一，堪称先知。`;
+            p6 += `而你，正是整届杯赛仅有的${bu.rightUids.length}人看穿这一切的人之一，堪称先知。`;
         }
     }
     if (p6) paragraphs.push(p6);
@@ -5780,7 +5794,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
     let p7 = '';
     if (mostDivided) {
         const md = mostDivided;
-        p7 += `全场分歧最大的一战是「${HL(md.label)}」——押${md.topTeam}和押${md.actual}的人几乎五五开，最终${HL(md.actual)}笑到了最后。`;
+        p7 += `整届杯赛分歧最大的一战是「${HL(md.label)}」——押${md.topTeam}和押${md.actual}的人几乎五五开，最终${HL(md.actual)}笑到了最后。`;
         if (md.mid !== uniqueCallMid && md.rightUids.includes(uid) && md.rightUids.length <= Math.ceil(md.n / 2)) {
             p7 += `你就是看对方向的那一小撮人之一。`;
         }
@@ -6104,13 +6118,13 @@ window.generateEventSummaryPoster = async function() {
 
     // Build the highlight lines (kept short and single-line by design)
     const highlights = [];
-    if (biggestUpset) highlights.push(`💥 全场最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
+    if (biggestUpset) highlights.push(`💥 整届杯赛最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
     const roundOrder = { r32: 0, r16: 1, qf: 2, sf: 3, final: 4 };
     const noDramaMatches = matchFacts.filter(f => f.majorityRight && f.frac >= 0.99)
         .sort((a, b) => (roundOrder[koMatchesData[b.mid]?.round] ?? -1) - (roundOrder[koMatchesData[a.mid]?.round] ?? -1));
     if (noDramaMatches.length) highlights.push(`😌 整届杯赛有${noDramaMatches.length}场淘汰赛，所有人对晋级球队的判断完全一致且全部猜对（比如「${noDramaMatches[0].label}」）`);
     loneHeroes.slice(0, 2).forEach(h => highlights.push(`🕵️ ${h}`));
-    if (perfectTotal) highlights.push(`🎯 全场累计产生${perfectTotal}人次单场满分预测`);
+    if (perfectTotal) highlights.push(`🎯 整届杯赛累计产生${perfectTotal}人次单场满分预测`);
     const champ = roomSettingsData?.champion;
     if (champ) {
         const initialPickers = namedUidsAll.filter(u => champPredsData[u]?.champion === champ).length;
@@ -6122,7 +6136,7 @@ window.generateEventSummaryPoster = async function() {
         }
         highlights.push(line);
     }
-    if (hitRates.length) highlights.push(`📈 全场平均预测命中率${avgPct}%`);
+    if (hitRates.length) highlights.push(`📈 整届杯赛平均预测命中率${avgPct}%`);
 
     // ── Canvas ──
     const W = 800, P = 36;
@@ -6165,7 +6179,7 @@ window.generateEventSummaryPoster = async function() {
     ctx.font = f(15, true); ctx.fillStyle = C.gold;
     ctx.fillText('2026 FIFA 美加墨世界杯', W / 2, 46);
     ctx.font = f(28, true); ctx.fillStyle = C.ink;
-    ctx.fillText('竞猜大赛 · 全场总结', W / 2, 86);
+    ctx.fillText('竞猜大赛 · 整届总结', W / 2, 86);
     ctx.font = f(12); ctx.fillStyle = C.gray1;
     ctx.fillText('一个从零搭建的竞猜网站，陪大家追完了整届世界杯', W / 2, 122);
     ctx.font = f(10); ctx.fillStyle = C.accent;
@@ -6209,7 +6223,7 @@ window.generateEventSummaryPoster = async function() {
     cy += 10;
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.font = f(17, true); ctx.fillStyle = C.ink;
-    ctx.fillText('✨ 全场高光时刻', P, cy + 14);
+    ctx.fillText('✨ 整届杯赛高光时刻', P, cy + 14);
     cy += 34;
     rr(P, cy, W - P * 2, highlights.length * HL_ROW_H, 12, C.bgCard, C.border);
     highlights.forEach((h, i) => {
@@ -6261,7 +6275,7 @@ window.generateEventSummaryPoster = async function() {
         a.click();
         URL.revokeObjectURL(a.href);
     }, 'image/png');
-    toast('📊 全场总结海报已生成！');
+    toast('📊 整届杯赛总结海报已生成！');
 };
 
 // ─── Render: My Predictions ───────────────────────────────
