@@ -282,6 +282,11 @@ setTimeout(function() {
 <!-- ══════════ LANDING PAGE ══════════ -->
 <div id="landingPage" class="fixed inset-0 hidden" style="z-index:60; background:#010810">
 
+    <!-- Small corner login trigger — the public summary below is the default view for visitors -->
+    <button onclick="lpShowLogin()" id="lpCornerLogin"
+        class="fixed top-4 right-4 glass border border-white/15 text-gray-200 text-xs font-bold px-3.5 py-2 rounded-full active:scale-95 transition-transform"
+        style="z-index:61">登录 →</button>
+
     <!-- Player photo background (fixed, non-scrolling) -->
     <div class="absolute inset-0 overflow-hidden">
         <div style="display:flex; height:100%">
@@ -304,19 +309,21 @@ setTimeout(function() {
     <div class="absolute inset-0 overflow-y-auto">
         <div class="min-h-full flex flex-col items-center justify-center px-5 py-10 max-w-sm mx-auto" style="padding-bottom:50px">
 
-            <!-- Hero -->
+            <!-- Hero: public tournament summary (visible to anyone, no login needed) -->
             <div id="lpHero" class="w-full flex flex-col items-center text-center">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/1/17/2026_FIFA_World_Cup_emblem.svg"
                      alt="2026 FIFA World Cup"
-                     class="w-44 h-44 object-contain mb-4 drop-shadow-2xl"
+                     class="w-32 h-32 object-contain mb-3 drop-shadow-2xl"
                      style="filter:drop-shadow(0 0 24px rgba(247,201,72,0.35))"
                      onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/c/c3/FIFA_logo_without_slogan.svg'">
                 <h1 class="text-2xl font-black leading-snug mb-0.5">2026 美加墨世界杯</h1>
-                <p class="text-lg font-bold gold-text mb-1">懂球弟妹决战紫禁之巅</p>
-                <p class="text-xs text-gray-400 mb-8">和朋友一起预测 · 看谁最懂球</p>
+                <p class="text-sm font-bold gold-text mb-4">比赛已经圆满落幕！</p>
+                <div id="lpPublicSummary" class="w-full">
+                    <p class="text-xs text-gray-500 py-6">加载战报中...</p>
+                </div>
                 <button onclick="lpShowLogin()"
-                    class="w-full gold text-black font-black py-4 rounded-2xl text-xl active:scale-95 transition-transform shadow-2xl">
-                    开始预测 →
+                    class="w-full gold text-black font-black py-3.5 rounded-2xl text-base active:scale-95 transition-transform shadow-2xl mt-5">
+                    我也参加过，登录查看 →
                 </button>
             </div>
 
@@ -1374,6 +1381,46 @@ async function bootstrap() {
         startApp();
     } else {
         show('landingPage');
+        loadPublicLandingSummary();
+    }
+}
+
+// Public-facing tournament summary shown to anyone who lands on the page without a saved
+// session (e.g. someone scanning the QR code cold) — no login required to see this.
+async function loadPublicLandingSummary() {
+    const el = document.getElementById('lpPublicSummary');
+    if (!el || !db) return;
+    const PUBLIC_ROOM = 'public';
+    try {
+        const [settingsSnap, scoresSnap, matchesSnap] = await Promise.all([
+            get(ref(db, `rooms/${PUBLIC_ROOM}/settings`)),
+            get(ref(db, `rooms/${PUBLIC_ROOM}/scores`)),
+            get(ref(db, `rooms/${PUBLIC_ROOM}/ko/matches`)),
+        ]);
+        const settings = settingsSnap.exists() ? settingsSnap.val() : {};
+        const scores = scoresSnap.exists() ? scoresSnap.val() : {};
+        const matches = matchesSnap.exists() ? matchesSnap.val() : {};
+        const champion = settings?.champion || '';
+        const named = Object.values(scores).filter(s => s?.name && s.name !== '小助手');
+        const top3 = [...named].sort((a, b) => (b.total||0) - (a.total||0)).slice(0, 3);
+        const finishedCount = Object.values(matches).filter(m => m.status === 'finished').length;
+        const totalCount = Object.keys(matches).length;
+
+        const medalRow = top3.map((s, i) => {
+            const medal = ['🥇','🥈','🥉'][i];
+            return `<div class="flex items-center justify-between glass rounded-xl px-3.5 py-2.5">
+                <span class="flex items-center gap-2 text-sm font-bold text-white"><span>${medal}</span>${_cn ? (_cn(s.name)||s.name) : s.name}</span>
+                <span class="text-yellow-400 font-black text-sm">${s.total||0}分</span>
+            </div>`;
+        }).join('');
+
+        el.innerHTML = `
+            <div class="glass rounded-2xl p-4 mb-3 text-left">
+                ${champion ? `<p class="text-xs text-gray-400 mb-3 text-center">🏆 冠军 <span class="text-yellow-400 font-black">${champion}</span> · ${named.length}人参赛 · ${finishedCount}/${totalCount}场淘汰赛已结束</p>` : ''}
+                <div class="space-y-2">${medalRow || '<p class="text-xs text-gray-500 text-center py-2">暂无排名数据</p>'}</div>
+            </div>`;
+    } catch (e) {
+        el.innerHTML = `<p class="text-xs text-gray-500 py-4">战报加载失败，不影响登录</p>`;
     }
 }
 
@@ -5687,6 +5734,14 @@ window.generateEventSummaryPoster = async function() {
         perfectTotal += namedUidsAll.filter(u => koAllPredsData[u]?.[mid]?.points === mx).length;
     });
 
+    // Average + best hit-rate across the room, for a more meaningful closing stat than a bare headcount
+    const hitRates = namedUidsAll.map(u => {
+        const hr = _calcOverallHitRate(u, scoresData[u]?.name || '');
+        return { name: scoresData[u]?.name || '', pct: hr.total ? hr.correct / hr.total : 0 };
+    });
+    const avgPct = hitRates.length ? Math.round(hitRates.reduce((s, x) => s + x.pct, 0) / hitRates.length * 100) : 0;
+    const bestHitRate = hitRates.sort((a, b) => b.pct - a.pct)[0] || null;
+
     // Build the highlight lines (kept short and single-line by design)
     const highlights = [];
     if (biggestUpset) highlights.push(`💥 全场最大爆冷：「${biggestUpset.label}」，${Math.round(biggestUpset.frac * 100)}%的人押${biggestUpset.topTeam}，结果爆冷输给${biggestUpset.actual}`);
@@ -5694,7 +5749,7 @@ window.generateEventSummaryPoster = async function() {
     if (perfectTotal) highlights.push(`🎯 全场累计产生${perfectTotal}人次单场满分预测`);
     const champ = roomSettingsData?.champion;
     if (champ) highlights.push(`🏆 最终冠军：${champ}`);
-    highlights.push(`👥 共${namedUidsAll.length}人参赛，${chronoM.length}场淘汰赛全部战罢`);
+    if (bestHitRate) highlights.push(`📈 全场平均预测命中率${avgPct}%，最准的是${bestHitRate.name}（${Math.round(bestHitRate.pct * 100)}%）`);
 
     // ── Canvas ──
     const W = 800, P = 36;
@@ -11504,6 +11559,7 @@ let _lpPrize = true;
 
 window.lpShowLogin = function() {
     document.getElementById('lpHero').classList.add('hidden');
+    document.getElementById('lpCornerLogin')?.classList.add('hidden');
     const lf = document.getElementById('lpLogin');
     lf.classList.remove('hidden');
     setTimeout(() => document.getElementById('lp-name').focus(), 100);
@@ -11512,6 +11568,7 @@ window.lpShowLogin = function() {
 window.lpShowHero = function() {
     document.getElementById('lpLogin').classList.add('hidden');
     document.getElementById('lpHero').classList.remove('hidden');
+    document.getElementById('lpCornerLogin')?.classList.remove('hidden');
 };
 
 window.lpTogglePrize = function(val) {
