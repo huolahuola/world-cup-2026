@@ -710,9 +710,15 @@ setTimeout(function() {
                     <button onclick="generatePredCard('full')" class="flex-1 glass border border-white/20 text-white font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">📋 完整存档</button>
                     <button onclick="generatePredCard('share')" class="flex-1 gold text-black font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🌍 分享版</button>
                 </div>
-                <div id="recapBtnRow" class="hidden flex gap-2 mb-3">
-                    <button onclick="generateRecapCard('quiz')" class="flex-1 glass border border-purple-400/30 text-purple-200 font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🎬 生成我的竞猜回忆</button>
-                    <button onclick="generateRecapCard('full')" class="flex-1 glass border border-purple-400/30 text-purple-200 font-black py-3.5 rounded-2xl active:scale-95 transition-transform text-sm">🎬 生成我的竞猜+看球回忆</button>
+                <div id="recapBtnRow" class="hidden flex-col gap-2 mb-3">
+                    <p class="text-xs text-purple-300 font-bold flex items-center gap-1.5">
+                        <span class="bg-purple-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">NEW</span>
+                        新功能上线，快去看看你的专属回忆吧
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="generateRecapCard('quiz')" class="flex-1 text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-purple-500/30" style="background:linear-gradient(135deg,#a855f7,#ec4899)">🎬 生成我的竞猜回忆</button>
+                        <button onclick="generateRecapCard('full')" class="flex-1 text-white font-black py-4 rounded-2xl active:scale-95 transition-transform text-sm shadow-lg shadow-purple-500/30" style="background:linear-gradient(135deg,#a855f7,#ec4899)">🎬 生成我的竞猜+看球回忆</button>
+                    </div>
                 </div>
                 <div id="myPredsContainer" class="space-y-2">
                     <div class="text-center py-8 text-gray-400">暂无预测</div>
@@ -5101,7 +5107,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
             const isPerfect = Math.round(matchBest.myPts) === maxPossible;
             const soloPerfect = isPerfect && !namedUidsAll.some(u2 => u2 !== u && koAllPredsData[u2]?.[matchBest.mid]?.points === maxPossible);
             const detail = soloPerfect
-                ? `「${matchBest.label}」拿到了满分${maxPossible}分——全场唯一一个满分的人`
+                ? `「${matchBest.label}」这一场，全场唯独他/她一人拿到了满分${maxPossible}分`
                 : `「${matchBest.label}」单场独得${Math.round(matchBest.myPts)}分（全场平均${matchBest.avg.toFixed(1)}）`;
             out.push({ title: '单场之王', strength: matchBest.dev, detail });
         }
@@ -5129,7 +5135,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
         // obvious top scorer at some point, so this isn't a very distinctive claim on its own — it
         // should only win out for someone with nothing more specific going on.
         const lucky = _luckyScorerFor(u);
-        if (lucky) out.push({ title: '幸运射手', strength: lucky[1] * 0.3, detail: `靠押中${lucky[0]}累计拿了${lucky[1]}分` });
+        if (lucky && lucky[1] >= 15) out.push({ title: '幸运射手', strength: lucky[1] * 0.3, detail: `靠押中${lucky[0]}累计拿了${lucky[1]}分` });
 
         const streak = _bestStreakFor(u);
         if (streak >= 4) out.push({ title: '连胜达人', strength: streak, detail: `连续${streak}场比赛，90分钟胜平负结果全部猜中，一次没失手` });
@@ -5326,30 +5332,32 @@ window.generateRecapCard = async function(mode = 'quiz') {
 
     // Room-wide tally of literal perfect scores (every prediction on a match correct), split into
     // r32 (no exact-score requirement, so an easier bar) vs r16-and-up (much rarer, since it also
-    // requires nailing the precise score)
-    let perfectEasy = 0, perfectHard = 0, hardPerfectExample = null;
+    // requires nailing the precise score). Kept as a pure stat here — no individual named, since
+    // whoever earned one already gets their own line in the roster below.
+    let perfectEasy = 0, perfectHard = 0;
+    const teamPerfectCount = {};
     chronoMatches.forEach(([mid, m]) => {
         const maxPossible = _maxPtsForRound(m.round);
-        namedUidsAll.forEach(u => {
-            if (koAllPredsData[u]?.[mid]?.points === maxPossible) {
-                if (m.round === 'r32') perfectEasy++;
-                else {
-                    perfectHard++;
-                    if (!hardPerfectExample) hardPerfectExample = { name: scoresData[u]?.name || '', label: `${m.home}vs${m.away}` };
-                }
-            }
-        });
+        const n = namedUidsAll.filter(u => koAllPredsData[u]?.[mid]?.points === maxPossible).length;
+        if (!n) return;
+        if (m.round === 'r32') perfectEasy += n; else perfectHard += n;
+        teamPerfectCount[m.home] = (teamPerfectCount[m.home] || 0) + n;
+        teamPerfectCount[m.away] = (teamPerfectCount[m.away] || 0) + n;
     });
     const perfectTotal = perfectEasy + perfectHard;
+    const topPerfectTeam = Object.entries(teamPerfectCount).sort((a, b) => b[1] - a[1])[0] || null;
     if (perfectTotal > 0) {
         let line = `本届一共产生了${HL(perfectTotal + '人次')}单场满分`;
         if (perfectHard > 0) {
             line += `，其中${perfectEasy}次来自门槛较低的32强轮（不需要精确比分），真正高难度的满分（16进8及以上，还得猜中精确比分）只有${HL(perfectHard + '次')}`;
-            if (hardPerfectExample) line += `——${hardPerfectExample.name}的「${hardPerfectExample.label}」`;
         } else {
             line += '，全部来自32强轮';
         }
-        paragraphs.push(line + '。');
+        line += '。';
+        if (topPerfectTeam && topPerfectTeam[1] >= 4) {
+            line += `满分最集中的球队是${HL(topPerfectTeam[0])}——光是他们自己参与的比赛就贡献了${topPerfectTeam[1]}人次满分。`;
+        }
+        paragraphs.push(line);
     }
 
     // Every named player in the room gets one line — nobody goes unmentioned
@@ -5439,7 +5447,7 @@ window.generateRecapCard = async function(mode = 'quiz') {
     paragraphs.push(`不管这份成绩单满不满意，感谢你陪伴这一届世界杯走到了这里。下一届，2030年见！`);
 
     // ── Canvas ──
-    const W = 640, P = 28;
+    const W = 760, P = 28;
     const ff = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif';
     const f = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px ${ff}`;
     const FONT_SIZE = 15, LINE_H = 27, PARA_GAP = 12;
