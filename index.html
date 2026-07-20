@@ -3758,10 +3758,13 @@ function _renderSimHtml(scores, gamesNote, scorerNote) {
 
     let html = `<p class="text-[10px] text-gray-500 mb-3">${gamesNote}${scorerNote ? ' ' + scorerNote : ''}</p>`;
 
-    // Podium (top 3)
-    const p = [scores[0], scores[1], scores[2]];
+    // Competition ranking: a tie shares the same rank (and the next rank skips accordingly),
+    // instead of ties being split across consecutive ranks by array position.
+    const rankOf = s => scores.filter(x => x.simPts > s.simPts).length + 1;
+    const podium = scores.filter(s => rankOf(s) <= 3);
+    const rest = scores.filter(s => rankOf(s) > 3);
+
     const _simCard = (s, rank) => {
-        if (!s) return _simEmpty(rank);
         const isMe = s.name === currentUser?.name;
         const colors = ['rank-gold','rank-silver','rank-bronze'];
         const trophies = ['🏆','🥈','🥉'];
@@ -3775,15 +3778,30 @@ function _renderSimHtml(scores, gamesNote, scorerNote) {
                 <p class="text-[9px] text-center opacity-60 leading-relaxed max-w-full px-1">${s.breakdown.join(' ')}</p>
             </div></div>`;
     };
-    html += `<div class="grid grid-cols-3 gap-2 mb-3">
-        ${_simCard(p[1],2)}${_simCard(p[0],1)}${_simCard(p[2],3)}
-    </div>`;
 
-    // Remaining (4th+)
-    scores.slice(3).forEach((s, i) => {
+    if (podium.length === 3 && new Set(podium.map(rankOf)).size === 3) {
+        // Common case, no ties in the top 3: keep the classic silver-gold-bronze arrangement
+        html += `<div class="grid grid-cols-3 gap-2 mb-3">
+            ${_simCard(podium[1], 2)}${_simCard(podium[0], 1)}${_simCard(podium[2], 3)}
+        </div>`;
+    } else {
+        // Someone shares a podium rank — lay out every podium finisher (however many there are),
+        // grouped by rank, rather than forcing a fixed 3-slot grid that would silently drop one of them.
+        for (let r = 1; r <= 3; r++) {
+            const group = podium.filter(s => rankOf(s) === r);
+            if (!group.length) continue;
+            html += `<div class="grid gap-2 mb-3" style="grid-template-columns:repeat(${group.length},1fr)">
+                ${group.map(s => _simCard(s, r)).join('')}
+            </div>`;
+        }
+        if (!podium.length) html += `<div class="grid grid-cols-3 gap-2 mb-3">${[1,2,3].map(_simEmpty).join('')}</div>`;
+    }
+
+    // Remaining (rank 4+, correctly numbered even after a podium tie skips a rank)
+    rest.forEach(s => {
         const isMe = s.name === currentUser?.name;
         html += `<div class="glass rounded-2xl p-3 mb-2 flex items-center gap-3 ${isMe?'ring-2 ring-yellow-400':''}">
-            <span class="w-7 text-center font-black text-sm text-gray-400">${i+4}</span>
+            <span class="w-7 text-center font-black text-sm text-gray-400">${rankOf(s)}</span>
             ${_avatarHtml(s.uid, s.name, 'w-8 h-8', 'text-base')}
             <div class="flex-1 min-w-0">
                 <div class="font-bold text-sm ${isMe?'text-yellow-400':'text-white'} truncate">${_cn(s.name)||'?'}${isMe?' 👈':''}</div>
