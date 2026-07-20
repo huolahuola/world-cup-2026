@@ -1402,22 +1402,21 @@ async function loadPublicLandingSummary() {
         const matches = matchesSnap.exists() ? matchesSnap.val() : {};
         const champion = settings?.champion || '';
         const named = Object.values(scores).filter(s => s?.name && s.name !== '小助手');
-        const top3 = [...named].sort((a, b) => (b.total||0) - (a.total||0)).slice(0, 3);
         const finishedCount = Object.values(matches).filter(m => m.status === 'finished').length;
         const totalCount = Object.keys(matches).length;
 
-        const medalRow = top3.map((s, i) => {
-            const medal = ['🥇','🥈','🥉'][i];
-            return `<div class="flex items-center justify-between glass rounded-xl px-3.5 py-2.5">
-                <span class="flex items-center gap-2 text-sm font-bold text-white"><span>${medal}</span>${_cn ? (_cn(s.name)||s.name) : s.name}</span>
-                <span class="text-yellow-400 font-black text-sm">${s.total||0}分</span>
-            </div>`;
-        }).join('');
-
+        // Aggregate-only — no individual names or scores shown to an anonymous visitor
+        const tile = (label, value) => `<div class="glass rounded-xl px-2 py-3 text-center flex-1">
+            <p class="text-lg font-black text-yellow-400 leading-tight">${value}</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">${label}</p>
+        </div>`;
         el.innerHTML = `
-            <div class="glass rounded-2xl p-4 mb-3 text-left">
-                ${champion ? `<p class="text-xs text-gray-400 mb-3 text-center">🏆 冠军 <span class="text-yellow-400 font-black">${champion}</span> · ${named.length}人参赛 · ${finishedCount}/${totalCount}场淘汰赛已结束</p>` : ''}
-                <div class="space-y-2">${medalRow || '<p class="text-xs text-gray-500 text-center py-2">暂无排名数据</p>'}</div>
+            <div class="glass rounded-2xl p-4 mb-3">
+                ${champion ? `<p class="text-sm text-gray-300 mb-3 text-center">🏆 本届冠军 <span class="text-yellow-400 font-black">${champion}</span></p>` : ''}
+                <div class="flex gap-2">
+                    ${tile('参赛人数', named.length)}
+                    ${tile('淘汰赛战罢', `${finishedCount}/${totalCount}`)}
+                </div>
             </div>`;
     } catch (e) {
         el.innerHTML = `<p class="text-xs text-gray-500 py-4">战报加载失败，不影响登录</p>`;
